@@ -5,7 +5,7 @@
 
 SmartMovie is a cinematic Movies + TV catalog. The native Android application supports phones, tablets, foldables, ChromeOS, Android TV, Android XR Home Space, and Wear OS companion watches. A separate Compose Multiplatform application reuses one Kotlin UI/data layer across iPhone, iPad, macOS, Windows, Linux, and Web/Wasm.
 
-See [Platform support](docs/PLATFORM_SUPPORT.md) for the exact experience and release boundary on every device class, including why Android Auto is not declared.
+See the [screen gallery](docs/SCREENSHOTS.md) for the main app flows and responsive device layouts. [Platform support](docs/PLATFORM_SUPPORT.md) defines the exact experience and release boundary on every device class, including why Android Auto is not declared.
 
 The multiplatform project is isolated under [`multiplatform/`](multiplatform/README.md), so its current Kotlin/Compose toolchain cannot destabilize the locked Android/Play build.
 
