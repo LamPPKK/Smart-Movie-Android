@@ -1,0 +1,92 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build, lint and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          dependency-graph: generate-and-submit
+      - name: Verify, lint and build
+        run: ./gradlew --dependency-verification=strict :core:model:test testDebugUnitTest validateDebugScreenshotTest lintDebug :app:assembleDebug
+      - name: Check committed Room schema
+        run: git diff --exit-code -- core/database/schemas
+      - name: Upload reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-reports
+          path: |
+            **/build/reports/
+            **/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  emulator:
+    name: API 35 UI and launch smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Run Compose tests on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: ./gradlew --dependency-verification=strict connectedDebugAndroidTest
+
+  tv-emulator:
+    name: Android TV D-pad launch smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Launch dedicated TV activity and exercise remote input
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: android-tv
+          arch: x86_64
+          profile: tv_1080p
+          disable-animations: true
+          script: |
+            ./gradlew --dependency-verification=strict :app:installDebug
+            adb shell am start -W -n com.lamndt.smartmovie.debug/com.lamndt.smartmovie.TvActivity
+            adb shell input keyevent KEYCODE_DPAD_LEFT
+            adb shell input keyevent KEYCODE_DPAD_DOWN
+            adb shell input keyevent KEYCODE_DPAD_CENTER
+            adb shell input keyevent KEYCODE_BACK
+            adb shell dumpsys activity activities | grep -q com.lamndt.smartmovie.TvActivity
