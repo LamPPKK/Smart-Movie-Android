@@ -26,8 +26,6 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
-        with:
-          dependency-graph: generate-and-submit
       - name: Verify, lint and build
         run: ./gradlew --dependency-verification=strict :core:model:test testDebugUnitTest validateDebugScreenshotTest lintDebug :app:assembleDebug
       - name: Check committed Room schema
@@ -58,6 +56,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
+          target: google_apis
           arch: x86_64
           profile: pixel_6
           disable-animations: true
@@ -77,7 +76,7 @@ jobs:
       - name: Launch dedicated TV activity and exercise remote input
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 36
           target: android-tv
           arch: x86_64
           profile: tv_1080p
