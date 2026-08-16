@@ -19,6 +19,7 @@ rootProject.name = "SmartMovie"
 include(
     ":app",
     ":core:model",
+    ":core:remote",
     ":core:network",
     ":core:database",
     ":core:data",
@@ -30,4 +31,5 @@ include(
     ":feature:library",
     ":feature:detail",
     ":feature:about",
+    ":wear",
 )

@@ -36,6 +36,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,11 +67,18 @@ import com.lamndt.smartmovie.designsystem.isWindowWidthAtLeast
 import com.lamndt.smartmovie.model.CatalogRepository
 import com.lamndt.smartmovie.model.ImageKind
 import com.lamndt.smartmovie.model.LibraryCollection
+import com.lamndt.smartmovie.model.LibraryMembership
 import com.lamndt.smartmovie.model.LibraryRepository
 import com.lamndt.smartmovie.model.Loadable
 import com.lamndt.smartmovie.model.TitleDetail
 import com.lamndt.smartmovie.model.TitleSummary
 import com.lamndt.smartmovie.model.preferredTrailer
+
+data class DetailRemoteState(
+    val title: TitleSummary,
+    val membership: LibraryMembership,
+    val trailerKey: String?,
+)
 
 @Composable
 fun DetailRoute(
@@ -81,12 +90,24 @@ fun DetailRoute(
     onBack: () -> Unit,
     onTitleClick: (TitleSummary) -> Unit,
     modifier: Modifier = Modifier,
+    onRemoteStateChange: (DetailRemoteState) -> Unit = {},
+    onRemoteClosed: (String) -> Unit = {},
     detailViewModel: DetailViewModel = viewModel(
         key = title.libraryKey,
         factory = DetailViewModel.factory(title, catalog, library, language),
     ),
 ) {
     val state by detailViewModel.state.collectAsStateWithLifecycle()
+    val trailerKey = (state.detail as? Loadable.Loaded)
+        ?.value
+        ?.let { preferredTrailer(it.videos, language.substringBefore('-')) }
+        ?.key
+    LaunchedEffect(state.title, state.membership, trailerKey) {
+        onRemoteStateChange(DetailRemoteState(state.title, state.membership, trailerKey))
+    }
+    DisposableEffect(title.libraryKey) {
+        onDispose { onRemoteClosed(title.libraryKey) }
+    }
     DetailScreen(state, images, language, onBack, onTitleClick, detailViewModel::refresh, detailViewModel::toggle, modifier)
 }
 

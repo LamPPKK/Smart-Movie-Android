@@ -27,7 +27,7 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
       - name: Verify, lint and build
-        run: ./gradlew --dependency-verification=strict :core:model:test testDebugUnitTest validateDebugScreenshotTest lintDebug :app:assembleDebug
+        run: ./gradlew --dependency-verification=strict :core:model:test :core:remote:test testDebugUnitTest validateDebugScreenshotTest lintDebug :app:assembleDebug :wear:assembleDebug
       - name: Check committed Room schema
         run: git diff --exit-code -- core/database/schemas
       - name: Upload reports on failure

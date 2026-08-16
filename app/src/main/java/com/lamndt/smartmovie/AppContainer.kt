@@ -21,6 +21,9 @@ class AppContainer(context: Context, baseUrl: String) {
     private val network = CatalogNetworkDataSource(context, baseUrl)
     val catalog: CatalogRepository = DefaultCatalogRepository(network)
     val library: LibraryRepository = DefaultLibraryRepository(database)
+    val watchRemote: PhoneWatchRemoteController by lazy {
+        PhoneWatchRemoteController(context, library, applicationScope)
+    }
 
     private val imageConfiguration = MutableStateFlow(ImageConfiguration.Fallback)
     val images = ImageUrlFactory(imageConfiguration::value)

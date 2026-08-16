@@ -2,7 +2,9 @@
 
 [![Android CI](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml)
 
-SmartMovie is a cinematic Movies + TV catalog for Android phones, tablets, foldables, and Android TV. Version 2.0 is a clean Kotlin/Jetpack Compose rewrite that shares one application ID and one AAB across form factors.
+SmartMovie is a cinematic Movies + TV catalog for Android phones, tablets, foldables, ChromeOS, Android TV, Android XR Home Space, and Wear OS companion watches. Version 2.0 is a clean Kotlin/Jetpack Compose rewrite. The main AAB covers phone, large-screen, TV, ChromeOS, and XR-compatible devices; Wear OS is delivered as a paired companion AAB under the same application ID and signing identity.
+
+See [Platform support](docs/PLATFORM_SUPPORT.md) for the exact experience and release boundary on every device class, including why Android Auto is not declared.
 
 ## Requirements
 
@@ -19,29 +21,34 @@ The debug build calls `https://staging-catalog.smartmovie.app/`; release calls `
 ```bash
 ./gradlew --dependency-verification=strict \
   :core:model:test \
+  :core:remote:test \
   testDebugUnitTest \
   validateDebugScreenshotTest \
   lintDebug \
   :app:assembleDebug \
+  :wear:assembleDebug \
   :app:assembleDebugAndroidTest \
-  :app:bundleRelease
+  :app:bundleRelease \
+  :wear:bundleRelease
 ```
 
-The current automated baseline is 30 Android unit tests and three deterministic golden previews for compact phone, expanded tablet, and 1080p TV. CI additionally runs Compose instrumentation tests on an API 35 phone emulator and a dedicated Android TV launch/D-pad smoke test.
+The automated baseline includes the existing Android unit suite plus remote-protocol and Wear remote ViewModel tests, with four deterministic golden previews for compact phone, expanded tablet, 1080p TV, and a round Wear OS remote. CI additionally runs Compose instrumentation tests on an API 35 phone emulator and a dedicated Android TV launch/D-pad smoke test.
 
-Running `bundleRelease` without signing environment variables produces an unsigned local verification bundle. Use the protected `Android release AAB` workflow to create the signed Play artifact.
+Running `bundleRelease` without signing environment variables produces unsigned local verification bundles. Use the protected `Android release AAB` workflow to create both signed Play artifacts.
 
 ## Architecture
 
 - `app`: adaptive mobile entry point, dedicated Android TV entry point, Navigation 3, and constructor-injected `AppContainer`
 - `core:model`: immutable domain contracts and repository interfaces
+- `core:remote`: versioned phone/watch commands and state serialization
 - `core:network`: Retrofit 3, Kotlin Serialization, installation UUID, retry/cancellation policy
 - `core:database`: Room library and committed schema
 - `core:data`: repositories, image URL policy, and Paging sources
 - `core:designsystem`: cinematic palette, offline Newsreader/Manrope fonts, and shared accessible components
 - `feature:*`: Home, Explore, Search, Library, Detail, and About
+- `wear`: non-standalone Wear OS remote using Compose for Wear OS and the Google Play services Data Layer
 
-The UI uses unidirectional data flow with immutable `UiState`, `StateFlow`, and screen-level ViewModels. Android TV uses a separate 10-foot composition with TV navigation, D-pad focus treatment, search IME, and retained catalog state behind the detail overlay.
+The UI uses unidirectional data flow with immutable `UiState`, `StateFlow`, and screen-level ViewModels. Large windows switch to a navigation rail and list-detail layout; ChromeOS receives Ctrl/Cmd+1–4 tab shortcuts and Ctrl/Cmd+F for Search. Android TV uses a separate 10-foot composition with TV navigation, D-pad focus treatment, search IME, and retained catalog state behind the detail overlay. Wear OS mirrors the active phone detail and can open it, launch its trailer, or toggle Favorite and Watchlist.
 
 ## Private release inputs
 
@@ -60,5 +67,5 @@ Google Auto Backup includes only `smartmovie_library.db`; HTTP cache and the ins
 
 1. Revoke the historical TMDb credential and add a newly issued `TMDB_BEARER_TOKEN` to the protected staging and production environments.
 2. Configure the `staging-catalog.smartmovie.app` and `catalog.smartmovie.app` Cloudflare custom domains, then run the Worker workflow with staging smoke tests for all six locales.
-3. Add the four Android signing secrets above and run the protected `Android release AAB` workflow.
-4. Confirm Android CI passes its unit, lint, golden, phone emulator, and TV emulator jobs before uploading the AAB to Play Console.
+3. Add the four Android signing secrets above and run the protected `Android release AAB` workflow; upload both the main and Wear companion AABs to the same Play listing.
+4. Confirm Android CI passes its unit, lint, golden, phone emulator, and TV emulator jobs before uploading the AABs to Play Console.
