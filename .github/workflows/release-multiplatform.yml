@@ -1,0 +1,81 @@
+name: Compose Multiplatform release artifacts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: multiplatform
+
+jobs:
+  web:
+    name: Web Wasm and JavaScript bundles
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build browser distributions
+        run: ./gradlew --dependency-verification=strict :composeApp:wasmJsBrowserDistribution :composeApp:jsBrowserDistribution
+      - uses: actions/upload-artifact@v7
+        with:
+          name: smartmovie-web-2.0.0
+          path: |
+            multiplatform/composeApp/build/dist/wasmJs/productionExecutable/
+            multiplatform/composeApp/build/dist/js/productionExecutable/
+          if-no-files-found: error
+          retention-days: 14
+
+  desktop:
+    name: Desktop application image (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build portable application image
+        run: ./gradlew --dependency-verification=strict :composeApp:createDistributable
+      - uses: actions/upload-artifact@v7
+        with:
+          name: smartmovie-${{ runner.os }}-2.0.0
+          path: multiplatform/composeApp/build/compose/binaries/main/app/
+          if-no-files-found: error
+          retention-days: 14
+
+  ios-framework:
+    name: Unsigned iOS device framework
+    runs-on: macos-15
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Link release framework
+        run: ./gradlew --dependency-verification=strict :composeApp:linkReleaseFrameworkIosArm64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: smartmovie-ios-framework-2.0.0
+          path: multiplatform/composeApp/build/bin/iosArm64/releaseFramework/ComposeApp.framework/
+          if-no-files-found: error
+          retention-days: 14

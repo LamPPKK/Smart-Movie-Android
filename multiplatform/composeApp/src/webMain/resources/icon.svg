@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="SmartMovie">
+  <rect width="128" height="128" rx="28" fill="#050508"/>
+  <rect x="18" y="18" width="92" height="92" rx="24" fill="#e01c47"/>
+  <path fill="#f5f7fc" d="M39 42h50a8 8 0 0 1 8 8v38a8 8 0 0 1-8 8H39a8 8 0 0 1-8-8V50a8 8 0 0 1 8-8Zm2 0 7 14h12l-7-14h12l7 14h12l-7-14h12l8 16H31l-8-16h18Z"/>
+</svg>

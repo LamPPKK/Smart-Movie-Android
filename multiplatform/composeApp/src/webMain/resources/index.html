@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#050508">
+    <meta name="description" content="SmartMovie — a cinematic movie and television catalog.">
+    <title>SmartMovie</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
+    <noscript>SmartMovie requires JavaScript or WebAssembly support.</noscript>
+    <div id="smartmovie-root" aria-label="SmartMovie application"></div>
+    <script src="smartmovie.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+        }
+    </script>
+</body>
+</html>
