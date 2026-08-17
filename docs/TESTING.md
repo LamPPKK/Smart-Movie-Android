@@ -66,6 +66,8 @@ The TV smoke lane requires an API 36 Android TV x86_64 image. It installs the ma
 
 The 17 August 2026 local device run was not executed because the only configured API 34 AVD was incomplete: its SDK directory was approximately 35 MB and did not contain `system.img`. No physical device was connected. This is a local SDK blocker rather than an application failure; the API 35 phone and API 36 TV jobs remain required in GitHub Actions before release.
 
+The latest Compose Multiplatform CI investigation is recorded in [KMP CI handoff](KMP_CI_HANDOFF.md). Shared desktop tests, desktop compilation, and JS/Wasm distributions are green; portable desktop packaging still has a strict dependency-metadata blocker.
+
 ## Release interpretation
 
 - A native unit, lint, golden, APK, instrumentation, or TV smoke failure blocks the Android candidate.
