@@ -1,34 +1,208 @@
-# SmartMovie 2.0
+# SmartMovie 2.0 — Android, Wear OS, desktop and web
 
 [![Android CI](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml)
 [![Compose Multiplatform CI](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/multiplatform-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/multiplatform-ci.yml)
 
-SmartMovie is a cinematic Movies + TV catalog. The native Android application supports phones, tablets, foldables, ChromeOS, Android TV, Android XR Home Space, and Wear OS companion watches. A separate Compose Multiplatform application reuses one Kotlin UI/data layer across macOS, Windows, Linux, and Web/Wasm. The native SwiftUI application in the companion `SmartMovie` repository is the only Apple mobile client.
+SmartMovie is a cinematic movie and TV catalog built natively for Android. Discover titles, filter the catalog, search, open rich details and trailers, and keep independent Favorite and Watchlist collections that remain readable offline.
 
-See the [screen gallery](docs/SCREENSHOTS.md) for the main app flows and responsive device layouts. [Platform support](docs/PLATFORM_SUPPORT.md) defines the exact experience and release boundary on every device class, including why Android Auto is not declared.
+The native app adapts from phones to tablets, foldables, ChromeOS, Android TV, and Android XR Home Space. A Wear OS companion turns the watch into a remote for the title open on the paired phone. An isolated Compose Multiplatform app brings the same product flow to macOS, Windows, Linux, and responsive Web/Wasm.
 
-The multiplatform project is isolated under [`multiplatform/`](multiplatform/README.md), so its current Kotlin/Compose toolchain cannot destabilize the locked Android/Play build.
+> [!NOTE]
+> SmartMovie is a catalog and trailer app. It does not stream movies or TV episodes, require a SmartMovie account, display advertising, or offer in-app purchases.
 
-## Requirements
+> [!IMPORTANT]
+> SmartMovie 2.0 is under active development. Automated source gates are in place; production Worker domains, protected signing identities, final store artwork, and Play metadata still require release-owner configuration.
 
-- JDK 17 for the native Android build
-- JDK 21 for the Compose desktop/web build
+## Two repositories, one SmartMovie 2.0
+
+| Repository | Owns | Mobile release role |
+| --- | --- | --- |
+| **[Android.Smart.Movie](https://github.com/LamPPKK/Android.Smart.Movie)** (this repository) | Native Android and Wear OS apps, Compose Multiplatform desktop/web app, checksummed contract snapshot | Google Play source of truth |
+| **[SmartMovie](https://github.com/LamPPKK/SmartMovie)** | Native SwiftUI Apple apps, `SmartMovieKit`, Cloudflare Worker, canonical OpenAPI 3.1 contract and fixtures | App Store source of truth and backend owner |
+
+The Apple and Android mobile apps keep native UI, lifecycle, and local persistence while sharing the same `/v1` catalog behavior, six locales, semantic release train, error rules, and decoder fixtures. There is intentionally no cross-platform account or Favorite/Watchlist synchronization in 2.0.
+
+## What you can do
+
+- **Discover movies and TV series** from curated Home shelves for trending, popular, top-rated, now playing/on air, and upcoming titles.
+- **Explore with useful filters** for media type, genre, year, rating, and sort order, backed by deduplicated Paging data.
+- **Search quickly** with debounce, cancellation, retry handling, and Movie, TV Series, or All scopes.
+- **Open rich title details** with ratings, release data, genres, overview, runtime or seasons, cast, similar titles, and language-aware YouTube trailers.
+- **Keep a private local library** with independent Favorite and Watchlist actions stored in Room on Android and platform-local storage in the desktop/web app.
+- **Use an interface built for each screen**: bottom navigation on phones, rail/list-detail layouts on larger windows, a dedicated 10-foot TV composition, and compact Wear OS actions.
+- **Navigate without touch** using keyboard shortcuts on ChromeOS/desktop and focus-preserving D-pad navigation on Android TV.
+- **Use the app in six languages**: English, Vietnamese, Japanese, Korean, Simplified Chinese, and Traditional Chinese.
+
+## Screenshots
+
+All images below are checked-in deterministic captures. The native Android images are also visual-regression baselines used by CI.
+
+### Native Android phone and tablet
+
+<table>
+  <tr>
+    <td width="34%" align="center"><strong>Phone</strong><br><sub>Compact Home with bottom navigation</sub></td>
+    <td width="66%" align="center"><strong>Tablet · foldable · ChromeOS · XR Home Space</strong><br><sub>Expanded navigation rail and denser content shelves</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/PhoneHomeGolden_phone_compact_8dbe636a_0.png" alt="SmartMovie native Android Home on a compact phone" width="330"></td>
+    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TabletHomeGolden_tablet_expanded_97f2797e_0.png" alt="SmartMovie native Android Home on an expanded tablet" width="760"></td>
+  </tr>
+</table>
+
+### Android TV and Wear OS
+
+<table>
+  <tr>
+    <td width="72%" align="center"><strong>Android TV</strong><br><sub>10-foot layout with high-visibility D-pad focus</sub></td>
+    <td width="28%" align="center"><strong>Wear OS remote</strong><br><sub>Open details, launch trailer, Favorite, and Watchlist</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TvHomeGolden_tv_1080p_b8c175df_0.png" alt="SmartMovie Home on Android TV" width="760"></td>
+    <td align="center"><img src="wear/src/screenshotTestDebug/reference/com/lamndt/smartmovie/wear/WearRemoteGoldenPreviewKt/WearRemoteGolden_wear_round_remote_a6040ff4_0.png" alt="SmartMovie companion remote on Wear OS" width="280"></td>
+  </tr>
+</table>
+
+### Compose Multiplatform — desktop and web
+
+The Kotlin Multiplatform app shares one Compose UI/data layer across macOS, Windows, Linux, JavaScript, and Wasm. It is separate from the native Android modules and does not replace the native SwiftUI Apple mobile app.
+
+<table>
+  <tr>
+    <td width="66%" align="center"><strong>Expanded desktop/web</strong><br><sub>Navigation rail and responsive content grid</sub></td>
+    <td width="34%" align="center"><strong>Compact detail</strong><br><sub>Trailer, library actions, story, and cast</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/screenshots/multiplatform-home-desktop.png" alt="SmartMovie Compose Multiplatform Home on desktop" width="760"></td>
+    <td align="center"><img src="docs/images/screenshots/multiplatform-detail-phone.png" alt="SmartMovie Compose Multiplatform detail on a compact browser" width="330"></td>
+  </tr>
+</table>
+
+See the complete [screen gallery](docs/SCREENSHOTS.md) for Home, Explore, Search, Detail, Library, and responsive layout captures. [Platform support](docs/PLATFORM_SUPPORT.md) defines the exact release boundary for every device class, including why Android Auto is intentionally not declared.
+
+## App and platform matrix
+
+| App / device | Minimum / target | Experience | Release artifact |
+| --- | ---: | --- | --- |
+| Android phone | Android 8 / API 26+ | Four-destination bottom navigation and compact detail flow | Main Android AAB |
+| Tablet and foldable | Android 8 / API 26+ | Adaptive rail, expanded shelves, and list-detail layouts | Main Android AAB |
+| ChromeOS | Android 8 / API 26+ | Resizable windows, pointer, and Ctrl/Cmd shortcuts | Main Android AAB |
+| Android TV | Android 8 / API 26+ | Dedicated 10-foot UI, D-pad focus, TV search, retained navigation state | Main Android AAB |
+| Android XR | Home Space panel | Resizable adaptive 2D experience; no immersive scene in 2.0 | Main Android AAB |
+| Wear OS | Paired companion | Non-standalone remote over the Play services Data Layer | Wear companion AAB |
+| Desktop | macOS 13+, Windows 10+, Ubuntu 20.04-compatible Linux | Shared Compose app with local library and native installers | DMG/PKG, MSI/EXE, DEB/RPM |
+| Web | Modern JS/Wasm browser | Responsive Compose app with browser-local library; beta | Static JS/Wasm distribution |
+
+The main and Wear AABs use the same Play application identity, semantic version, version code, and signing key. Desktop/web releases are independently verified and do not block an Android or Play Store release.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Native["Native Android"]
+        Phone["Phone · tablet · ChromeOS · XR"]
+        TV["Android TV"]
+        Wear["Wear OS remote"]
+        Features["Feature modules"]
+        Core["Core data · network · Room"]
+        Phone --> Features
+        TV --> Features
+        Features --> Core
+        Wear <-->|"Data Layer"| Phone
+    end
+
+    subgraph KMP["Compose Multiplatform"]
+        Desktop["macOS · Windows · Linux"]
+        Web["JS · Wasm"]
+        Shared["Shared Compose UDF · Worker client"]
+        Desktop --> Shared
+        Web --> Shared
+    end
+
+    Core -->|"HTTPS /v1"| Worker["SmartMovie Cloudflare Worker"]
+    Shared -->|"HTTPS /v1"| Worker
+    Worker -->|"server-side Bearer token"| TMDb["TMDb API"]
+    Snapshot["Versioned OpenAPI + fixtures snapshot"] -. conformance .-> Core
+    Snapshot -. conformance .-> Shared
+```
+
+The native UI uses unidirectional data flow with immutable `UiState`, `StateFlow`, and screen-level ViewModels. Constructor-injected repositories keep UI modules independent from Retrofit, Room, and transport details. The KMP project has its own shared UDF state, Worker client, persistence adapters, and adaptive Compose UI under `multiplatform/`.
+
+### Module map
+
+| Module | Responsibility |
+| --- | --- |
+| `app` | Mobile entry point, dedicated TV activity, Navigation 3, adaptive navigation, and application container |
+| `core:model` | Immutable domain models and repository contracts |
+| `core:network` | Retrofit, Kotlin Serialization, installation identity, retry/cancellation policy |
+| `core:database` | Room library, migrations, and committed schemas |
+| `core:data` | Repository implementations, image URL policy, Paging sources |
+| `core:remote` | Versioned phone/watch commands and state serialization |
+| `core:designsystem` | Cinematic palette, offline fonts, and shared accessible components |
+| `feature:*` | Home, Explore, Search, Library, Detail, and About |
+| `wear` | Compose for Wear OS companion and Data Layer remote |
+| `catalog-contract` | Checksummed snapshot of the canonical Worker contract and fixtures |
+| `multiplatform/composeApp` | Desktop/web shared state, client, persistence, UI, and platform entry points |
+
+## Repository layout
+
+```text
+Android.Smart.Movie/
+├── app/                 # Native Android phone/tablet/TV/XR application
+├── wear/                # Wear OS companion application
+├── core/                # Model, network, database, data, remote, design system
+├── feature/             # Product feature modules
+├── catalog-contract/    # Versioned snapshot from the canonical Worker contract
+├── multiplatform/       # Desktop JVM plus JS/Wasm Compose application
+├── release/             # Shared SmartMovie 2.0 release-train manifest
+├── scripts/             # Read-only Doctor and scoped release checks
+├── docs/                # Screenshots, testing, privacy, platform support, release docs
+└── .github/workflows/   # Native CI, emulator smoke tests, KMP builds, signed releases
+```
+
+## Getting started
+
+### Requirements
+
+- JDK 17 for native Android
+- JDK 21 for Compose desktop/web
 - Android SDK 36 and Build Tools 36.0.0
-- No TMDb or Cloudflare credential is stored in the app or repository
+- Android Studio with an API 35 phone image for instrumentation tests
+- An Android TV emulator image for D-pad smoke testing
 
-Run `./scripts/doctor.sh` before local verification. It reports missing toolchains without changing the machine.
+Run the read-only environment check before Gradle:
 
-Lifecycle is pinned to `2.10.0`. Lifecycle `2.11.0` declares `minCompileSdk 37`, which conflicts with this release's locked `compileSdk 36`; the remaining requested toolchain and library versions are pinned in the version catalog.
+```sh
+./scripts/doctor.sh
+```
 
-The debug build calls `https://staging-catalog.smartmovie.app/`; release calls `https://catalog.smartmovie.app/`. Both expose only the SmartMovie Worker `/v1` contract and must be backed by the matching Cloudflare custom domains before a store release.
+Clone and build the native apps:
 
-`catalog-contract/` is a checksummed snapshot of the canonical OpenAPI 3.1 document and fixtures from the Apple/backend repository. Run `./scripts/verify-release.sh mobile` for native Android, `./scripts/verify-release.sh kmp` for desktop/web, or omit the scope to check both. Native Android and desktop tests decode the same fixtures, and the Worker cannot promote a new production contract until Android `main` pins its OpenAPI and fixture checksums.
+```sh
+git clone https://github.com/LamPPKK/Android.Smart.Movie.git
+cd Android.Smart.Movie
+./gradlew --dependency-verification=strict :app:assembleDebug :wear:assembleDebug
+```
 
-The Android release workflow additionally requires `catalog-contract/manifest.json` to contain the 40-character upstream commit written by the cross-repository sync workflow. The local bootstrap marker is valid for development tests only and cannot produce a store candidate.
+The native debug build calls `https://staging-catalog.smartmovie.app/`; release calls `https://catalog.smartmovie.app/`. Both expose only the matching SmartMovie Worker `/v1` contract. No TMDb or Cloudflare credential belongs in either client.
 
-## Build and verification
+### Run desktop or web
 
-```bash
+The multiplatform project is deliberately isolated so its JDK 21 and Compose toolchain cannot destabilize the locked Android/Play build.
+
+```sh
+cd multiplatform
+./gradlew :composeApp:run
+./gradlew :composeApp:wasmJsBrowserDevelopmentRun
+```
+
+See [`multiplatform/README.md`](multiplatform/README.md) for JS, Wasm, desktop packaging, and platform-specific local storage.
+
+## Tests and quality gates
+
+Run the native source gates from the repository root:
+
+```sh
 ./gradlew --dependency-verification=strict \
   :core:model:test \
   :core:remote:test \
@@ -40,56 +214,52 @@ The Android release workflow additionally requires `catalog-contract/manifest.js
   :app:assembleDebugAndroidTest \
   :app:bundleRelease \
   :wear:bundleRelease
+
+./scripts/verify-release.sh mobile
 ```
 
-The native automated baseline currently contains 38 unit, contract, remote, feature, and screenshot-validation tests, including four deterministic golden previews for compact phone, expanded tablet, 1080p TV, and a round Wear OS remote. CI additionally runs Compose instrumentation tests on an API 35 phone emulator and a dedicated Android TV launch/D-pad smoke test. See the [testing guide](docs/TESTING.md) for the suite breakdown, local commands, and emulator requirements.
+The native baseline contains 38 unit, contract, network, remote, feature, and screenshot-validation tests. CI also runs phone instrumentation on API 35 and a dedicated Android TV launch/D-pad smoke test with Linux KVM enabled.
 
-Compose Multiplatform verification is independent:
+Run KMP verification independently with JDK 21:
 
-```bash
+```sh
 cd multiplatform
-./gradlew --dependency-verification=strict :composeApp:desktopTest \
+./gradlew --dependency-verification=strict \
+  :composeApp:desktopTest \
   :composeApp:compileKotlinDesktop \
   :composeApp:jsBrowserDevelopmentExecutableDistribution \
   :composeApp:wasmJsBrowserDistribution
+
+cd ..
+./scripts/verify-release.sh kmp
 ```
 
-Running `bundleRelease` without signing environment variables produces unsigned local verification bundles. Use the protected `Android release AAB` workflow to create both signed Play artifacts.
+Read [Testing](docs/TESTING.md) for the complete suite, emulator setup, golden update policy, and reports.
 
-## Architecture
+## Contract compatibility
 
-- `app`: adaptive mobile entry point, dedicated Android TV entry point, Navigation 3, and constructor-injected `AppContainer`
-- `core:model`: immutable domain contracts and repository interfaces
-- `core:remote`: versioned phone/watch commands and state serialization
-- `core:network`: Retrofit 3, Kotlin Serialization, installation UUID, retry/cancellation policy
-- `core:database`: Room library and committed schema
-- `core:data`: repositories, image URL policy, and Paging sources
-- `core:designsystem`: cinematic palette, offline Newsreader/Manrope fonts, and shared accessible components
-- `feature:*`: Home, Explore, Search, Library, Detail, and About
-- `wear`: non-standalone Wear OS remote using Compose for Wear OS and the Google Play services Data Layer
-- `catalog-contract`: versioned snapshot of the canonical Worker OpenAPI document and decoder fixtures
-- `multiplatform/composeApp`: shared UDF state, Worker client, persistent library, adaptive UI, and desktop/web entry points
+`catalog-contract/` is a checksummed snapshot of the canonical OpenAPI document and fixtures from the companion Apple/backend repository. Native Android and KMP conformance tests decode the same success and error fixtures, including unknown fields and missing nullable values.
 
-The UI uses unidirectional data flow with immutable `UiState`, `StateFlow`, and screen-level ViewModels. Large windows switch to a navigation rail and list-detail layout; ChromeOS receives Ctrl/Cmd+1–4 tab shortcuts and Ctrl/Cmd+F for Search. Android TV uses a separate 10-foot composition with TV navigation, D-pad focus treatment, search IME, and retained catalog state behind the detail overlay. Wear OS mirrors the active phone detail and can open it, launch its trailer, or toggle Favorite and Watchlist.
+The manifest records the contract version, upstream commit, OpenAPI SHA-256, and fixture SHA-256. A protected cross-repository workflow opens or refreshes the Android snapshot PR whenever the canonical contract changes. Production Worker promotion is blocked until Android `main` matches all four release inputs.
 
-## Private release inputs
+Run `./scripts/verify-release.sh mobile`, `./scripts/verify-release.sh kmp`, or omit the scope to check the full repository. A store candidate also requires a real 40-character upstream commit in the manifest; the local bootstrap marker is development-only.
 
-The protected `production` GitHub environment must provide:
+## Privacy and security
 
-- `ANDROID_KEYSTORE_BASE64`
-- `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_ALIAS`
-- `ANDROID_KEY_PASSWORD`
+- TMDb authentication exists only in the companion repository's protected Worker secrets.
+- The Android library is stored in Room and included in Google Auto Backup; HTTP cache and the installation UUID are excluded.
+- Wear OS commands and current-title state travel only through the paired-device Data Layer.
+- KMP libraries remain local to each platform: Java Preferences on desktop and `localStorage` on web.
+- There is no SmartMovie account, analytics SDK, advertising SDK, in-app purchase flow, or real-time cross-platform synchronization.
 
-The Worker environments in the native Apple/backend repository require `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and a rotated `TMDB_BEARER_TOKEN`.
+## Release status
 
-Google Auto Backup includes only `smartmovie_library.db`; HTTP cache and the installation UUID are deliberately excluded. SmartMovie has no account, analytics, ads, IAP, or real-time cross-device synchronization.
+The shared release manifest pins SmartMovie `2.0.0`. Android `versionName` matches the Apple marketing version; Android `versionCode` and Apple build numbers increase independently.
 
-On Compose Multiplatform, the library remains local to each platform: Java Preferences on desktop and `localStorage` on web. Notarized macOS and signed Windows installers require the corresponding identities in protected release environments.
+The protected `production` GitHub environment must provide `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. The signed release workflow produces both the main and Wear companion AABs for the same Play listing. Desktop signing/notarization identities are separate and do not block Play delivery.
 
-## Release checklist
+Before Play submission, activate the Worker domains, pass the contract smoke tests, configure signing, run Play Internal Testing on phone/tablet/TV/Wear devices, and complete store artwork, screenshots, privacy, and support metadata.
 
-1. Revoke the historical TMDb credential and add a newly issued `TMDB_BEARER_TOKEN` to the protected staging and production environments.
-2. Configure the `staging-catalog.smartmovie.app` and `catalog.smartmovie.app` Cloudflare custom domains, then run the Worker workflow with staging smoke tests for all six locales.
-3. Add the four Android signing secrets above and run the protected `Android release AAB` workflow; upload both the main and Wear companion AABs to the same Play listing.
-4. Confirm Android CI passes its unit, lint, golden, phone emulator, and TV emulator jobs before uploading the AABs to Play Console.
+## Attribution
+
+This product uses the TMDB API but is not endorsed or certified by TMDB. Movie and television metadata and artwork are supplied by [The Movie Database](https://www.themoviedb.org/).
