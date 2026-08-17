@@ -200,10 +200,10 @@ class KtorCatalogApi(
 private data class GenreEnvelope(val genres: List<Genre>)
 
 @Serializable
-private data class ErrorEnvelope(val error: ErrorBody)
+internal data class ErrorEnvelope(val error: ErrorBody)
 
 @Serializable
-private data class ErrorBody(
+internal data class ErrorBody(
     val code: String,
     val message: String,
     @kotlinx.serialization.SerialName("request_id") val requestId: String? = null,

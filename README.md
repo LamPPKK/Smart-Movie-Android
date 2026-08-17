@@ -3,7 +3,7 @@
 [![Android CI](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml)
 [![Compose Multiplatform CI](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/multiplatform-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/multiplatform-ci.yml)
 
-SmartMovie is a cinematic Movies + TV catalog. The native Android application supports phones, tablets, foldables, ChromeOS, Android TV, Android XR Home Space, and Wear OS companion watches. A separate Compose Multiplatform application reuses one Kotlin UI/data layer across iPhone, iPad, macOS, Windows, Linux, and Web/Wasm.
+SmartMovie is a cinematic Movies + TV catalog. The native Android application supports phones, tablets, foldables, ChromeOS, Android TV, Android XR Home Space, and Wear OS companion watches. A separate Compose Multiplatform application reuses one Kotlin UI/data layer across macOS, Windows, Linux, and Web/Wasm. The native SwiftUI application in the companion `SmartMovie` repository is the only Apple mobile client.
 
 See the [screen gallery](docs/SCREENSHOTS.md) for the main app flows and responsive device layouts. [Platform support](docs/PLATFORM_SUPPORT.md) defines the exact experience and release boundary on every device class, including why Android Auto is not declared.
 
@@ -11,14 +11,20 @@ The multiplatform project is isolated under [`multiplatform/`](multiplatform/REA
 
 ## Requirements
 
-- JDK 17
+- JDK 17 for the native Android build
+- JDK 21 for the Compose desktop/web build
 - Android SDK 36 and Build Tools 36.0.0
-- Xcode 16+ on macOS for the iOS/iPadOS application
 - No TMDb or Cloudflare credential is stored in the app or repository
+
+Run `./scripts/doctor.sh` before local verification. It reports missing toolchains without changing the machine.
 
 Lifecycle is pinned to `2.10.0`. Lifecycle `2.11.0` declares `minCompileSdk 37`, which conflicts with this release's locked `compileSdk 36`; the remaining requested toolchain and library versions are pinned in the version catalog.
 
 The debug build calls `https://staging-catalog.smartmovie.app/`; release calls `https://catalog.smartmovie.app/`. Both expose only the SmartMovie Worker `/v1` contract and must be backed by the matching Cloudflare custom domains before a store release.
+
+`catalog-contract/` is a checksummed snapshot of the canonical OpenAPI 3.1 document and fixtures from the Apple/backend repository. Run `./scripts/verify-release.sh mobile` for native Android, `./scripts/verify-release.sh kmp` for desktop/web, or omit the scope to check both. Native Android and desktop tests decode the same fixtures, and the Worker cannot promote a new production contract until Android `main` pins its OpenAPI and fixture checksums.
+
+The Android release workflow additionally requires `catalog-contract/manifest.json` to contain the 40-character upstream commit written by the cross-repository sync workflow. The local bootstrap marker is valid for development tests only and cannot produce a store candidate.
 
 ## Build and verification
 
@@ -36,7 +42,7 @@ The debug build calls `https://staging-catalog.smartmovie.app/`; release calls `
   :wear:bundleRelease
 ```
 
-The automated baseline includes the existing Android unit suite plus remote-protocol and Wear remote ViewModel tests, with four deterministic golden previews for compact phone, expanded tablet, 1080p TV, and a round Wear OS remote. CI additionally runs Compose instrumentation tests on an API 35 phone emulator and a dedicated Android TV launch/D-pad smoke test.
+The native automated baseline currently contains 38 unit, contract, remote, feature, and screenshot-validation tests, including four deterministic golden previews for compact phone, expanded tablet, 1080p TV, and a round Wear OS remote. CI additionally runs Compose instrumentation tests on an API 35 phone emulator and a dedicated Android TV launch/D-pad smoke test. See the [testing guide](docs/TESTING.md) for the suite breakdown, local commands, and emulator requirements.
 
 Compose Multiplatform verification is independent:
 
@@ -44,7 +50,6 @@ Compose Multiplatform verification is independent:
 cd multiplatform
 ./gradlew --dependency-verification=strict :composeApp:desktopTest \
   :composeApp:compileKotlinDesktop \
-  :composeApp:compileKotlinIosSimulatorArm64 \
   :composeApp:jsBrowserDevelopmentExecutableDistribution \
   :composeApp:wasmJsBrowserDistribution
 ```
@@ -62,8 +67,8 @@ Running `bundleRelease` without signing environment variables produces unsigned 
 - `core:designsystem`: cinematic palette, offline Newsreader/Manrope fonts, and shared accessible components
 - `feature:*`: Home, Explore, Search, Library, Detail, and About
 - `wear`: non-standalone Wear OS remote using Compose for Wear OS and the Google Play services Data Layer
-- `multiplatform/composeApp`: shared UDF state, Worker client, persistent library, adaptive UI, and platform entry points for Apple, desktop, and web
-- `multiplatform/iosApp`: thin SwiftUI host for the shared Compose framework on iPhone and iPad
+- `catalog-contract`: versioned snapshot of the canonical Worker OpenAPI document and decoder fixtures
+- `multiplatform/composeApp`: shared UDF state, Worker client, persistent library, adaptive UI, and desktop/web entry points
 
 The UI uses unidirectional data flow with immutable `UiState`, `StateFlow`, and screen-level ViewModels. Large windows switch to a navigation rail and list-detail layout; ChromeOS receives Ctrl/Cmd+1–4 tab shortcuts and Ctrl/Cmd+F for Search. Android TV uses a separate 10-foot composition with TV navigation, D-pad focus treatment, search IME, and retained catalog state behind the detail overlay. Wear OS mirrors the active phone detail and can open it, launch its trailer, or toggle Favorite and Watchlist.
 
@@ -76,11 +81,11 @@ The protected `production` GitHub environment must provide:
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-The Worker environments in the iOS/backend repository require `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and a rotated `TMDB_BEARER_TOKEN`.
+The Worker environments in the native Apple/backend repository require `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and a rotated `TMDB_BEARER_TOKEN`.
 
 Google Auto Backup includes only `smartmovie_library.db`; HTTP cache and the installation UUID are deliberately excluded. SmartMovie has no account, analytics, ads, IAP, or real-time cross-device synchronization.
 
-On Compose Multiplatform, the library remains local to each platform: `NSUserDefaults` on iOS, Java Preferences on desktop, and `localStorage` on web. A signed iOS archive and notarized desktop installers require the corresponding Apple/Windows signing identities in protected release environments.
+On Compose Multiplatform, the library remains local to each platform: Java Preferences on desktop and `localStorage` on web. Notarized macOS and signed Windows installers require the corresponding identities in protected release environments.
 
 ## Release checklist
 

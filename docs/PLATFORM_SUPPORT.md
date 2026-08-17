@@ -13,12 +13,12 @@ This document defines what “supported” means for every SmartMovie 2.0 target
 | Wear OS | Companion AAB | Remote for the title detail currently open on the paired phone | Supported, non-standalone |
 | Android XR | Main AAB | Large-screen app in Home Space with pointer/keyboard input | Compatible; not immersive/spatial |
 | Android Auto | None | No car surface is declared | Not eligible under the current product scope |
-| iPhone and iPad | iOS application | Shared touch UI with compact navigation or adaptive rail/detail | Supported, iOS/iPadOS 14+ |
+| iPhone and iPad | Native SwiftUI app in the `SmartMovie` repository | Apple-native catalog and private CloudKit library | Owned and released from the Apple repository |
 | macOS | Native desktop application | Resizable keyboard/mouse UI and local library | Supported, macOS 13+, Apple silicon |
 | Windows | Native desktop application | Resizable keyboard/mouse UI and local library | Supported, Windows 10+, 64-bit |
 | Linux | Native desktop application | Resizable keyboard/mouse UI and local library | Supported, Ubuntu 20.04+ compatible, 64-bit |
 | Web | Static Wasm distribution with JavaScript fallback | Responsive browser UI, PWA shell, local library | Beta platform; WasmGC browser required for Wasm build |
-| watchOS, tvOS, visionOS | None | No Compose Multiplatform UI target is shipped | Not supported by the selected Compose toolchain |
+| watchOS, tvOS, visionOS | Native SwiftUI apps in the `SmartMovie` repository | Platform-specific Apple experiences | Not built from this repository |
 
 ## Phone, tablet, foldable, and ChromeOS
 
@@ -74,15 +74,15 @@ SmartMovie is a movie and TV discovery catalog; it does not stream video or audi
 
 Accordingly, this release intentionally has no `CarAppService`, automotive descriptor, or Android Auto manifest category. Adding a legitimate car experience would require changing the locked product scope—for example, an eligible audio-media core purpose or a supported parked streaming-video experience—and completing the corresponding car quality review. Until then, “Android Auto support” would be a false capability and a Play policy risk.
 
-## iOS, iPadOS, desktop, and web
+## Desktop and web
 
 The `multiplatform` build contains one shared Compose application for Home, Explore, Search, Library, and Detail. It uses immutable `StateFlow` state and a Ktor 3 client that calls only the SmartMovie Worker `/v1` contract. Installation IDs and Favorite/Watchlist snapshots remain in the platform store except for the anonymous installation ID sent as the Worker client header.
 
-The iOS application is a thin SwiftUI host around the generated static `ComposeApp` framework and targets both iPhone and iPad. Desktop distributions are configured for DMG/PKG, MSI/EXE, and DEB/RPM, while CI also produces portable application images on each desktop OS. Web builds include both Wasm and JavaScript outputs, a manifest, and a service worker; the production Worker must allow the deployed web origin through CORS.
+Desktop distributions are configured for DMG/PKG, MSI/EXE, and DEB/RPM, while CI also produces portable application images on each desktop OS. Web builds include both Wasm and JavaScript outputs, a manifest, and a service worker; the production Worker must allow the deployed web origin through CORS.
 
-Compose Multiplatform 1.11.1 officially covers iOS, desktop JVM, and Web/Wasm. The minimums used here follow its compatibility table: iOS 14, macOS 13 on Apple silicon, Windows 10, Ubuntu 20.04-compatible Linux, and 64-bit desktop systems. Web/Wasm remains Beta while the other selected UI targets are Stable. See [Compose Multiplatform platform support](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html) and [Kotlin Multiplatform stability levels](https://kotlinlang.org/docs/multiplatform/supported-platforms.html).
+The selected Compose Multiplatform toolchain targets desktop JVM and Web/Wasm. The minimums are macOS 13 on Apple silicon, Windows 10, Ubuntu 20.04-compatible Linux, and 64-bit desktop systems. Web/Wasm remains Beta while desktop is Stable. See [Compose Multiplatform platform support](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html) and [Kotlin Multiplatform stability levels](https://kotlinlang.org/docs/multiplatform/supported-platforms.html).
 
-The project does not claim watchOS, tvOS, or visionOS support because Compose Multiplatform does not provide the corresponding production UI targets in this toolchain. Android TV, Wear OS remote control, and Android XR Home Space remain the purpose-built implementations documented above.
+Apple mobile and spatial platforms are intentionally excluded from the Compose build. Android TV, Wear OS remote control, and Android XR Home Space remain the purpose-built implementations documented above.
 
 ## Release artifacts
 
@@ -91,6 +91,5 @@ The protected release workflow creates:
 1. `app-release.aab` for phone, tablet, foldable, ChromeOS, Android TV, and Android XR Home Space.
 2. `wear-release.aab` for the paired Wear OS remote.
 3. A Web/Wasm static distribution and portable macOS, Windows, and Linux application images from the Compose Multiplatform workflow.
-4. An unsigned iOS device framework plus the committed Xcode host project; App Store archiving is completed only in the protected Apple signing environment.
 
-Both artifacts must be signed by the same release key. Debug variants likewise share `com.lamndt.smartmovie.debug`, allowing Data Layer communication during development.
+Both Android AABs must be signed by the same release key. Debug variants likewise share `com.lamndt.smartmovie.debug`, allowing Data Layer communication during development.

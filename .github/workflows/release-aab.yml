@@ -14,6 +14,10 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v7
+      - name: Verify release train and vendored contract
+        env:
+          REQUIRE_UPSTREAM_COMMIT: "1"
+        run: ./scripts/verify-release.sh mobile
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -30,6 +34,19 @@ jobs:
           SMARTMOVIE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           SMARTMOVIE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew --dependency-verification=strict :app:bundleRelease :wear:bundleRelease
+      - name: Verify both bundles use the same signing certificate
+        run: |
+          set -euo pipefail
+          app_bundle=app/build/outputs/bundle/release/app-release.aab
+          wear_bundle=wear/build/outputs/bundle/release/wear-release.aab
+          jarsigner -verify "$app_bundle"
+          jarsigner -verify "$wear_bundle"
+          app_certificate="$(keytool -printcert -jarfile "$app_bundle" | awk -F': ' '/SHA256:/ { print $2; exit }')"
+          wear_certificate="$(keytool -printcert -jarfile "$wear_bundle" | awk -F': ' '/SHA256:/ { print $2; exit }')"
+          if [[ -z "$app_certificate" || "$app_certificate" != "$wear_certificate" ]]; then
+            echo "Main and Wear bundles are not signed by the same certificate." >&2
+            exit 1
+          fi
       - name: Upload phone, tablet, ChromeOS, TV and XR AAB
         uses: actions/upload-artifact@v7
         with:

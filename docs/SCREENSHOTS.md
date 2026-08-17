@@ -4,7 +4,7 @@ This gallery documents the SmartMovie 2.0 interface across the shared Compose Mu
 
 ## Core flow — Compose Multiplatform
 
-The same shared Kotlin UI and data layer powers iPhone, iPad, macOS, Windows, Linux, and Web/Wasm. Compact captures below show the primary user journey from discovery to a saved title.
+The same shared Kotlin UI and data layer powers macOS, Windows, Linux, and responsive Web/Wasm. Compact browser captures below show the primary user journey from discovery to a saved title.
 
 <table>
   <tr>

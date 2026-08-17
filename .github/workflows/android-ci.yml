@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      - name: Verify release train and vendored contract
+        run: ./scripts/verify-release.sh mobile
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

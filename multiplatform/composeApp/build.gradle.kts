@@ -2,7 +2,6 @@
 
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -19,9 +18,6 @@ kotlin {
         compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
     }
 
-    iosArm64()
-    iosSimulatorArm64()
-
     js {
         browser {
             commonWebpackConfig { outputFileName = "smartmovie.js" }
@@ -37,14 +33,6 @@ kotlin {
     }
 
     applyDefaultHierarchyTemplate()
-
-    targets.withType<KotlinNativeTarget>().configureEach {
-        binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
-            binaryOption("bundleId", "com.lamndt.smartmovie.multiplatform")
-        }
-    }
 
     sourceSets {
         commonMain.dependencies {
@@ -66,15 +54,15 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
         }
+        named("desktopTest") {
+            resources.srcDir(rootProject.file("../catalog-contract/v1/fixtures"))
+        }
         named("desktopMain") {
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.swing)
                 implementation(libs.ktor.client.cio)
             }
-        }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
         }
         webMain.dependencies {
             implementation(libs.kotlinx.browser)

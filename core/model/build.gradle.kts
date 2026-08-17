@@ -5,6 +5,12 @@ plugins {
 
 kotlin { jvmToolchain(17) }
 
+sourceSets {
+    test {
+        resources.srcDir(rootProject.file("catalog-contract/v1/fixtures"))
+    }
+}
+
 dependencies {
     api(libs.kotlinx.serialization.json)
     api(libs.kotlinx.coroutines.core)
