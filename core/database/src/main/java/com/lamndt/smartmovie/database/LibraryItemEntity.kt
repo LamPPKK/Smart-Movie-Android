@@ -15,9 +15,30 @@ data class LibraryItemEntity(
     val backdropPath: String?,
     val releaseDate: String?,
     val voteAverage: Double,
+    val adult: Boolean = false,
     val isFavorite: Boolean,
     val isWatchlisted: Boolean,
     val favoritedAt: Long?,
     val watchlistedAt: Long?,
     val updatedAt: Long,
+    val syncOrigin: String = "local",
+    val favoritePending: Boolean = false,
+    val watchlistPending: Boolean = false,
+    val remoteRevision: String? = null,
+    val accountId: Int? = null,
+)
+
+@Entity(tableName = "library_outbox")
+data class LibraryOutboxEntity(
+    @PrimaryKey val mutationId: String,
+    val libraryKey: String,
+    val mediaType: String,
+    val mediaId: Int,
+    val collection: String,
+    val enabled: Boolean,
+    val accountId: Int,
+    val createdAt: Long,
+    val attemptCount: Int = 0,
+    val lastAttemptAt: Long? = null,
+    val lastError: String? = null,
 )

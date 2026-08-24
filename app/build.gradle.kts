@@ -13,8 +13,8 @@ android {
         applicationId = "com.lamndt.smartmovie"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "2.0.0"
+        versionCode = 2
+        versionName = "3.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -101,6 +101,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.play.services.wearable)
+    implementation(libs.zxing.core)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

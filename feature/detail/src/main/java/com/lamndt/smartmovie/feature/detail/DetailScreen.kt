@@ -2,6 +2,7 @@ package com.lamndt.smartmovie.feature.detail
 
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,12 +66,14 @@ import com.lamndt.smartmovie.designsystem.SectionTitle
 import com.lamndt.smartmovie.designsystem.StateMessage
 import com.lamndt.smartmovie.designsystem.isWindowWidthAtLeast
 import com.lamndt.smartmovie.model.CatalogRepository
+import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.ImageKind
 import com.lamndt.smartmovie.model.LibraryCollection
 import com.lamndt.smartmovie.model.LibraryMembership
 import com.lamndt.smartmovie.model.LibraryRepository
 import com.lamndt.smartmovie.model.Loadable
 import com.lamndt.smartmovie.model.TitleDetail
+import com.lamndt.smartmovie.model.TitleDetailV2
 import com.lamndt.smartmovie.model.TitleSummary
 import com.lamndt.smartmovie.model.preferredTrailer
 
@@ -92,9 +95,12 @@ fun DetailRoute(
     modifier: Modifier = Modifier,
     onRemoteStateChange: (DetailRemoteState) -> Unit = {},
     onRemoteClosed: (String) -> Unit = {},
+    region: String? = null,
+    includeAdult: Boolean = false,
+    onEntityClick: (CatalogEntity) -> Unit = {},
     detailViewModel: DetailViewModel = viewModel(
         key = title.libraryKey,
-        factory = DetailViewModel.factory(title, catalog, library, language),
+        factory = DetailViewModel.factory(title, catalog, library, language, region, includeAdult),
     ),
 ) {
     val state by detailViewModel.state.collectAsStateWithLifecycle()
@@ -103,12 +109,12 @@ fun DetailRoute(
         ?.let { preferredTrailer(it.videos, language.substringBefore('-')) }
         ?.key
     LaunchedEffect(state.title, state.membership, trailerKey) {
-        onRemoteStateChange(DetailRemoteState(state.title, state.membership, trailerKey))
+        if (!state.title.adult) onRemoteStateChange(DetailRemoteState(state.title, state.membership, trailerKey))
     }
     DisposableEffect(title.libraryKey) {
         onDispose { onRemoteClosed(title.libraryKey) }
     }
-    DetailScreen(state, images, language, onBack, onTitleClick, detailViewModel::refresh, detailViewModel::toggle, modifier)
+    DetailScreen(state, images, language, onBack, onTitleClick, onEntityClick, detailViewModel::refresh, detailViewModel::toggle, modifier)
 }
 
 @Composable
@@ -118,6 +124,7 @@ fun DetailScreen(
     language: String,
     onBack: () -> Unit,
     onTitleClick: (TitleSummary) -> Unit,
+    onEntityClick: (CatalogEntity) -> Unit = {},
     onRetry: () -> Unit,
     onToggle: (LibraryCollection) -> Unit,
     modifier: Modifier = Modifier,
@@ -127,7 +134,7 @@ fun DetailScreen(
         when (val detail = state.detail) {
             Loadable.Idle, Loadable.Loading -> item { LoadingMessage(Modifier.height(260.dp)) }
             is Loadable.Failed -> item { StateMessage(stringResource(R.string.details_unavailable), message = detail.message, retry = onRetry) }
-            is Loadable.Loaded -> item { DetailBody(detail.value, images, onTitleClick) }
+            is Loadable.Loaded -> item { DetailBody(detail.value, state.deepDetail, images, onTitleClick, onEntityClick) }
         }
     }
 }
@@ -212,7 +219,13 @@ private fun LibraryButton(
 }
 
 @Composable
-private fun DetailBody(detail: TitleDetail, images: ImageUrlFactory, onTitleClick: (TitleSummary) -> Unit) {
+private fun DetailBody(
+    detail: TitleDetail,
+    deep: TitleDetailV2?,
+    images: ImageUrlFactory,
+    onTitleClick: (TitleSummary) -> Unit,
+    onEntityClick: (CatalogEntity) -> Unit,
+) {
     val wide = isWindowWidthAtLeast(700)
     Column(
         Modifier.fillMaxWidth().padding(horizontal = if (wide) 48.dp else 20.dp, vertical = 20.dp),
@@ -245,11 +258,54 @@ private fun DetailBody(detail: TitleDetail, images: ImageUrlFactory, onTitleClic
             SectionTitle(stringResource(R.string.cast))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 items(detail.cast, key = { it.id }) { member ->
-                    Column(Modifier.width(116.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(
+                        Modifier.width(116.dp).clickable {
+                            onEntityClick(CatalogEntity.Person(com.lamndt.smartmovie.model.PersonSummary(member.id, member.name, member.profilePath)))
+                        },
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         RemoteArtwork(images.url(member.profilePath, ImageKind.PROFILE), member.name, Modifier.size(116.dp).clip(RoundedCornerShape(18.dp)))
                         Text(member.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge)
                         member.character?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis, color = CinemaColors.Muted, style = MaterialTheme.typography.labelMedium) }
                     }
+                }
+            }
+        }
+        deep?.let { value ->
+            if (value.tagline.isNotBlank()) Text("“${value.tagline}”", style = MaterialTheme.typography.headlineMedium, color = CinemaColors.Muted)
+            value.collection?.let { collection ->
+                SectionTitle(stringResource(R.string.collection))
+                Text(
+                    collection.name,
+                    Modifier.clickable { onEntityClick(CatalogEntity.Collection(collection)) }
+                        .fillMaxWidth().background(CinemaColors.Surface, RoundedCornerShape(16.dp)).padding(16.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            if (value.seasons.isNotEmpty()) {
+                SectionTitle(stringResource(R.string.seasons_episodes))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    items(value.seasons, key = { it.id }) { season ->
+                        Column(
+                            Modifier.width(150.dp).clickable {
+                                onEntityClick(CatalogEntity.Season(season.copy(seriesId = value.id)))
+                            },
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            RemoteArtwork(images.url(season.posterPath, ImageKind.POSTER), season.name, Modifier.fillMaxWidth().aspectRatio(.68f))
+                            Text(season.name, style = MaterialTheme.typography.titleMedium)
+                        }
+                    }
+                }
+            }
+            value.watchProviders.firstOrNull()?.let { providers ->
+                if (providers.stream.isNotEmpty() || providers.rent.isNotEmpty() || providers.buy.isNotEmpty()) {
+                    SectionTitle(stringResource(R.string.where_to_watch))
+                    Text(
+                        (providers.stream + providers.rent + providers.buy).distinctBy { it.providerId }.joinToString(" · ") { it.providerName },
+                        color = CinemaColors.Muted,
+                    )
+                    Text(stringResource(R.string.justwatch_attribution), style = MaterialTheme.typography.labelMedium, color = CinemaColors.Muted)
                 }
             }
         }

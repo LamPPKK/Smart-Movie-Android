@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -39,8 +41,10 @@ import com.lamndt.smartmovie.designsystem.R
 import com.lamndt.smartmovie.designsystem.StateMessage
 import com.lamndt.smartmovie.designsystem.isWindowWidthAtLeast
 import com.lamndt.smartmovie.model.CatalogRepository
+import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.ImageKind
 import com.lamndt.smartmovie.model.SearchScope
+import com.lamndt.smartmovie.model.SearchScopeV2
 import com.lamndt.smartmovie.model.TitleSummary
 
 @Composable
@@ -50,10 +54,11 @@ fun SearchRoute(
     language: String,
     onTitleClick: (TitleSummary) -> Unit,
     modifier: Modifier = Modifier,
+    onEntityClick: (CatalogEntity) -> Unit = { entity -> if (entity is CatalogEntity.Title) onTitleClick(entity.value) },
     searchViewModel: SearchViewModel = viewModel(factory = SearchViewModel.factory(catalog, language)),
 ) {
     val state by searchViewModel.state.collectAsStateWithLifecycle()
-    val results = searchViewModel.results.collectAsLazyPagingItems()
+    val results = searchViewModel.entityResults.collectAsLazyPagingItems()
     val wide = isWindowWidthAtLeast(600)
     Column(modifier.fillMaxSize()) {
         Column(Modifier.padding(horizontal = if (wide) 40.dp else 20.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -78,13 +83,17 @@ fun SearchRoute(
                 ),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SearchScope.entries.forEach { scope ->
+                SearchScopeV2.entries.forEach { scope ->
                     val label = when (scope) {
-                        SearchScope.ALL -> R.string.all
-                        SearchScope.MOVIE -> R.string.movies
-                        SearchScope.TV -> R.string.tv_series
+                        SearchScopeV2.ALL -> R.string.all
+                        SearchScopeV2.MOVIE -> R.string.movies
+                        SearchScopeV2.TV -> R.string.tv_series
+                        SearchScopeV2.PERSON -> R.string.people
+                        SearchScopeV2.COLLECTION -> R.string.collections
+                        SearchScopeV2.COMPANY -> R.string.companies
+                        SearchScopeV2.KEYWORD -> R.string.keywords
                     }
-                    FilterChip(selected = state.scope == scope, onClick = { searchViewModel.setScope(scope) }, label = { Text(stringResource(label)) })
+                    FilterChip(selected = state.entityScope == scope, onClick = { searchViewModel.setEntityScope(scope) }, label = { Text(stringResource(label)) })
                 }
             }
         }
@@ -103,11 +112,37 @@ fun SearchRoute(
                 contentPadding = PaddingValues(start = if (wide) 40.dp else 20.dp, end = if (wide) 40.dp else 20.dp, bottom = 112.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(22.dp), modifier = Modifier.weight(1f),
             ) {
-                items(results.itemCount, key = { index -> results[index]?.libraryKey ?: "placeholder:$index" }) { index ->
-                    results[index]?.let { title -> PosterCard(title, images.url(title.posterPath, ImageKind.POSTER), { onTitleClick(title) }, Modifier.fillMaxWidth()) }
+                items(results.itemCount, key = { index -> results[index]?.stableKey ?: "placeholder:$index" }) { index ->
+                    results[index]?.let { entity -> EntitySearchCard(entity, images, { onEntityClick(entity) }) }
                 }
                 if (results.loadState.append is LoadState.Loading) item { LoadingMessage() }
             }
         }
+    }
+}
+
+@Composable
+private fun EntitySearchCard(entity: CatalogEntity, images: ImageUrlFactory, onClick: () -> Unit) {
+    if (entity is CatalogEntity.Title) {
+        PosterCard(entity.value, images.url(entity.value.posterPath, ImageKind.POSTER), onClick, Modifier.fillMaxWidth())
+        return
+    }
+    val (name, path) = when (entity) {
+        is CatalogEntity.Person -> entity.value.name to entity.value.profilePath
+        is CatalogEntity.Collection -> entity.value.name to (entity.value.posterPath ?: entity.value.backdropPath)
+        is CatalogEntity.Organization -> entity.value.name to entity.value.logoPath
+        is CatalogEntity.Keyword -> entity.value.name to null
+        is CatalogEntity.Season -> entity.value.name to entity.value.posterPath
+        is CatalogEntity.Episode -> entity.value.name to entity.value.stillPath
+        is CatalogEntity.Title -> error("handled")
+    }
+    Column(Modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        com.lamndt.smartmovie.designsystem.RemoteArtwork(
+            images.url(path, if (entity is CatalogEntity.Person || entity is CatalogEntity.Organization) ImageKind.PROFILE else ImageKind.POSTER),
+            name,
+            Modifier.fillMaxWidth().aspectRatio(.82f),
+        )
+        Text(entity.entityKind.wireValue.uppercase(), color = CinemaColors.Accent, style = MaterialTheme.typography.labelMedium)
+        Text(name, maxLines = 2, style = MaterialTheme.typography.titleMedium)
     }
 }

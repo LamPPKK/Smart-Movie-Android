@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class TvTab { HOME, EXPLORE, SEARCH, LIBRARY }
+enum class TvTab { HOME, EXPLORE, SEARCH, LIBRARY, PROFILE }
 
 data class TvCatalogUiState(
     val tab: TvTab = TvTab.HOME,

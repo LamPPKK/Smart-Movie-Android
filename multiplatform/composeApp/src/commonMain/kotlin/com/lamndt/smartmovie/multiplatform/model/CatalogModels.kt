@@ -45,6 +45,7 @@ data class TitleSummary(
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("vote_average") val voteAverage: Double = 0.0,
     @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
+    val adult: Boolean = false,
 ) {
     val libraryKey: String get() = "${mediaType.wireValue}:$id"
     val displayTitle: String get() = title.ifBlank { originalTitle }
@@ -81,6 +82,7 @@ data class TitleDetail(
         releaseDate = releaseDate,
         voteAverage = voteAverage,
         genreIds = genres.map(Genre::id),
+        adult = false,
     )
 }
 

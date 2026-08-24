@@ -8,8 +8,11 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.lamndt.smartmovie.data.SearchPagingSource
+import com.lamndt.smartmovie.data.EntitySearchPagingSource
+import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CatalogRepository
 import com.lamndt.smartmovie.model.SearchScope
+import com.lamndt.smartmovie.model.SearchScopeV2
 import com.lamndt.smartmovie.model.TitleSummary
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,8 +26,13 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 
-data class SearchUiState(val query: String = "", val scope: SearchScope = SearchScope.ALL)
+data class SearchUiState(
+    val query: String = "",
+    val scope: SearchScope = SearchScope.ALL,
+    val entityScope: SearchScopeV2 = SearchScopeV2.ALL,
+)
 private data class SearchRequest(val query: String, val scope: SearchScope)
+private data class EntitySearchRequest(val query: String, val scope: SearchScopeV2)
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
@@ -34,6 +42,7 @@ class SearchViewModel(
     private val mutableState = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = mutableState.asStateFlow()
     private val request = MutableStateFlow(SearchRequest("", SearchScope.ALL))
+    private val entityRequest = MutableStateFlow(EntitySearchRequest("", SearchScopeV2.ALL))
 
     val results: Flow<PagingData<TitleSummary>> = request
         .debounce(350)
@@ -46,9 +55,26 @@ class SearchViewModel(
         }
         .cachedIn(viewModelScope)
 
+    val entityResults: Flow<PagingData<CatalogEntity>> = entityRequest
+        .debounce(350)
+        .distinctUntilChanged()
+        .flatMapLatest { current ->
+            if (current.query.isBlank()) flowOf(PagingData.empty())
+            else Pager(PagingConfig(pageSize = 20, prefetchDistance = 6, enablePlaceholders = false)) {
+                EntitySearchPagingSource(catalog, current.query.trim(), current.scope, language, null, false)
+            }.flow
+        }
+        .cachedIn(viewModelScope)
+
     fun setQuery(query: String) {
         mutableState.update { it.copy(query = query) }
         request.value = SearchRequest(query, mutableState.value.scope)
+        entityRequest.value = EntitySearchRequest(query, mutableState.value.entityScope)
+    }
+
+    fun setEntityScope(scope: SearchScopeV2) {
+        mutableState.update { it.copy(entityScope = scope) }
+        entityRequest.value = EntitySearchRequest(mutableState.value.query, scope)
     }
 
     fun setScope(scope: SearchScope) {

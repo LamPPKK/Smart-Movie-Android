@@ -1,6 +1,13 @@
+@file:OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+
 package com.lamndt.smartmovie.multiplatform.platform
 
 import kotlinx.browser.window
+import io.ktor.client.fetchOptions
+import io.ktor.client.request.HttpRequestBuilder
+import kotlin.js.JsAny
+
+private fun includeCredentials(): JsAny = js("'include'")
 
 private class BrowserKeyValueStore : KeyValueStore {
     override fun getString(key: String): String? = runCatching { window.localStorage.getItem(key) }.getOrNull()
@@ -12,7 +19,22 @@ private class BrowserKeyValueStore : KeyValueStore {
 
 actual fun createKeyValueStore(): KeyValueStore = BrowserKeyValueStore()
 
+private object BrowserCookieCredentialStore : SessionCredentialStore {
+    // The Worker owns the Secure HttpOnly cookie. JavaScript intentionally cannot
+    // read or persist the opaque session token.
+    override fun load(): String? = null
+    override fun save(token: String) = Unit
+    override fun clear() = Unit
+}
+
+actual fun createSessionCredentialStore(): SessionCredentialStore = BrowserCookieCredentialStore
+
 actual fun openExternalUrl(url: String): Boolean = window.open(url, "_blank", "noopener,noreferrer") != null
+actual fun authReturnUri(): String = "${window.location.origin}/auth/callback"
+actual fun authMode(): String = "web"
+actual fun HttpRequestBuilder.applySessionRequestOptions() {
+    fetchOptions { credentials = includeCredentials() }
+}
 
 actual fun platformName(): String = "Web"
 

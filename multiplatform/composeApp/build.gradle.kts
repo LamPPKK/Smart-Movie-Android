@@ -11,7 +11,7 @@ plugins {
 }
 
 group = "com.lamndt.smartmovie"
-version = "2.0.0"
+version = "3.0.0"
 
 kotlin {
     jvm("desktop") {
@@ -84,7 +84,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Pkg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "SmartMovie"
-            packageVersion = "2.0.0"
+            packageVersion = "3.0.0"
             description = "A cinematic movie and television catalog."
             copyright = "© 2026 SmartMovie"
             vendor = "Lam NDT"

@@ -1,0 +1,425 @@
+package com.lamndt.smartmovie.multiplatform.model
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonEncoder
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+
+@Serializable
+enum class EntityKind {
+    @SerialName("movie") MOVIE,
+    @SerialName("tv") TV,
+    @SerialName("person") PERSON,
+    @SerialName("collection") COLLECTION,
+    @SerialName("company") COMPANY,
+    @SerialName("network") NETWORK,
+    @SerialName("keyword") KEYWORD,
+    @SerialName("season") SEASON,
+    @SerialName("episode") EPISODE;
+
+    val wireValue: String get() = name.lowercase()
+}
+
+enum class SearchScopeV2(val wireValue: String) {
+    ALL("all"), MOVIE("movie"), TV("tv"), PERSON("person"), COLLECTION("collection"), COMPANY("company"), KEYWORD("keyword")
+}
+
+@Serializable(with = CatalogEntitySerializer::class)
+sealed interface CatalogEntity {
+    val entityKind: EntityKind
+    val stableKey: String
+
+    data class Title(val value: TitleSummary) : CatalogEntity {
+        override val entityKind = if (value.mediaType == MediaType.MOVIE) EntityKind.MOVIE else EntityKind.TV
+        override val stableKey = value.libraryKey
+    }
+
+    data class Person(val value: PersonSummary) : CatalogEntity {
+        override val entityKind = EntityKind.PERSON
+        override val stableKey = "person:${value.id}"
+    }
+
+    data class Collection(val value: CollectionSummary) : CatalogEntity {
+        override val entityKind = EntityKind.COLLECTION
+        override val stableKey = "collection:${value.id}"
+    }
+
+    data class Organization(val value: OrganizationSummary) : CatalogEntity {
+        override val entityKind = value.entityKind
+        override val stableKey = "${value.entityKind.wireValue}:${value.id}"
+    }
+
+    data class Keyword(val value: KeywordSummary) : CatalogEntity {
+        override val entityKind = EntityKind.KEYWORD
+        override val stableKey = "keyword:${value.id}"
+    }
+
+    data class Season(val value: SeasonSummary) : CatalogEntity {
+        override val entityKind = EntityKind.SEASON
+        override val stableKey = "season:${value.id}"
+    }
+
+    data class Episode(val value: EpisodeSummary) : CatalogEntity {
+        override val entityKind = EntityKind.EPISODE
+        override val stableKey = "episode:${value.id}"
+    }
+}
+
+object CatalogEntitySerializer : KSerializer<CatalogEntity> {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("CatalogEntity")
+
+    override fun deserialize(decoder: Decoder): CatalogEntity {
+        val input = decoder as? JsonDecoder ?: throw SerializationException("CatalogEntity requires JSON")
+        val element = input.decodeJsonElement()
+        val kind = (element as? JsonObject)?.get("entity_kind")?.let { (it as? JsonPrimitive)?.content }
+            ?: throw SerializationException("CatalogEntity is missing entity_kind")
+        return when (kind) {
+            "movie", "tv" -> CatalogEntity.Title(input.json.decodeFromJsonElement(element))
+            "person" -> CatalogEntity.Person(input.json.decodeFromJsonElement(element))
+            "collection" -> CatalogEntity.Collection(input.json.decodeFromJsonElement(element))
+            "company", "network" -> CatalogEntity.Organization(input.json.decodeFromJsonElement(element))
+            "keyword" -> CatalogEntity.Keyword(input.json.decodeFromJsonElement(element))
+            "season" -> CatalogEntity.Season(input.json.decodeFromJsonElement(element))
+            "episode" -> CatalogEntity.Episode(input.json.decodeFromJsonElement(element))
+            else -> throw SerializationException("Unsupported entity_kind: $kind")
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: CatalogEntity) {
+        val output = encoder as? JsonEncoder ?: throw SerializationException("CatalogEntity requires JSON")
+        val payload = when (value) {
+            is CatalogEntity.Title -> output.json.encodeToJsonElement(value.value)
+            is CatalogEntity.Person -> output.json.encodeToJsonElement(value.value)
+            is CatalogEntity.Collection -> output.json.encodeToJsonElement(value.value)
+            is CatalogEntity.Organization -> output.json.encodeToJsonElement(value.value)
+            is CatalogEntity.Keyword -> output.json.encodeToJsonElement(value.value)
+            is CatalogEntity.Season -> output.json.encodeToJsonElement(value.value)
+            is CatalogEntity.Episode -> output.json.encodeToJsonElement(value.value)
+        } as JsonObject
+        output.encodeJsonElement(JsonObject(mapOf("entity_kind" to JsonPrimitive(value.entityKind.wireValue)) + payload))
+    }
+}
+
+@Serializable
+data class PersonSummary(
+    val id: Int,
+    val name: String,
+    @SerialName("profile_path") val profilePath: String? = null,
+    @SerialName("known_for_department") val knownForDepartment: String? = null,
+    val popularity: Double = 0.0,
+    @SerialName("known_for") val knownFor: List<TitleSummary> = emptyList(),
+)
+
+@Serializable
+data class CollectionSummary(
+    val id: Int,
+    val name: String,
+    val overview: String = "",
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("backdrop_path") val backdropPath: String? = null,
+)
+
+@Serializable
+data class OrganizationSummary(
+    @SerialName("entity_kind") val entityKind: EntityKind,
+    val id: Int,
+    val name: String,
+    @SerialName("logo_path") val logoPath: String? = null,
+    @SerialName("origin_country") val originCountry: String? = null,
+)
+
+@Serializable data class KeywordSummary(val id: Int, val name: String)
+
+@Serializable
+data class SeasonSummary(
+    val id: Int,
+    @SerialName("series_id") val seriesId: Int? = null,
+    @SerialName("season_number") val seasonNumber: Int,
+    val name: String,
+    val overview: String = "",
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("air_date") val airDate: String? = null,
+    @SerialName("vote_average") val voteAverage: Double? = null,
+    @SerialName("episode_count") val episodeCount: Int = 0,
+)
+
+@Serializable
+data class EpisodeSummary(
+    val id: Int,
+    @SerialName("series_id") val seriesId: Int,
+    @SerialName("season_number") val seasonNumber: Int,
+    @SerialName("episode_number") val episodeNumber: Int,
+    val name: String,
+    val overview: String = "",
+    @SerialName("still_path") val stillPath: String? = null,
+    @SerialName("air_date") val airDate: String? = null,
+    @SerialName("runtime_minutes") val runtimeMinutes: Int? = null,
+    @SerialName("vote_average") val voteAverage: Double? = null,
+) { val episodeKey: String get() = "$seriesId:$seasonNumber:$episodeNumber" }
+
+@Serializable
+data class Credit(
+    @SerialName("credit_id") val creditId: String? = null,
+    val id: Int? = null,
+    @SerialName("media_type") val mediaType: MediaType? = null,
+    val title: String? = null,
+    val character: String? = null,
+    val job: String? = null,
+    val department: String? = null,
+    @SerialName("profile_path") val profilePath: String? = null,
+    @SerialName("poster_path") val posterPath: String? = null,
+    val order: Int? = null,
+    @SerialName("episode_count") val episodeCount: Int? = null,
+)
+
+@Serializable
+data class ImageAsset(
+    val kind: String,
+    @SerialName("file_path") val filePath: String,
+    @SerialName("aspect_ratio") val aspectRatio: Double,
+    val height: Int,
+    val width: Int,
+    val language: String? = null,
+    @SerialName("vote_average") val voteAverage: Double = 0.0,
+)
+
+@Serializable
+data class ImageGroup(
+    val backdrops: List<ImageAsset> = emptyList(),
+    val posters: List<ImageAsset> = emptyList(),
+    val logos: List<ImageAsset> = emptyList(),
+)
+
+@Serializable
+data class ProviderOffer(
+    @SerialName("provider_id") val providerId: Int,
+    @SerialName("provider_name") val providerName: String,
+    @SerialName("logo_path") val logoPath: String? = null,
+    @SerialName("display_priority") val displayPriority: Int = 0,
+)
+
+@Serializable
+data class ProviderRegion(
+    val region: String,
+    @SerialName("tmdb_url") val tmdbUrl: String? = null,
+    val attribution: String,
+    val stream: List<ProviderOffer> = emptyList(),
+    val rent: List<ProviderOffer> = emptyList(),
+    val buy: List<ProviderOffer> = emptyList(),
+    val ads: List<ProviderOffer> = emptyList(),
+    val free: List<ProviderOffer> = emptyList(),
+)
+
+@Serializable
+data class Review(
+    val id: String,
+    val author: String,
+    val content: String,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    val url: String? = null,
+    @SerialName("avatar_path") val avatarPath: String? = null,
+    val rating: Double? = null,
+)
+
+@Serializable
+data class TitleDetailV2(
+    val id: Int,
+    @SerialName("media_type") val mediaType: MediaType,
+    val title: String,
+    @SerialName("original_title") val originalTitle: String,
+    val overview: String,
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("backdrop_path") val backdropPath: String? = null,
+    @SerialName("release_date") val releaseDate: String? = null,
+    @SerialName("vote_average") val voteAverage: Double = 0.0,
+    @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
+    val tagline: String = "",
+    val homepage: String? = null,
+    @SerialName("original_language") val originalLanguage: String? = null,
+    @SerialName("origin_countries") val originCountries: List<String> = emptyList(),
+    val adult: Boolean = false,
+    val popularity: Double = 0.0,
+    @SerialName("vote_count") val voteCount: Int = 0,
+    @SerialName("runtime_minutes") val runtimeMinutes: Int? = null,
+    @SerialName("number_of_seasons") val numberOfSeasons: Int? = null,
+    val status: String? = null,
+    val budget: Long? = null,
+    val revenue: Long? = null,
+    val genres: List<Genre> = emptyList(),
+    val creators: List<Credit> = emptyList(),
+    val cast: List<Credit> = emptyList(),
+    val crew: List<Credit> = emptyList(),
+    val collection: CollectionSummary? = null,
+    val companies: List<OrganizationSummary> = emptyList(),
+    val networks: List<OrganizationSummary> = emptyList(),
+    val seasons: List<SeasonSummary> = emptyList(),
+    @SerialName("external_ids") val externalIds: Map<String, String> = emptyMap(),
+    val images: ImageGroup = ImageGroup(),
+    val videos: List<Video> = emptyList(),
+    val reviews: PagedResult<Review> = PagedResult(1, 0, emptyList()),
+    val recommendations: PagedResult<TitleSummary> = PagedResult(1, 0, emptyList()),
+    val similar: List<TitleSummary> = emptyList(),
+    @SerialName("watch_providers") val watchProviders: List<ProviderRegion> = emptyList(),
+) {
+    val summary get() = TitleSummary(id, mediaType, title, originalTitle, overview, posterPath, backdropPath, releaseDate, voteAverage, genreIds, adult)
+}
+
+@Serializable
+data class CombinedCredits(val cast: List<Credit> = emptyList(), val crew: List<Credit> = emptyList())
+
+@Serializable
+data class PersonDetail(
+    val id: Int,
+    val name: String,
+    val biography: String = "",
+    val birthday: String? = null,
+    val deathday: String? = null,
+    @SerialName("place_of_birth") val placeOfBirth: String? = null,
+    val homepage: String? = null,
+    @SerialName("profile_path") val profilePath: String? = null,
+    @SerialName("known_for_department") val knownForDepartment: String? = null,
+    val popularity: Double = 0.0,
+    @SerialName("known_for") val knownFor: List<TitleSummary> = emptyList(),
+    @SerialName("also_known_as") val alsoKnownAs: List<String> = emptyList(),
+    val images: List<ImageAsset> = emptyList(),
+    val credits: CombinedCredits = CombinedCredits(),
+    @SerialName("external_ids") val externalIds: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class CollectionDetail(
+    val id: Int,
+    val name: String,
+    val overview: String = "",
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("backdrop_path") val backdropPath: String? = null,
+    val parts: List<TitleSummary> = emptyList(),
+    val images: ImageGroup = ImageGroup(),
+)
+
+@Serializable
+data class OrganizationDetail(
+    @SerialName("entity_kind") val entityKind: EntityKind,
+    val id: Int,
+    val name: String,
+    @SerialName("logo_path") val logoPath: String? = null,
+    @SerialName("origin_country") val originCountry: String? = null,
+    val description: String = "",
+    val headquarters: String? = null,
+    val homepage: String? = null,
+    @SerialName("parent_company") val parentCompany: OrganizationSummary? = null,
+    val titles: PagedResult<TitleSummary>,
+)
+
+@Serializable data class KeywordDetail(val id: Int, val name: String, val titles: PagedResult<TitleSummary>)
+
+@Serializable
+data class SeasonDetail(
+    val id: Int,
+    @SerialName("series_id") val seriesId: Int,
+    @SerialName("season_number") val seasonNumber: Int,
+    val name: String,
+    val overview: String = "",
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("air_date") val airDate: String? = null,
+    @SerialName("episode_count") val episodeCount: Int = 0,
+    val episodes: List<EpisodeSummary> = emptyList(),
+    val credits: CombinedCredits = CombinedCredits(),
+    val images: List<ImageAsset> = emptyList(),
+    val videos: List<Video> = emptyList(),
+    @SerialName("external_ids") val externalIds: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class EpisodeDetail(
+    val id: Int,
+    @SerialName("series_id") val seriesId: Int,
+    @SerialName("season_number") val seasonNumber: Int,
+    @SerialName("episode_number") val episodeNumber: Int,
+    val name: String,
+    val overview: String = "",
+    @SerialName("still_path") val stillPath: String? = null,
+    @SerialName("air_date") val airDate: String? = null,
+    @SerialName("runtime_minutes") val runtimeMinutes: Int? = null,
+    val crew: List<Credit> = emptyList(),
+    @SerialName("guest_stars") val guestStars: List<Credit> = emptyList(),
+    val images: List<ImageAsset> = emptyList(),
+    val videos: List<Video> = emptyList(),
+    @SerialName("external_ids") val externalIds: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class CapabilitiesV2(
+    @SerialName("api_version") val apiVersion: String,
+    @SerialName("release_train") val releaseTrain: String,
+    val catalog: Map<String, Boolean>,
+    val account: Map<String, Boolean>,
+    @SerialName("supported_languages") val supportedLanguages: List<String>,
+    @SerialName("supported_entity_kinds") val supportedEntityKinds: List<EntityKind>,
+    @SerialName("adult_content") val adultContent: AdultContentCapability,
+)
+
+@Serializable
+data class AdultContentCapability(
+    val supported: Boolean,
+    @SerialName("default_enabled") val defaultEnabled: Boolean,
+    @SerialName("local_pin_required") val localPinRequired: Boolean,
+)
+
+@Serializable
+data class AccountProfile(
+    val id: Int,
+    val username: String,
+    val name: String,
+    val language: String? = null,
+    val country: String? = null,
+    @SerialName("include_adult") val includeAdult: Boolean = false,
+    @SerialName("avatar_path") val avatarPath: String? = null,
+    @SerialName("gravatar_hash") val gravatarHash: String? = null,
+)
+
+@Serializable
+data class AuthAttempt(
+    @SerialName("attempt_id") val attemptId: String,
+    val status: String,
+    @SerialName("authorization_url") val authorizationUrl: String,
+    @SerialName("device_code") val deviceCode: String? = null,
+    @SerialName("expires_at") val expiresAt: String,
+    @SerialName("polling_interval") val pollingInterval: Int? = null,
+)
+
+@Serializable
+data class AuthSession(
+    @SerialName("session_token") val sessionToken: String? = null,
+    @SerialName("csrf_token") val csrfToken: String,
+    @SerialName("expires_at") val expiresAt: String,
+    val profile: AccountProfile,
+)
+
+@Serializable
+data class MutationResult(
+    @SerialName("mutation_id") val mutationId: String,
+    val success: Boolean? = null,
+    @SerialName("status_code") val statusCode: Int? = null,
+    @SerialName("status_message") val statusMessage: String? = null,
+)
+
+@Serializable
+data class UserList(
+    val id: Int,
+    val name: String,
+    val description: String = "",
+    val public: Boolean = false,
+    val results: List<TitleSummary> = emptyList(),
+)

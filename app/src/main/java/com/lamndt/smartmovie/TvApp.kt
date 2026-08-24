@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -111,12 +112,14 @@ fun TvApp(container: AppContainer) {
                             TvTab.EXPLORE -> Icons.Default.Explore
                             TvTab.SEARCH -> Icons.Default.Search
                             TvTab.LIBRARY -> Icons.Default.CollectionsBookmark
+                            TvTab.PROFILE -> Icons.Default.Person
                         }
                         val label = when (tab) {
                             TvTab.HOME -> R.string.home
                             TvTab.EXPLORE -> R.string.explore
                             TvTab.SEARCH -> R.string.search
                             TvTab.LIBRARY -> R.string.library
+                            TvTab.PROFILE -> R.string.profile
                         }
                         NavigationDrawerItem(
                             selected = state.tab == tab,
@@ -132,6 +135,7 @@ fun TvApp(container: AppContainer) {
                 TvTab.EXPLORE -> TvExplore(state, container.images, tvViewModel::selectMediaType, tvViewModel::refreshExplore, tvViewModel::loadMoreExplore, { detailTitle = it })
                 TvTab.SEARCH -> TvSearch(state, container.images, tvViewModel::setQuery, tvViewModel::setScope, tvViewModel::loadMoreSearch, { detailTitle = it })
                 TvTab.LIBRARY -> TvLibrary(state, container.images, tvViewModel::selectCollection, { detailTitle = it })
+                TvTab.PROFILE -> ProfileScreen(container, language, isTv = true)
             }
         }
         detailTitle?.let { title ->

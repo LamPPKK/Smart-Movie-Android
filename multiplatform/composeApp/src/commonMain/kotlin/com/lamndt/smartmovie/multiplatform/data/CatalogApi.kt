@@ -9,6 +9,17 @@ import com.lamndt.smartmovie.multiplatform.model.PagedResult
 import com.lamndt.smartmovie.multiplatform.model.SearchScope
 import com.lamndt.smartmovie.multiplatform.model.TitleDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleSummary
+import com.lamndt.smartmovie.multiplatform.model.CapabilitiesV2
+import com.lamndt.smartmovie.multiplatform.model.CatalogEntity
+import com.lamndt.smartmovie.multiplatform.model.CollectionDetail
+import com.lamndt.smartmovie.multiplatform.model.EntityKind
+import com.lamndt.smartmovie.multiplatform.model.EpisodeDetail
+import com.lamndt.smartmovie.multiplatform.model.KeywordDetail
+import com.lamndt.smartmovie.multiplatform.model.OrganizationDetail
+import com.lamndt.smartmovie.multiplatform.model.PersonDetail
+import com.lamndt.smartmovie.multiplatform.model.SearchScopeV2
+import com.lamndt.smartmovie.multiplatform.model.SeasonDetail
+import com.lamndt.smartmovie.multiplatform.model.TitleDetailV2
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -35,6 +46,26 @@ interface CatalogApi {
     suspend fun imageConfiguration(): ImageConfiguration
 }
 
+interface CatalogApiV2 : CatalogApi {
+    suspend fun capabilities(): CapabilitiesV2
+    suspend fun trending(kind: String, window: String, page: Int, language: String, includeAdult: Boolean): PagedResult<CatalogEntity>
+    suspend fun searchEntities(
+        query: String,
+        scope: SearchScopeV2,
+        page: Int,
+        language: String,
+        region: String?,
+        includeAdult: Boolean,
+    ): PagedResult<CatalogEntity>
+    suspend fun deepDetail(mediaType: MediaType, id: Int, language: String, region: String?, includeAdult: Boolean): TitleDetailV2
+    suspend fun person(id: Int, language: String): PersonDetail
+    suspend fun collection(id: Int, language: String): CollectionDetail
+    suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail
+    suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail
+    suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail
+    suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail
+}
+
 class CatalogFailure(
     val kind: Kind,
     message: String,
@@ -49,7 +80,7 @@ class KtorCatalogApi(
     private val clientId: String,
     private val jsonFormat: Json = Json { ignoreUnknownKeys = true; explicitNulls = false },
     private val sleeper: suspend (Long) -> Unit = { delay(it) },
-) : CatalogApi {
+) : CatalogApiV2 {
     private val root = baseUrl.trimEnd('/')
     private val client = HttpClient {
         expectSuccess = false
@@ -116,6 +147,68 @@ class KtorCatalogApi(
 
     override suspend fun imageConfiguration(): ImageConfiguration = request {
         client.get("$root/v1/configuration") { smartMovieHeaders() }
+    }
+
+    override suspend fun capabilities(): CapabilitiesV2 = request {
+        client.get("$root/v2/capabilities") { smartMovieHeaders() }
+    }
+
+    override suspend fun trending(
+        kind: String,
+        window: String,
+        page: Int,
+        language: String,
+        includeAdult: Boolean,
+    ): PagedResult<CatalogEntity> = request {
+        client.get("$root/v2/trending/$kind/$window") {
+            smartMovieHeaders(); parameter("page", page); parameter("language", language); parameter("include_adult", includeAdult)
+        }
+    }
+
+    override suspend fun searchEntities(
+        query: String,
+        scope: SearchScopeV2,
+        page: Int,
+        language: String,
+        region: String?,
+        includeAdult: Boolean,
+    ): PagedResult<CatalogEntity> = request {
+        client.get("$root/v2/search") {
+            smartMovieHeaders(); parameter("query", query); parameter("scope", scope.wireValue); parameter("page", page)
+            parameter("language", language); region?.let { parameter("region", it) }; parameter("include_adult", includeAdult)
+        }
+    }
+
+    override suspend fun deepDetail(
+        mediaType: MediaType,
+        id: Int,
+        language: String,
+        region: String?,
+        includeAdult: Boolean,
+    ): TitleDetailV2 = request {
+        client.get("$root/v2/titles/${mediaType.wireValue}/$id") {
+            smartMovieHeaders(); parameter("language", language); region?.let { parameter("region", it) }; parameter("include_adult", includeAdult)
+        }
+    }
+
+    override suspend fun person(id: Int, language: String): PersonDetail = request {
+        client.get("$root/v2/entities/person/$id") { smartMovieHeaders(); parameter("language", language) }
+    }
+    override suspend fun collection(id: Int, language: String): CollectionDetail = request {
+        client.get("$root/v2/entities/collection/$id") { smartMovieHeaders(); parameter("language", language) }
+    }
+    override suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail = request {
+        require(kind == EntityKind.COMPANY || kind == EntityKind.NETWORK)
+        client.get("$root/v2/entities/${kind.wireValue}/$id") { smartMovieHeaders(); parameter("language", language); parameter("page", page) }
+    }
+    override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = request {
+        client.get("$root/v2/entities/keyword/$id") { smartMovieHeaders(); parameter("language", language); parameter("page", page) }
+    }
+    override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = request {
+        client.get("$root/v2/tv/$seriesId/seasons/$number") { smartMovieHeaders(); parameter("language", language) }
+    }
+    override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = request {
+        client.get("$root/v2/tv/$seriesId/seasons/$season/episodes/$number") { smartMovieHeaders(); parameter("language", language) }
     }
 
     private fun io.ktor.client.request.HttpRequestBuilder.smartMovieHeaders() {

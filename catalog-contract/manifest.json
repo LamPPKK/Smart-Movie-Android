@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
-  "contract_version": "1.0.0",
+  "contract_version": "2.0.0",
   "upstream_repository": "LamPPKK/SmartMovie",
-  "upstream_commit": "e92cda7049eacc351bb3eedf6d30dcd95e0817d6",
-  "openapi_sha256": "70fba83a8e26c49c5d8c6572f12e6119d7e6b5fa23b34fdd8da4f63071a4e13c",
-  "fixtures_sha256": "b7a5ec19fcff1b934430aeb275e23ea5c7b8423eafae1cbea7908097b16cc463"
+  "upstream_commit": "b341c09322d0dd51610c63294a88b9df91c9c3ca",
+  "openapi_sha256": "59dfe6d595f1328cf2a7900a2bf74adbbb208e9648056cff475a3114a3293610",
+  "fixtures_sha256": "7bb8ab17ad77e0ea455c59d9e790fab2bae9c131d4d8baf85717a0a3611596d0",
+  "legacy_v1_contract_version": "1.0.0"
 }

@@ -1,6 +1,7 @@
 package com.lamndt.smartmovie
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
@@ -12,7 +13,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        handleAuthIntent(intent)
         setContent { SmartMovieTheme { SmartMovieApp(container) } }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleAuthIntent(intent)
     }
 
     override fun onStart() {
@@ -23,5 +31,11 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         container.watchRemote.setPhoneActive(false)
         super.onStop()
+    }
+
+    private fun handleAuthIntent(intent: Intent?) {
+        val attempt = intent?.data?.getQueryParameter("auth_attempt") ?: return
+        val locale = resources.configuration.locales[0]
+        container.accountSession.handleCallback(attempt, com.lamndt.smartmovie.model.CatalogLocale.from(locale.language, locale.country))
     }
 }

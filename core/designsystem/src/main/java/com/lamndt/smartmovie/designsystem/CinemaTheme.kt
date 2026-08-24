@@ -29,6 +29,7 @@ object CinemaColors {
     val Gold = Color(0xFFF5B533)
     val Foreground = Color(0xFFF5F7FC)
     val Muted = Color(0xFF9499A8)
+    val Success = Color(0xFF58D68D)
 }
 
 val Newsreader = FontFamily(

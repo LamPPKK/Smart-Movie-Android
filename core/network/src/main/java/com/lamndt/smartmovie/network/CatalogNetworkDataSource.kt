@@ -2,14 +2,25 @@ package com.lamndt.smartmovie.network
 
 import android.content.Context
 import com.lamndt.smartmovie.model.CatalogException
+import com.lamndt.smartmovie.model.CapabilitiesV2
+import com.lamndt.smartmovie.model.CatalogEntity
+import com.lamndt.smartmovie.model.CollectionDetail
 import com.lamndt.smartmovie.model.DiscoverFilter
 import com.lamndt.smartmovie.model.Genre
 import com.lamndt.smartmovie.model.HomeFeed
 import com.lamndt.smartmovie.model.ImageConfiguration
+import com.lamndt.smartmovie.model.EntityKind
+import com.lamndt.smartmovie.model.EpisodeDetail
+import com.lamndt.smartmovie.model.KeywordDetail
 import com.lamndt.smartmovie.model.MediaType
 import com.lamndt.smartmovie.model.PagedResult
+import com.lamndt.smartmovie.model.OrganizationDetail
+import com.lamndt.smartmovie.model.PersonDetail
 import com.lamndt.smartmovie.model.SearchScope
+import com.lamndt.smartmovie.model.SearchScopeV2
+import com.lamndt.smartmovie.model.SeasonDetail
 import com.lamndt.smartmovie.model.TitleDetail
+import com.lamndt.smartmovie.model.TitleDetailV2
 import com.lamndt.smartmovie.model.TitleSummary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -36,6 +47,26 @@ interface CatalogRemoteDataSource {
     suspend fun imageConfiguration(): ImageConfiguration
 }
 
+interface CatalogRemoteDataSourceV2 : CatalogRemoteDataSource {
+    suspend fun capabilities(): CapabilitiesV2
+    suspend fun trending(kind: String, window: String, page: Int, language: String, includeAdult: Boolean): PagedResult<CatalogEntity>
+    suspend fun searchEntities(
+        query: String,
+        scope: SearchScopeV2,
+        page: Int,
+        language: String,
+        region: String?,
+        includeAdult: Boolean,
+    ): PagedResult<CatalogEntity>
+    suspend fun deepDetail(mediaType: MediaType, id: Int, language: String, region: String?, includeAdult: Boolean): TitleDetailV2
+    suspend fun person(id: Int, language: String): PersonDetail
+    suspend fun collection(id: Int, language: String): CollectionDetail
+    suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail
+    suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail
+    suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail
+    suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail
+}
+
 class CatalogNetworkDataSource(
     context: Context?,
     baseUrl: String,
@@ -45,7 +76,7 @@ class CatalogNetworkDataSource(
     private val clientIdProvider: suspend () -> String = {
         InstallationIdStore(requireNotNull(context) { "Context is required when no client ID provider is supplied." }.applicationContext).get()
     },
-) : CatalogRemoteDataSource {
+) : CatalogRemoteDataSourceV2 {
     private val service = Retrofit.Builder()
         .baseUrl(baseUrl)
         .client(okHttpClient)
@@ -88,6 +119,47 @@ class CatalogNetworkDataSource(
     }
 
     override suspend fun imageConfiguration(): ImageConfiguration = execute { service.imageConfiguration(it) }
+
+    override suspend fun capabilities(): CapabilitiesV2 = execute { service.capabilities(it) }
+
+    override suspend fun trending(
+        kind: String,
+        window: String,
+        page: Int,
+        language: String,
+        includeAdult: Boolean,
+    ): PagedResult<CatalogEntity> = execute { service.trending(it, kind, window, page, language, includeAdult) }
+
+    override suspend fun searchEntities(
+        query: String,
+        scope: SearchScopeV2,
+        page: Int,
+        language: String,
+        region: String?,
+        includeAdult: Boolean,
+    ): PagedResult<CatalogEntity> = execute {
+        service.searchEntities(it, query, scope.wireValue, page, language, region, includeAdult)
+    }
+
+    override suspend fun deepDetail(
+        mediaType: MediaType,
+        id: Int,
+        language: String,
+        region: String?,
+        includeAdult: Boolean,
+    ): TitleDetailV2 = execute { service.deepDetail(it, mediaType.wireValue, id, language, region, includeAdult) }
+
+    override suspend fun person(id: Int, language: String): PersonDetail = execute { service.person(it, id, language) }
+    override suspend fun collection(id: Int, language: String): CollectionDetail = execute { service.collection(it, id, language) }
+    override suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail = execute {
+        require(kind == EntityKind.COMPANY || kind == EntityKind.NETWORK)
+        service.organization(it, kind.wireValue, id, language, page)
+    }
+    override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = execute { service.keyword(it, id, language, page) }
+    override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = execute { service.season(it, seriesId, number, language) }
+    override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = execute {
+        service.episode(it, seriesId, season, number, language)
+    }
 
     private suspend fun <T> execute(block: suspend (String) -> T): T {
         val clientId = clientIdProvider()

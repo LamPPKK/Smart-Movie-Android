@@ -3,6 +3,7 @@ package com.lamndt.smartmovie.database
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import androidx.room.Delete
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -18,4 +19,31 @@ interface LibraryDao {
 
     @Upsert
     suspend fun upsert(item: LibraryItemEntity)
+
+    @Query("SELECT * FROM library_items")
+    suspend fun getAll(): List<LibraryItemEntity>
+
+    @Query("DELETE FROM library_items WHERE accountId = :accountId")
+    suspend fun deleteAccountItems(accountId: Int)
+
+    @Upsert
+    suspend fun upsertOutbox(item: LibraryOutboxEntity)
+
+    @Query("SELECT * FROM library_outbox ORDER BY createdAt ASC LIMIT :limit")
+    suspend fun pendingOutbox(limit: Int): List<LibraryOutboxEntity>
+
+    @Query("SELECT * FROM library_outbox WHERE mutationId = :id LIMIT 1")
+    suspend fun outbox(id: String): LibraryOutboxEntity?
+
+    @Query("SELECT * FROM library_outbox WHERE libraryKey = :key")
+    suspend fun outboxForKey(key: String): List<LibraryOutboxEntity>
+
+    @Delete
+    suspend fun deleteOutbox(item: LibraryOutboxEntity)
+
+    @Query("DELETE FROM library_outbox WHERE accountId = :accountId")
+    suspend fun deleteAccountOutbox(accountId: Int)
+
+    @Query("DELETE FROM library_outbox")
+    suspend fun clearOutbox()
 }

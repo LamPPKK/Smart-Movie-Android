@@ -3,6 +3,7 @@ package com.lamndt.smartmovie.multiplatform.model
 import com.lamndt.smartmovie.multiplatform.data.ErrorEnvelope
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -41,11 +42,53 @@ class ContractConformanceTest {
         assertNull(summary.releaseDate)
     }
 
+    @Test
+    fun canonicalV2DiscriminatorsAndDeepEntitiesDecode() {
+        val entities = decodeV2<PagedResult<CatalogEntity>>("entities")
+        assertEquals(EntityKind.entries.toSet(), entities.results.map(CatalogEntity::entityKind).toSet())
+        assertEquals(entities.results.size, entities.results.map(CatalogEntity::stableKey).toSet().size)
+
+        val title = decodeV2<TitleDetailV2>("title-detail")
+        assertEquals("Catalog everything.", title.tagline)
+        assertEquals("JustWatch", title.watchProviders.single().attribution)
+        assertTrue(title.watchProviders.single().stream.isNotEmpty())
+
+        assertEquals(12, decodeV2<PersonDetail>("person").id)
+        assertEquals(13, decodeV2<CollectionDetail>("collection").id)
+        assertEquals(11, decodeV2<SeasonDetail>("season").seriesId)
+        val episode = decodeV2<EpisodeDetail>("episode")
+        assertEquals("11:1:1", "${episode.seriesId}:${episode.seasonNumber}:${episode.episodeNumber}")
+    }
+
+    @Test
+    fun canonicalV2AccountAndErrorsDecodeWithoutSecrets() {
+        val account = decodeV2<AccountFixture>("account")
+        assertEquals("fixture_user", account.profile.username)
+        assertEquals(7, account.list.id)
+        assertEquals("pending", decodeV2<AuthAttempt>("auth-attempt").status)
+        assertTrue(decodeV2<MutationResult>("mutation").success == true)
+        val raw = v2Fixture("account").readText()
+        assertTrue("session_token" !in raw && "access_token" !in raw && "password" !in raw)
+        assertEquals("upstream_rate_limited", json.decodeFromString<ErrorEnvelope>(v2Fixture("error").readText()).error.code)
+    }
+
     private inline fun <reified Value> decode(fixture: String): Value {
         val resource = checkNotNull(javaClass.classLoader.getResource("$fixture.json")) { "Missing fixture $fixture" }
         return json.decodeFromString(resource.readText())
     }
+
+    private inline fun <reified Value> decodeV2(fixture: String): Value =
+        json.decodeFromString(v2Fixture(fixture).readText())
+
+    private fun v2Fixture(name: String): File = sequenceOf(
+        File("../../catalog-contract/v2/fixtures/$name.json"),
+        File("../catalog-contract/v2/fixtures/$name.json"),
+        File("catalog-contract/v2/fixtures/$name.json"),
+    ).firstOrNull(File::isFile) ?: error("Missing v2 fixture $name")
 }
 
 @Serializable
 private data class GenreEnvelope(val genres: List<Genre>)
+
+@Serializable
+private data class AccountFixture(val profile: AccountProfile, val list: UserList)

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
@@ -22,6 +23,7 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +63,7 @@ import com.lamndt.smartmovie.feature.library.LibraryRoute
 import com.lamndt.smartmovie.feature.search.SearchRoute
 import com.lamndt.smartmovie.data.ImageUrlFactory
 import com.lamndt.smartmovie.model.CatalogRepository
+import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CatalogLocale
 import com.lamndt.smartmovie.model.LibraryRepository
 import com.lamndt.smartmovie.model.MediaType
@@ -72,6 +75,7 @@ private enum class AppTab(val label: Int, val icon: ImageVector) {
     EXPLORE(R.string.explore, Icons.Default.Explore),
     SEARCH(R.string.search, Icons.Default.Search),
     LIBRARY(R.string.library, Icons.Default.CollectionsBookmark),
+    PROFILE(R.string.profile, Icons.Default.Person),
 }
 
 @Serializable
@@ -102,6 +106,16 @@ private data class DetailKey(
     )
 }
 
+@Serializable
+internal data class EntityKey(
+    val kind: String,
+    val id: Int,
+    val name: String,
+    val seriesId: Int? = null,
+    val seasonNumber: Int? = null,
+    val episodeNumber: Int? = null,
+) : NavKey
+
 @Composable
 fun SmartMovieApp(container: AppContainer) {
     SmartMovieContent(
@@ -110,6 +124,7 @@ fun SmartMovieApp(container: AppContainer) {
         images = container.images,
         versionName = BuildConfig.VERSION_NAME,
         watchRemote = container.watchRemote,
+        appContainer = container,
     )
 }
 
@@ -120,12 +135,14 @@ internal fun SmartMovieContent(
     images: ImageUrlFactory,
     versionName: String,
     watchRemote: PhoneWatchRemoteController? = null,
+    appContainer: AppContainer? = null,
 ) {
     val backStack = rememberNavBackStack(RootKey)
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val locale = configuration.locales[0]
     val language = CatalogLocale.from(locale.language, locale.country)
+    val providerRegion = appContainer?.preferences?.region?.collectAsState()
     androidx.compose.runtime.LaunchedEffect(watchRemote) {
         watchRemote?.actions?.collect { action ->
             when (action) {
@@ -146,7 +163,12 @@ internal fun SmartMovieContent(
                 AppRoot(
                     catalog, library, images, versionName, language,
                     onTitleClick = { title -> backStack.add(title.toDetailKey()) },
+                    onEntityClick = { entity ->
+                        if (entity is CatalogEntity.Title) backStack.add(entity.value.toDetailKey())
+                        else backStack.add(entity.toEntityKey())
+                    },
                     watchRemote = watchRemote,
+                    appContainer = appContainer,
                 )
             }
             entry<DetailKey> { key ->
@@ -158,6 +180,22 @@ internal fun SmartMovieContent(
                         onTitleClick = { backStack.add(it.toDetailKey()) },
                         onRemoteStateChange = { watchRemote?.publish(it, images) },
                         onRemoteClosed = { watchRemote?.clear(it) },
+                        region = providerRegion?.value ?: locale.country,
+                        includeAdult = appContainer?.preferences?.includeAdult == true,
+                        onEntityClick = { entity -> backStack.add(entity.toEntityKey()) },
+                    )
+                }
+            }
+            entry<EntityKey> { key ->
+                CinemaBackground {
+                    EntityDetailScreen(
+                        key = key,
+                        catalog = catalog as com.lamndt.smartmovie.model.CatalogV2Repository,
+                        images = images,
+                        language = language,
+                        onBack = { backStack.removeLastOrNull() },
+                        onTitle = { backStack.add(it.toDetailKey()) },
+                        onEntity = { backStack.add(it.toEntityKey()) },
                     )
                 }
             }
@@ -173,13 +211,16 @@ internal fun AppRoot(
     versionName: String,
     language: String,
     onTitleClick: (TitleSummary) -> Unit,
+    onEntityClick: (CatalogEntity) -> Unit = {},
     watchRemote: PhoneWatchRemoteController? = null,
+    appContainer: AppContainer? = null,
 ) {
     var tab by rememberSaveable { mutableStateOf(AppTab.HOME) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
     var paneTitle by remember { mutableStateOf<TitleSummary?>(null) }
     val focusRequester = remember { FocusRequester() }
     val expanded = isWindowWidthAtLeast(600)
+    val providerRegion = appContainer?.preferences?.region?.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { focusRequester.requestFocus() }
     CinemaBackground(
         Modifier
@@ -217,8 +258,8 @@ internal fun AppRoot(
                     }
                 }
                 TabContent(
-                    tab, catalog, library, images, language, { paneTitle = it },
-                    Modifier.weight(if (paneTitle == null) 1f else .42f),
+                    tab, catalog, library, images, language, { paneTitle = it }, onEntityClick,
+                    Modifier.weight(if (paneTitle == null) 1f else .42f), appContainer,
                 )
                 paneTitle?.let { title ->
                     DetailRoute(
@@ -232,6 +273,9 @@ internal fun AppRoot(
                         modifier = Modifier.weight(.58f),
                         onRemoteStateChange = { watchRemote?.publish(it, images) },
                         onRemoteClosed = { watchRemote?.clear(it) },
+                        region = providerRegion?.value,
+                        includeAdult = appContainer?.preferences?.includeAdult == true,
+                        onEntityClick = onEntityClick,
                     )
                 }
             }
@@ -250,7 +294,7 @@ internal fun AppRoot(
                 },
             ) { padding ->
                 Box(Modifier.padding(bottom = padding.calculateBottomPadding())) {
-                    TabContent(tab, catalog, library, images, language, onTitleClick)
+                    TabContent(tab, catalog, library, images, language, onTitleClick, onEntityClick, appContainer = appContainer)
                     IconButton(onClick = { showAbout = true }, Modifier.padding(top = 42.dp, end = 8.dp).align(androidx.compose.ui.Alignment.TopEnd)) {
                         Icon(Icons.Default.Info, stringResource(R.string.about), tint = CinemaColors.Muted)
                     }
@@ -268,19 +312,33 @@ private fun TabContent(
     images: ImageUrlFactory,
     language: String,
     onTitleClick: (TitleSummary) -> Unit,
+    onEntityClick: (CatalogEntity) -> Unit = {},
     modifier: Modifier = Modifier,
+    appContainer: AppContainer? = null,
 ) {
     when (tab) {
         AppTab.HOME -> HomeRoute(catalog, images, language, onTitleClick, modifier)
         AppTab.EXPLORE -> ExploreRoute(catalog, images, language, onTitleClick, modifier)
-        AppTab.SEARCH -> SearchRoute(catalog, images, language, onTitleClick, modifier)
+        AppTab.SEARCH -> SearchRoute(catalog, images, language, onTitleClick, modifier, onEntityClick)
         AppTab.LIBRARY -> LibraryRoute(library, images, onTitleClick, modifier)
+        AppTab.PROFILE -> appContainer?.let { ProfileScreen(it, language, isTv = false, modifier) }
+            ?: AboutScreen(versionName = "", modifier = modifier)
     }
 }
 
 private fun TitleSummary.toDetailKey() = DetailKey(
     id, mediaType.wireValue, title, originalTitle, overview, posterPath, backdropPath, releaseDate, voteAverage,
 )
+
+private fun CatalogEntity.toEntityKey(): EntityKey = when (this) {
+    is CatalogEntity.Person -> EntityKey("person", value.id, value.name)
+    is CatalogEntity.Collection -> EntityKey("collection", value.id, value.name)
+    is CatalogEntity.Organization -> EntityKey(value.entityKind.wireValue, value.id, value.name)
+    is CatalogEntity.Keyword -> EntityKey("keyword", value.id, value.name)
+    is CatalogEntity.Season -> EntityKey("season", value.id, value.name, value.seriesId, value.seasonNumber)
+    is CatalogEntity.Episode -> EntityKey("episode", value.id, value.name, value.seriesId, value.seasonNumber, value.episodeNumber)
+    is CatalogEntity.Title -> error("Title entities use DetailKey")
+}
 
 private fun KeyEvent.shortcutTab(): AppTab? {
     if (type != KeyEventType.KeyDown || (!isCtrlPressed && !isMetaPressed)) return null
@@ -289,6 +347,7 @@ private fun KeyEvent.shortcutTab(): AppTab? {
         Key.Two -> AppTab.EXPLORE
         Key.Three, Key.F -> AppTab.SEARCH
         Key.Four -> AppTab.LIBRARY
+        Key.Five -> AppTab.PROFILE
         else -> null
     }
 }

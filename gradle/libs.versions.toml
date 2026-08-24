@@ -27,6 +27,7 @@ robolectric = "4.16.1"
 screenshot = "0.0.1-alpha15"
 wear-compose = "1.6.0"
 play-services-wearable = "20.0.1"
+zxing = "3.5.4"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core" }
@@ -79,6 +80,7 @@ androidx-wear-compose-foundation = { module = "androidx.wear.compose:compose-fou
 androidx-wear-compose-material3 = { module = "androidx.wear.compose:compose-material3", version.ref = "wear-compose" }
 play-services-wearable = { module = "com.google.android.gms:play-services-wearable", version.ref = "play-services-wearable" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

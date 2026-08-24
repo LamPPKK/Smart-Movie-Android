@@ -3,6 +3,7 @@ package com.lamndt.smartmovie.multiplatform
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
@@ -55,6 +57,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -70,6 +73,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -94,11 +98,15 @@ import coil3.compose.AsyncImage
 import com.lamndt.smartmovie.multiplatform.data.LibraryCollection
 import com.lamndt.smartmovie.multiplatform.data.LibraryRecord
 import com.lamndt.smartmovie.multiplatform.model.AppLocale
+import com.lamndt.smartmovie.multiplatform.model.CatalogEntity
 import com.lamndt.smartmovie.multiplatform.model.DiscoverSort
+import com.lamndt.smartmovie.multiplatform.model.EntityKind
 import com.lamndt.smartmovie.multiplatform.model.HomeFeed
 import com.lamndt.smartmovie.multiplatform.model.ImageUrlFactory
 import com.lamndt.smartmovie.multiplatform.model.MediaType
+import com.lamndt.smartmovie.multiplatform.model.PersonSummary
 import com.lamndt.smartmovie.multiplatform.model.SearchScope
+import com.lamndt.smartmovie.multiplatform.model.SearchScopeV2
 import com.lamndt.smartmovie.multiplatform.model.TitleDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleSummary
 import com.lamndt.smartmovie.multiplatform.model.UiStrings
@@ -144,6 +152,15 @@ fun SmartMovieApp(controller: AppController = remember { AppController() }) {
                                     } else Modifier.fillMaxSize(),
                                 )
                             }
+                            if (state.entitySelection != null) {
+                                EntityDetailPane(
+                                    state = state,
+                                    copy = copy,
+                                    controller = controller,
+                                    modifier = if (splitDetail) Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(570.dp)
+                                    else Modifier.fillMaxSize(),
+                                )
+                            }
                         }
                     }
                 } else {
@@ -153,6 +170,7 @@ fun SmartMovieApp(controller: AppController = remember { AppController() }) {
                             if (state.detailSelection != null) {
                                 DetailPane(state, copy, controller, Modifier.fillMaxSize())
                             }
+                            if (state.entitySelection != null) EntityDetailPane(state, copy, controller, Modifier.fillMaxSize())
                         }
                         CompactNavigation(state.selectedTab, copy, controller::selectTab)
                     }
@@ -177,6 +195,7 @@ private fun AppContent(
                 AppTab.EXPLORE -> ExploreScreen(state, copy, controller)
                 AppTab.SEARCH -> SearchScreen(state, copy, controller)
                 AppTab.LIBRARY -> LibraryScreen(state, copy, controller)
+                AppTab.PROFILE -> ProfileScreen(state, controller)
             }
         }
     }
@@ -272,6 +291,7 @@ private fun AppTab.label(copy: UiStrings): String = when (this) {
     AppTab.EXPLORE -> copy.explore
     AppTab.SEARCH -> copy.search
     AppTab.LIBRARY -> copy.library
+    AppTab.PROFILE -> copy.profile
 }
 
 private fun AppTab.icon(selected: Boolean): ImageVector = when (this) {
@@ -279,6 +299,122 @@ private fun AppTab.icon(selected: Boolean): ImageVector = when (this) {
     AppTab.EXPLORE -> if (selected) Icons.Filled.Explore else Icons.Outlined.Explore
     AppTab.SEARCH -> if (selected) Icons.Filled.Search else Icons.Outlined.Search
     AppTab.LIBRARY -> if (selected) Icons.AutoMirrored.Filled.LibraryBooks else Icons.AutoMirrored.Outlined.LibraryBooks
+    AppTab.PROFILE -> Icons.Default.AccountCircle
+}
+
+@Composable
+private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
+    val copy = profileCopy(state.locale)
+    var region by remember(state.regionOverride) { mutableStateOf(state.regionOverride.orEmpty()) }
+    var pin by remember { mutableStateOf("") }
+    var listName by remember { mutableStateOf("") }
+    var listDescription by remember { mutableStateOf("") }
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp),
+    ) {
+        item { SectionTitle(copy.profile) }
+        item {
+            Surface(shape = RoundedCornerShape(22.dp), color = CinemaColors.Elevated) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(copy.tmdbAccount, style = MaterialTheme.typography.titleLarge)
+                    when (val account = state.account) {
+                        AccountState.Checking -> Text(copy.checking, color = CinemaColors.Muted)
+                        AccountState.SignedOut -> {
+                            Text(copy.signInDescription, color = CinemaColors.Muted)
+                            Button(onClick = { controller.beginSignIn() }, colors = ButtonDefaults.buttonColors(containerColor = CinemaColors.Accent)) {
+                                Text(copy.signIn)
+                            }
+                        }
+                        is AccountState.Authorizing -> {
+                            Text(copy.finishBrowser, color = CinemaColors.Muted)
+                            account.attempt.deviceCode?.let { Text("${copy.deviceCode}: $it", style = MaterialTheme.typography.titleMedium) }
+                            Button(onClick = controller::cancelSignIn) { Text(copy.cancel) }
+                        }
+                        is AccountState.SignedIn -> {
+                            Text(account.profile.name.ifBlank { account.profile.username }, style = MaterialTheme.typography.titleMedium)
+                            Text("@${account.profile.username}", color = CinemaColors.Muted)
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Button(onClick = { controller.signOut(keepAsLocal = true) }) { Text(copy.signOutKeep) }
+                                Button(onClick = { controller.signOut(keepAsLocal = false) }) { Text(copy.signOutRemove) }
+                            }
+                        }
+                        is AccountState.Error -> {
+                            Text(account.message, color = CinemaColors.Accent)
+                            Button(onClick = { controller.beginSignIn() }) { Text(copy.retry) }
+                        }
+                    }
+                }
+            }
+        }
+        if (state.account is AccountState.SignedIn) item {
+            Surface(shape = RoundedCornerShape(22.dp), color = CinemaColors.Elevated) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(copy.customLists, style = MaterialTheme.typography.titleLarge)
+                    OutlinedTextField(listName, { listName = it.take(100) }, label = { Text(copy.listName) }, singleLine = true)
+                    OutlinedTextField(listDescription, { listDescription = it.take(1000) }, label = { Text(copy.listDescription) })
+                    Button(onClick = {
+                        controller.createList(listName, listDescription)
+                        listName = ""; listDescription = ""
+                    }, enabled = listName.isNotBlank()) { Text(copy.createList) }
+                    when (val lists = state.accountLists) {
+                        LoadState.Idle, LoadState.Loading -> CircularProgressIndicator()
+                        is LoadState.Error -> Text(lists.message, color = CinemaColors.Accent)
+                        is LoadState.Content -> lists.value.forEach { list ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(list.name, style = MaterialTheme.typography.titleMedium)
+                                    Text(list.description, color = CinemaColors.Muted, maxLines = 2)
+                                }
+                                TextButton(onClick = { controller.deleteList(list.id) }) { Text(copy.deleteList) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            Surface(shape = RoundedCornerShape(22.dp), color = CinemaColors.Elevated) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(copy.region, style = MaterialTheme.typography.titleLarge)
+                    OutlinedTextField(
+                        value = region,
+                        onValueChange = { region = it.take(2).uppercase() },
+                        label = { Text(copy.regionHint) },
+                        singleLine = true,
+                    )
+                    Button(onClick = { controller.setRegion(region.ifBlank { null }) }) { Text(copy.save) }
+                }
+            }
+        }
+        item {
+            Surface(shape = RoundedCornerShape(22.dp), color = CinemaColors.Elevated) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(copy.adultContent, style = MaterialTheme.typography.titleLarge)
+                    Text(copy.adultDescription, color = CinemaColors.Muted)
+                    if (state.adultLockUntil > com.lamndt.smartmovie.multiplatform.platform.systemTimeMillis()) {
+                        Text(copy.locked, color = CinemaColors.Accent)
+                    } else {
+                        OutlinedTextField(
+                            value = pin,
+                            onValueChange = { value -> pin = value.filter(Char::isDigit).take(6) },
+                            label = { Text(copy.pin) },
+                            singleLine = true,
+                        )
+                        Button(
+                            onClick = {
+                                if (state.adultConfigured) controller.unlockAdult(pin) else controller.configureAdultPin(pin)
+                                pin = ""
+                            },
+                        ) { Text(if (state.adultConfigured) copy.unlock else copy.enable) }
+                        if (state.adultUnlocked) Button(onClick = controller::lockAdult) { Text(copy.lock) }
+                    }
+                }
+            }
+        }
+        item { Text(copy.attribution, color = CinemaColors.Muted, style = MaterialTheme.typography.bodySmall) }
+    }
 }
 
 @Composable
@@ -511,18 +647,18 @@ private fun SearchScreen(state: SmartMovieState, copy: UiStrings, controller: Ap
                     ),
                     shape = RoundedCornerShape(17.dp),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    SearchScope.entries.forEach { scope ->
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    items(SearchScopeV2.entries) { scope ->
                         FilterChip(
-                            selected = state.searchScope == scope,
+                            selected = state.searchScopeV2 == scope,
                             onClick = { controller.changeSearchScope(scope) },
-                            label = { Text(scopeLabel(scope, copy)) },
+                            label = { Text(scopeLabelV2(scope, copy, state.locale)) },
                         )
                     }
                 }
             }
         }
-        when (val result = state.search) {
+        when (val result = state.entitySearch) {
             LoadState.Idle -> item(span = { GridItemSpan(maxLineSpan) }) {
                 MessagePane(copy.searchHint, modifier = Modifier.height(320.dp))
             }
@@ -534,8 +670,8 @@ private fun SearchScreen(state: SmartMovieState, copy: UiStrings, controller: Ap
                 if (result.value.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) { MessagePane(copy.noResults, modifier = Modifier.height(320.dp)) }
                 } else {
-                    items(result.value, key = { it.libraryKey }) { title ->
-                        PosterCard(title, images, typeLabel(title.mediaType, copy), { controller.openDetail(title) }, Modifier.fillMaxWidth())
+                    items(result.value, key = CatalogEntity::stableKey) { entity ->
+                        CatalogEntityCard(entity, images, copy, state.locale, { controller.openEntity(entity) })
                     }
                     if (state.searchPage < state.searchTotalPages) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -545,6 +681,66 @@ private fun SearchScreen(state: SmartMovieState, copy: UiStrings, controller: Ap
                                 colors = ButtonDefaults.buttonColors(containerColor = CinemaColors.Surface),
                             ) { Text(copy.loadMore) }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CatalogEntityCard(
+    entity: CatalogEntity,
+    images: ImageUrlFactory,
+    copy: UiStrings,
+    locale: AppLocale,
+    onOpen: () -> Unit,
+) {
+    when (entity) {
+        is CatalogEntity.Title -> PosterCard(
+            entity.value,
+            images,
+            typeLabel(entity.value.mediaType, copy),
+            onOpen,
+            Modifier.fillMaxWidth(),
+        )
+        else -> {
+            val title = when (entity) {
+                is CatalogEntity.Person -> entity.value.name
+                is CatalogEntity.Collection -> entity.value.name
+                is CatalogEntity.Organization -> entity.value.name
+                is CatalogEntity.Keyword -> entity.value.name
+                is CatalogEntity.Season -> entity.value.name
+                is CatalogEntity.Episode -> entity.value.name
+                is CatalogEntity.Title -> entity.value.displayTitle
+            }
+            val path = when (entity) {
+                is CatalogEntity.Person -> entity.value.profilePath
+                is CatalogEntity.Collection -> entity.value.posterPath
+                is CatalogEntity.Organization -> entity.value.logoPath
+                is CatalogEntity.Season -> entity.value.posterPath
+                is CatalogEntity.Episode -> entity.value.stillPath
+                else -> null
+            }
+            val url = when (entity) {
+                is CatalogEntity.Person -> images.profile(path)
+                is CatalogEntity.Episode -> images.backdrop(path)
+                else -> images.poster(path)
+            }
+            Surface(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
+                shape = CinemaCardShape,
+                color = CinemaColors.Elevated,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    if (url != null) RemoteArtwork(url, title, Modifier.fillMaxWidth().aspectRatio(0.72f))
+                    else Box(Modifier.fillMaxWidth().aspectRatio(0.72f).background(CinemaColors.Surface), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = CinemaColors.Muted, modifier = Modifier.size(42.dp))
+                    }
+                    Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(entityKindLabel(entity.entityKind, locale), style = MaterialTheme.typography.labelMedium, color = CinemaColors.Muted)
                     }
                 }
             }
@@ -622,6 +818,145 @@ private fun DetailPane(
     }
 }
 
+@Composable
+private fun EntityDetailPane(
+    state: SmartMovieState,
+    copy: UiStrings,
+    controller: AppController,
+    modifier: Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        color = CinemaColors.Background,
+        shadowElevation = 24.dp,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+    ) {
+        when (val result = state.entityDetail) {
+            LoadState.Idle, LoadState.Loading -> Box(Modifier.fillMaxSize()) {
+                DetailClose(copy.close, controller::closeDetail, Modifier.align(Alignment.TopEnd).padding(18.dp))
+                LoadingPane()
+            }
+            is LoadState.Error -> Box(Modifier.fillMaxSize()) {
+                DetailClose(copy.close, controller::closeDetail, Modifier.align(Alignment.TopEnd).padding(18.dp))
+                MessagePane(copy.serviceError, result.message, copy.retry, controller::retryEntityDetail)
+            }
+            is LoadState.Content -> EntityDetailContent(result.value, state, copy, controller)
+        }
+    }
+}
+
+@Composable
+private fun EntityDetailContent(
+    detail: EntityDetail,
+    state: SmartMovieState,
+    copy: UiStrings,
+    controller: AppController,
+) {
+    val images = remember(state.imageConfiguration) { ImageUrlFactory(state.imageConfiguration) }
+    val title: String
+    val overview: String
+    val image: String?
+    val related: List<TitleSummary>
+    when (detail) {
+        is EntityDetail.Person -> {
+            title = detail.value.name
+            overview = detail.value.biography
+            image = images.profile(detail.value.profilePath)
+            related = detail.value.knownFor.ifEmpty { detail.value.credits.cast.mapNotNull(::creditTitle) }
+        }
+        is EntityDetail.Collection -> {
+            title = detail.value.name
+            overview = detail.value.overview
+            image = images.backdrop(detail.value.backdropPath ?: detail.value.posterPath)
+            related = detail.value.parts
+        }
+        is EntityDetail.Organization -> {
+            title = detail.value.name
+            overview = detail.value.description
+            image = images.poster(detail.value.logoPath)
+            related = detail.value.titles.results
+        }
+        is EntityDetail.Keyword -> {
+            title = detail.value.name
+            overview = entityKindLabel(EntityKind.KEYWORD, state.locale)
+            image = null
+            related = detail.value.titles.results
+        }
+        is EntityDetail.Season -> {
+            title = detail.value.name
+            overview = detail.value.overview
+            image = images.poster(detail.value.posterPath)
+            related = emptyList()
+        }
+        is EntityDetail.Episode -> {
+            title = detail.value.name
+            overview = detail.value.overview
+            image = images.backdrop(detail.value.stillPath)
+            related = emptyList()
+        }
+    }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+        item {
+            Box(Modifier.fillMaxWidth().height(330.dp)) {
+                RemoteArtwork(image, title, Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, CinemaColors.Background))))
+                DetailClose(copy.close, controller::closeDetail, Modifier.align(Alignment.TopEnd).padding(18.dp))
+                Text(
+                    title,
+                    style = MaterialTheme.typography.displayMedium,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(28.dp).semantics { heading() },
+                )
+            }
+        }
+        if (overview.isNotBlank()) item {
+            Column(Modifier.padding(horizontal = 28.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SectionTitle(copy.story)
+                Text(overview, color = CinemaColors.Foreground.copy(alpha = 0.82f), style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+        if (detail is EntityDetail.Season && detail.value.episodes.isNotEmpty()) item {
+            Column(Modifier.padding(horizontal = 28.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SectionTitle(entityKindLabel(EntityKind.EPISODE, state.locale))
+                detail.value.episodes.forEach { episode ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().clickable { controller.openEntity(CatalogEntity.Episode(episode)) },
+                        color = CinemaColors.Elevated,
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text("${episode.episodeNumber}. ${episode.name}", style = MaterialTheme.typography.titleMedium)
+                            episode.airDate?.let { Text(it, color = CinemaColors.Muted) }
+                        }
+                    }
+                }
+            }
+        }
+        if (detail is EntityDetail.Episode && detail.value.guestStars.isNotEmpty()) item {
+            Column(Modifier.padding(horizontal = 28.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionTitle(copy.cast)
+                Text(detail.value.guestStars.mapNotNull { it.title }.joinToString(" · "), color = CinemaColors.Muted)
+            }
+        }
+        if (related.isNotEmpty()) item {
+            Column(Modifier.padding(top = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SectionTitle(copy.details, Modifier.padding(horizontal = 28.dp))
+                LazyRow(contentPadding = PaddingValues(horizontal = 28.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    items(related.distinctBy(TitleSummary::libraryKey), key = { it.libraryKey }) { item ->
+                        PosterCard(item, images, typeLabel(item.mediaType, copy), { controller.openDetail(item) })
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun creditTitle(credit: com.lamndt.smartmovie.multiplatform.model.Credit): TitleSummary? {
+    val id = credit.id ?: return null
+    val mediaType = credit.mediaType ?: return null
+    val title = credit.title ?: return null
+    return TitleSummary(id, mediaType, title, title, "", posterPath = credit.posterPath)
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiStrings, controller: AppController) {
@@ -688,7 +1023,31 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
                     }
                 }
                 SectionTitle(copy.story)
+                state.deepDetail?.tagline?.takeIf(String::isNotBlank)?.let {
+                    Text(it, style = MaterialTheme.typography.titleMedium, color = CinemaColors.Accent)
+                }
                 Text(detail.overview, style = MaterialTheme.typography.bodyLarge, color = CinemaColors.Foreground.copy(alpha = 0.82f))
+                state.deepDetail?.collection?.let { collection ->
+                    AssistChip(
+                        onClick = { controller.openEntity(CatalogEntity.Collection(collection)) },
+                        label = { Text(collection.name) },
+                    )
+                }
+                state.deepDetail?.watchProviders?.firstOrNull()?.let { providers ->
+                    SectionTitle("${providers.region} · ${providers.attribution}")
+                    val names = (providers.stream + providers.rent + providers.buy).distinctBy { it.providerId }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        names.forEach { provider -> AssistChip(onClick = { providers.tmdbUrl?.let(::openExternalUrl) }, label = { Text(provider.providerName) }) }
+                    }
+                }
+                state.deepDetail?.seasons?.takeIf { it.isNotEmpty() }?.let { seasons ->
+                    SectionTitle(entityKindLabel(EntityKind.SEASON, state.locale))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        seasons.forEach { season ->
+                            AssistChip(onClick = { controller.openEntity(CatalogEntity.Season(season)) }, label = { Text(season.name) })
+                        }
+                    }
+                }
             }
         }
         if (detail.cast.isNotEmpty()) {
@@ -700,7 +1059,12 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         items(detail.cast, key = { it.id }) { member ->
-                            Column(Modifier.width(112.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Column(
+                                Modifier.width(112.dp).clickable {
+                                    controller.openEntity(CatalogEntity.Person(PersonSummary(member.id, member.name, member.profilePath)))
+                                },
+                                verticalArrangement = Arrangement.spacedBy(7.dp),
+                            ) {
                                 RemoteArtwork(
                                     images.profile(member.profilePath),
                                     member.name,
@@ -750,8 +1114,111 @@ private fun scopeLabel(scope: SearchScope, copy: UiStrings): String = when (scop
     SearchScope.TV -> copy.tvSeries
 }
 
+private fun scopeLabelV2(scope: SearchScopeV2, copy: UiStrings, locale: AppLocale): String = when (scope) {
+    SearchScopeV2.ALL -> copy.all
+    SearchScopeV2.MOVIE -> copy.movies
+    SearchScopeV2.TV -> copy.tvSeries
+    SearchScopeV2.PERSON -> entityKindLabel(EntityKind.PERSON, locale)
+    SearchScopeV2.COLLECTION -> entityKindLabel(EntityKind.COLLECTION, locale)
+    SearchScopeV2.COMPANY -> entityKindLabel(EntityKind.COMPANY, locale)
+    SearchScopeV2.KEYWORD -> entityKindLabel(EntityKind.KEYWORD, locale)
+}
+
+private fun entityKindLabel(kind: EntityKind, locale: AppLocale): String {
+    val labels = when (locale) {
+        AppLocale.ENGLISH -> listOf("Movie", "TV", "Person", "Collection", "Company", "Network", "Keyword", "Season", "Episode")
+        AppLocale.VIETNAMESE -> listOf("Phim", "Phim bộ", "Con người", "Bộ sưu tập", "Công ty", "Mạng", "Từ khóa", "Mùa", "Tập")
+        AppLocale.JAPANESE -> listOf("映画", "テレビ", "人物", "コレクション", "会社", "ネットワーク", "キーワード", "シーズン", "エピソード")
+        AppLocale.KOREAN -> listOf("영화", "TV", "인물", "컬렉션", "제작사", "네트워크", "키워드", "시즌", "에피소드")
+        AppLocale.CHINESE_SIMPLIFIED -> listOf("电影", "剧集", "人物", "合集", "公司", "电视网", "关键词", "季", "集")
+        AppLocale.CHINESE_TRADITIONAL -> listOf("電影", "影集", "人物", "合輯", "公司", "電視網", "關鍵字", "季", "集")
+    }
+    return labels[kind.ordinal]
+}
+
 private fun sortLabel(sort: DiscoverSort, copy: UiStrings): String = when (sort) {
     DiscoverSort.POPULARITY -> copy.popularity
     DiscoverSort.RATING -> copy.topRated
     DiscoverSort.RELEASE_DATE -> copy.releaseDate
+}
+
+private data class ProfileCopy(
+    val profile: String,
+    val tmdbAccount: String,
+    val checking: String,
+    val signInDescription: String,
+    val signIn: String,
+    val finishBrowser: String,
+    val deviceCode: String,
+    val cancel: String,
+    val signOutKeep: String,
+    val signOutRemove: String,
+    val retry: String,
+    val region: String,
+    val regionHint: String,
+    val save: String,
+    val adultContent: String,
+    val adultDescription: String,
+    val locked: String,
+    val pin: String,
+    val unlock: String,
+    val enable: String,
+    val lock: String,
+    val attribution: String,
+    val customLists: String,
+    val listName: String,
+    val listDescription: String,
+    val createList: String,
+    val deleteList: String,
+)
+
+private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
+    AppLocale.ENGLISH -> ProfileCopy(
+        "Profile", "TMDb account", "Checking your session…", "Sign in through TMDb in your browser. SmartMovie never sees your password.",
+        "Sign in with TMDb", "Finish approval in your browser; SmartMovie will reconnect automatically.", "Device code", "Cancel",
+        "Sign out · keep local", "Sign out · remove data", "Try again", "Content region", "Two-letter country code", "Save",
+        "Adult content", "Off by default. Enabling it requires a six-digit PIN stored only on this device.",
+        "Too many attempts. Try again in five minutes.", "Six-digit PIN", "Unlock", "Enable", "Lock",
+        "Movie data and images: TMDb. Availability data: JustWatch via TMDb.", "Custom lists", "List name", "Description", "Create list", "Delete",
+    )
+    AppLocale.VIETNAMESE -> ProfileCopy(
+        "Hồ sơ", "Tài khoản TMDb", "Đang kiểm tra phiên…", "Đăng nhập qua TMDb trong trình duyệt. SmartMovie không bao giờ nhận mật khẩu của bạn.",
+        "Đăng nhập với TMDb", "Hoàn tất phê duyệt trong trình duyệt; SmartMovie sẽ tự kết nối lại.", "Mã thiết bị", "Hủy",
+        "Đăng xuất · giữ cục bộ", "Đăng xuất · xóa dữ liệu", "Thử lại", "Khu vực nội dung", "Mã quốc gia hai chữ cái", "Lưu",
+        "Nội dung 18+", "Mặc định tắt. Cần PIN sáu chữ số chỉ lưu trên thiết bị để bật.",
+        "Sai quá nhiều lần. Hãy thử lại sau năm phút.", "PIN sáu chữ số", "Mở khóa", "Bật", "Khóa",
+        "Dữ liệu và hình ảnh phim: TMDb. Dữ liệu nơi xem: JustWatch qua TMDb.", "Danh sách tùy chỉnh", "Tên danh sách", "Mô tả", "Tạo danh sách", "Xóa",
+    )
+    AppLocale.JAPANESE -> ProfileCopy(
+        "プロフィール", "TMDbアカウント", "セッションを確認中…", "ブラウザーでTMDbにログインします。SmartMovieがパスワードを取得することはありません。",
+        "TMDbでログイン", "ブラウザーで承認を完了すると自動的に再接続します。", "デバイスコード", "キャンセル",
+        "ログアウト・端末に保持", "ログアウト・データ削除", "再試行", "コンテンツ地域", "2文字の国コード", "保存",
+        "成人向けコンテンツ", "初期設定はオフです。有効化には端末内だけに保存する6桁PINが必要です。",
+        "試行回数を超えました。5分後に再試行してください。", "6桁PIN", "ロック解除", "有効にする", "ロック",
+        "映画データと画像: TMDb。配信情報: TMDb経由のJustWatch。", "カスタムリスト", "リスト名", "説明", "リストを作成", "削除",
+    )
+    AppLocale.KOREAN -> ProfileCopy(
+        "프로필", "TMDb 계정", "세션 확인 중…", "브라우저에서 TMDb에 로그인합니다. SmartMovie는 비밀번호를 받지 않습니다.",
+        "TMDb로 로그인", "브라우저에서 승인을 완료하면 자동으로 다시 연결됩니다.", "기기 코드", "취소",
+        "로그아웃 · 로컬 유지", "로그아웃 · 데이터 삭제", "다시 시도", "콘텐츠 지역", "두 글자 국가 코드", "저장",
+        "성인 콘텐츠", "기본값은 꺼짐입니다. 이 기기에만 저장되는 6자리 PIN이 필요합니다.",
+        "시도 횟수를 초과했습니다. 5분 후 다시 시도하세요.", "6자리 PIN", "잠금 해제", "사용", "잠금",
+        "영화 데이터 및 이미지: TMDb. 시청 가능 정보: TMDb를 통한 JustWatch.", "사용자 목록", "목록 이름", "설명", "목록 만들기", "삭제",
+    )
+    AppLocale.CHINESE_SIMPLIFIED -> ProfileCopy(
+        "个人资料", "TMDb 账户", "正在检查会话…", "请在浏览器中登录 TMDb。SmartMovie 不会获取您的密码。",
+        "使用 TMDb 登录", "在浏览器中完成授权后，SmartMovie 会自动重新连接。", "设备代码", "取消",
+        "退出 · 保留本地", "退出 · 删除数据", "重试", "内容地区", "两位国家代码", "保存",
+        "成人内容", "默认关闭。启用时需要设置仅存储在本设备上的六位 PIN。",
+        "尝试次数过多，请五分钟后重试。", "六位 PIN", "解锁", "启用", "锁定",
+        "电影数据和图片：TMDb。可观看信息：通过 TMDb 提供的 JustWatch。", "自定义列表", "列表名称", "说明", "创建列表", "删除",
+    )
+    AppLocale.CHINESE_TRADITIONAL -> ProfileCopy(
+        "個人資料", "TMDb 帳戶", "正在檢查工作階段…", "請在瀏覽器中登入 TMDb。SmartMovie 不會取得您的密碼。",
+        "使用 TMDb 登入", "在瀏覽器完成授權後，SmartMovie 會自動重新連線。", "裝置代碼", "取消",
+        "登出 · 保留本機", "登出 · 刪除資料", "重試", "內容地區", "兩位國家代碼", "儲存",
+        "成人內容", "預設關閉。啟用時需設定只儲存在本裝置的六位 PIN。",
+        "嘗試次數過多，請五分鐘後再試。", "六位 PIN", "解鎖", "啟用", "鎖定",
+        "電影資料與圖片：TMDb。可觀看資訊：由 TMDb 提供的 JustWatch。", "自訂清單", "清單名稱", "說明", "建立清單", "刪除",
+    )
 }

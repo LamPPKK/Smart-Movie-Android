@@ -6,8 +6,9 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 scope="${1:-all}"
 train_file="$repo_root/release/train.json"
 snapshot_manifest="$repo_root/catalog-contract/manifest.json"
-contract_manifest="$repo_root/catalog-contract/v1/manifest.json"
-openapi_file="$repo_root/catalog-contract/v1/openapi.json"
+contract_manifest="$repo_root/catalog-contract/v2/manifest.json"
+openapi_file="$repo_root/catalog-contract/v2/openapi.json"
+legacy_contract_manifest="$repo_root/catalog-contract/v1/manifest.json"
 
 case "$scope" in
   all|mobile|kmp) ;;
@@ -63,7 +64,8 @@ contract_checksum="$(read_json "$contract_manifest" openapi_sha256)"
 snapshot_fixtures_checksum="$(read_json "$snapshot_manifest" fixtures_sha256)"
 contract_fixtures_checksum="$(read_json "$contract_manifest" fixtures_sha256)"
 actual_checksum="$(sha256 "$openapi_file")"
-actual_fixtures_checksum="$(fixtures_sha256 "$repo_root/catalog-contract/v1/fixtures")"
+actual_fixtures_checksum="$(fixtures_sha256 "$repo_root/catalog-contract/v2/fixtures")"
+legacy_contract_version="$(read_json "$legacy_contract_manifest" contract_version)"
 
 [[ "$manifest_version_name" == "$expected_version" ]] || { printf 'Android manifest version %s does not match train %s\n' "$manifest_version_name" "$expected_version"; exit 1; }
 
@@ -90,6 +92,7 @@ fi
 [[ "$snapshot_version" == "$expected_contract_version" && "$contract_version" == "$expected_contract_version" ]] || { printf 'Contract versions do not match release train %s\n' "$expected_contract_version"; exit 1; }
 [[ "$snapshot_checksum" == "$expected_checksum" && "$contract_checksum" == "$expected_checksum" && "$actual_checksum" == "$expected_checksum" ]] || { printf 'Vendored contract checksum does not match release train %s\n' "$expected_checksum"; exit 1; }
 [[ "$snapshot_fixtures_checksum" == "$contract_fixtures_checksum" && "$actual_fixtures_checksum" == "$contract_fixtures_checksum" ]] || { printf 'Vendored fixture checksum does not match contract manifest %s\n' "$contract_fixtures_checksum"; exit 1; }
+[[ "$legacy_contract_version" == "1.0.0" ]] || { printf '/v1 snapshot must remain frozen at 1.0.0 while SmartMovie 2.0 is supported.\n'; exit 1; }
 if [[ "${REQUIRE_UPSTREAM_COMMIT:-0}" == "1" && ! "$snapshot_upstream_commit" =~ ^[0-9a-f]{40}$ ]]; then
   printf 'Release candidates require a 40-character canonical upstream commit; snapshot is still bootstrap-only.\n'
   exit 1
