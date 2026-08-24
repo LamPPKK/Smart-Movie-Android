@@ -26,4 +26,7 @@
     <string name="crew">スタッフ</string>
     <string name="guest_stars">ゲスト出演</string>
     <string name="credit_title">作品</string>
+    <string name="account_recommendations">アカウントへのおすすめ</string>
+    <string name="no_account_recommendations">おすすめはまだありません。</string>
+    <string name="load_more">さらに読み込む</string>
 </resources>

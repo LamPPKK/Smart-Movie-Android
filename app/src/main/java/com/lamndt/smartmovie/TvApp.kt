@@ -135,7 +135,12 @@ fun TvApp(container: AppContainer) {
                 TvTab.EXPLORE -> TvExplore(state, container.images, tvViewModel::selectMediaType, tvViewModel::refreshExplore, tvViewModel::loadMoreExplore, { detailTitle = it })
                 TvTab.SEARCH -> TvSearch(state, container.images, tvViewModel::setQuery, tvViewModel::setScope, tvViewModel::loadMoreSearch, { detailTitle = it })
                 TvTab.LIBRARY -> TvLibrary(state, container.images, tvViewModel::selectCollection, { detailTitle = it })
-                TvTab.PROFILE -> ProfileScreen(container, language, isTv = true)
+                TvTab.PROFILE -> ProfileScreen(
+                    container,
+                    language,
+                    isTv = true,
+                    onTitleClick = { detailTitle = it },
+                )
             }
         }
         detailTitle?.let { title ->

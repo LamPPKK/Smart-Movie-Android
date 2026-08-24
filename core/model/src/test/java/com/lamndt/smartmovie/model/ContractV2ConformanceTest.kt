@@ -39,6 +39,12 @@ class ContractV2ConformanceTest {
         val credit = decode<CreditDetail>("credit-detail")
         assertThat(credit.personSummary?.id).isEqualTo(6384)
         assertThat(credit.titleSummary?.libraryKey).isEqualTo("movie:603")
+
+        val recommendations = decode<PagedResult<TitleSummary>>("account-recommendations")
+        assertThat(recommendations.totalPages).isEqualTo(2)
+        assertThat(recommendations.results.map(TitleSummary::libraryKey))
+            .containsExactly("movie:438631", "movie:999001")
+            .inOrder()
     }
 
     @Test

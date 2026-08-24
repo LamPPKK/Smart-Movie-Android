@@ -52,7 +52,7 @@ To force a fresh test execution rather than accept Gradle's `UP-TO-DATE` result:
   validateDebugScreenshotTest
 ```
 
-The latest focused Credit Detail gate passed native model/network/detail tests, main debug APK assembly, KMP desktop tests/compile, and strict dependency verification. The most recent full 3.0 feature gate also passed lint, screenshot validation, and Wear debug assembly. CI device jobs remain authoritative for emulator input/launch behavior.
+The latest focused Account Recommendations gate passed native app/model tests, main debug APK assembly, KMP desktop tests/compile, and contract snapshot verification. It covers Movie/TV selection, pagination, `libraryKey` deduplication, adult-PIN filtering, and canonical fixture decoding. The most recent full 3.0 feature gate also passed lint, screenshot validation, and Wear debug assembly. CI device jobs remain authoritative for emulator input/launch behavior.
 
 ## Emulator verification
 

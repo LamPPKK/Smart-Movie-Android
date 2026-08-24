@@ -30,4 +30,7 @@
     <string name="crew">Đoàn làm phim</string>
     <string name="guest_stars">Diễn viên khách mời</string>
     <string name="credit_title">Tựa phim</string>
+    <string name="account_recommendations">Đề xuất cho tài khoản</string>
+    <string name="no_account_recommendations">Chưa có đề xuất cho tài khoản.</string>
+    <string name="load_more">Tải thêm</string>
 </resources>

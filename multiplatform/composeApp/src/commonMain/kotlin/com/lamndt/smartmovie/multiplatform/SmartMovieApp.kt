@@ -312,6 +312,8 @@ private fun AppTab.icon(selected: Boolean): ImageVector = when (this) {
 @Composable
 private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
     val copy = profileCopy(state.locale)
+    val uiCopy = strings(state.locale)
+    val images = remember(state.imageConfiguration) { ImageUrlFactory(state.imageConfiguration) }
     var region by remember(state.regionOverride) { mutableStateOf(state.regionOverride.orEmpty()) }
     var pin by remember { mutableStateOf("") }
     var listName by remember { mutableStateOf("") }
@@ -352,6 +354,50 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
                             Button(onClick = { controller.beginSignIn() }) { Text(copy.retry) }
                         }
                     }
+                }
+            }
+        }
+        if (state.account is AccountState.SignedIn) item {
+            Surface(shape = RoundedCornerShape(22.dp), color = CinemaColors.Elevated) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(copy.recommendations, style = MaterialTheme.typography.titleLarge)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        MediaType.entries.forEach { mediaType ->
+                            FilterChip(
+                                selected = state.accountRecommendationType == mediaType,
+                                onClick = { controller.selectRecommendationType(mediaType) },
+                                label = { Text(typeLabel(mediaType, uiCopy)) },
+                            )
+                        }
+                    }
+                    when (val recommendations = state.accountRecommendations) {
+                        LoadState.Idle, LoadState.Loading -> CircularProgressIndicator()
+                        is LoadState.Error -> MessagePane(
+                            uiCopy.serviceError,
+                            recommendations.message,
+                            uiCopy.retry,
+                            controller::refreshRecommendations,
+                        )
+                        is LoadState.Content -> if (recommendations.value.isEmpty()) {
+                            Text(copy.noRecommendations, color = CinemaColors.Muted)
+                        } else {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                items(recommendations.value, key = TitleSummary::libraryKey) { title ->
+                                    PosterCard(title, images, typeLabel(title.mediaType, uiCopy), { controller.openDetail(title) })
+                                }
+                            }
+                        }
+                    }
+                    if (state.accountRecommendationPage in 1 until state.accountRecommendationTotalPages) {
+                        Button(
+                            onClick = controller::loadMoreRecommendations,
+                            enabled = !state.accountRecommendationsLoadingMore,
+                        ) {
+                            if (state.accountRecommendationsLoadingMore) CircularProgressIndicator(Modifier.size(18.dp))
+                            else Text(uiCopy.loadMore)
+                        }
+                    }
+                    state.accountRecommendationError?.let { Text(it, color = CinemaColors.Accent) }
                 }
             }
         }
@@ -1360,6 +1406,8 @@ private data class ProfileCopy(
     val listDescription: String,
     val createList: String,
     val deleteList: String,
+    val recommendations: String,
+    val noRecommendations: String,
 )
 
 private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
@@ -1370,6 +1418,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "Adult content", "Off by default. Enabling it requires a six-digit PIN stored only on this device.",
         "Too many attempts. Try again in five minutes.", "Six-digit PIN", "Unlock", "Enable", "Lock",
         "Movie data and images: TMDb. Availability data: JustWatch via TMDb.", "Custom lists", "List name", "Description", "Create list", "Delete",
+        "Account recommendations", "No account recommendations yet.",
     )
     AppLocale.VIETNAMESE -> ProfileCopy(
         "Hồ sơ", "Tài khoản TMDb", "Đang kiểm tra phiên…", "Đăng nhập qua TMDb trong trình duyệt. SmartMovie không bao giờ nhận mật khẩu của bạn.",
@@ -1378,6 +1427,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "Nội dung 18+", "Mặc định tắt. Cần PIN sáu chữ số chỉ lưu trên thiết bị để bật.",
         "Sai quá nhiều lần. Hãy thử lại sau năm phút.", "PIN sáu chữ số", "Mở khóa", "Bật", "Khóa",
         "Dữ liệu và hình ảnh phim: TMDb. Dữ liệu nơi xem: JustWatch qua TMDb.", "Danh sách tùy chỉnh", "Tên danh sách", "Mô tả", "Tạo danh sách", "Xóa",
+        "Đề xuất cho tài khoản", "Chưa có đề xuất cho tài khoản.",
     )
     AppLocale.JAPANESE -> ProfileCopy(
         "プロフィール", "TMDbアカウント", "セッションを確認中…", "ブラウザーでTMDbにログインします。SmartMovieがパスワードを取得することはありません。",
@@ -1386,6 +1436,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "成人向けコンテンツ", "初期設定はオフです。有効化には端末内だけに保存する6桁PINが必要です。",
         "試行回数を超えました。5分後に再試行してください。", "6桁PIN", "ロック解除", "有効にする", "ロック",
         "映画データと画像: TMDb。配信情報: TMDb経由のJustWatch。", "カスタムリスト", "リスト名", "説明", "リストを作成", "削除",
+        "アカウントへのおすすめ", "おすすめはまだありません。",
     )
     AppLocale.KOREAN -> ProfileCopy(
         "프로필", "TMDb 계정", "세션 확인 중…", "브라우저에서 TMDb에 로그인합니다. SmartMovie는 비밀번호를 받지 않습니다.",
@@ -1394,6 +1445,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "성인 콘텐츠", "기본값은 꺼짐입니다. 이 기기에만 저장되는 6자리 PIN이 필요합니다.",
         "시도 횟수를 초과했습니다. 5분 후 다시 시도하세요.", "6자리 PIN", "잠금 해제", "사용", "잠금",
         "영화 데이터 및 이미지: TMDb. 시청 가능 정보: TMDb를 통한 JustWatch.", "사용자 목록", "목록 이름", "설명", "목록 만들기", "삭제",
+        "계정 추천", "아직 계정 추천이 없습니다.",
     )
     AppLocale.CHINESE_SIMPLIFIED -> ProfileCopy(
         "个人资料", "TMDb 账户", "正在检查会话…", "请在浏览器中登录 TMDb。SmartMovie 不会获取您的密码。",
@@ -1402,6 +1454,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "成人内容", "默认关闭。启用时需要设置仅存储在本设备上的六位 PIN。",
         "尝试次数过多，请五分钟后重试。", "六位 PIN", "解锁", "启用", "锁定",
         "电影数据和图片：TMDb。可观看信息：通过 TMDb 提供的 JustWatch。", "自定义列表", "列表名称", "说明", "创建列表", "删除",
+        "账户推荐", "暂无账户推荐。",
     )
     AppLocale.CHINESE_TRADITIONAL -> ProfileCopy(
         "個人資料", "TMDb 帳戶", "正在檢查工作階段…", "請在瀏覽器中登入 TMDb。SmartMovie 不會取得您的密碼。",
@@ -1410,5 +1463,6 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "成人內容", "預設關閉。啟用時需設定只儲存在本裝置的六位 PIN。",
         "嘗試次數過多，請五分鐘後再試。", "六位 PIN", "解鎖", "啟用", "鎖定",
         "電影資料與圖片：TMDb。可觀看資訊：由 TMDb 提供的 JustWatch。", "自訂清單", "清單名稱", "說明", "建立清單", "刪除",
+        "帳戶推薦", "目前沒有帳戶推薦。",
     )
 }

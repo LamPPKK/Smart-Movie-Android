@@ -26,4 +26,7 @@
     <string name="crew">제작진</string>
     <string name="guest_stars">게스트 출연</string>
     <string name="credit_title">작품</string>
+    <string name="account_recommendations">계정 추천</string>
+    <string name="no_account_recommendations">아직 계정 추천이 없습니다.</string>
+    <string name="load_more">더 불러오기</string>
 </resources>

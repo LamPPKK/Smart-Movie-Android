@@ -26,4 +26,7 @@
     <string name="crew">幕後人員</string>
     <string name="guest_stars">客串演員</string>
     <string name="credit_title">作品</string>
+    <string name="account_recommendations">帳戶推薦</string>
+    <string name="no_account_recommendations">目前沒有帳戶推薦。</string>
+    <string name="load_more">載入更多</string>
 </resources>

@@ -13,7 +13,7 @@ The separate `SmartMovie` repository owns the native SwiftUI clients for iPhone,
 
 ## Architecture
 
-`composeApp` owns the shared `/v2` catalog/account contracts, Ktor Worker client, entity and External ID search, navigable Credit Detail flows, retry/cancellation behavior, anonymous installation ID, local-first Favorite/Watchlist library, account-scoped durable mutation outbox, adult PIN state, six-locale copy, UDF controller, and adaptive cinematic UI. Platform source sets provide storage, secure session behavior, URL handoff, API base URL, and entry points.
+`composeApp` owns the shared `/v2` catalog/account contracts, Ktor Worker client, entity and External ID search, navigable Credit Detail flows, paginated Movie/TV account recommendations, retry/cancellation behavior, anonymous installation ID, local-first Favorite/Watchlist library, account-scoped durable mutation outbox, adult PIN state, six-locale copy, UDF controller, and adaptive cinematic UI. Platform source sets provide storage, secure session behavior, URL handoff, API base URL, and entry points.
 
 Desktop conformance tests decode the repository-level `catalog-contract` fixtures. The vendored snapshot is shared with native Android and is updated by an automated cross-repository pull request whenever the Worker contract changes.
 

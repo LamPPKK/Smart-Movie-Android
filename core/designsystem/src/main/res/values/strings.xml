@@ -131,4 +131,7 @@
     <string name="crew">Crew</string>
     <string name="guest_stars">Guest stars</string>
     <string name="credit_title">Title</string>
+    <string name="account_recommendations">Account recommendations</string>
+    <string name="no_account_recommendations">No account recommendations yet.</string>
+    <string name="load_more">Load more</string>
 </resources>

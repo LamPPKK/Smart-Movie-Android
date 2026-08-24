@@ -358,7 +358,9 @@ private fun TabContent(
         AppTab.EXPLORE -> ExploreRoute(catalog, images, language, onTitleClick, modifier)
         AppTab.SEARCH -> SearchRoute(catalog, images, language, onTitleClick, modifier, onEntityClick)
         AppTab.LIBRARY -> LibraryRoute(library, images, onTitleClick, modifier)
-        AppTab.PROFILE -> appContainer?.let { ProfileScreen(it, language, isTv = false, modifier) }
+        AppTab.PROFILE -> appContainer?.let {
+            ProfileScreen(it, language, isTv = false, modifier = modifier, onTitleClick = onTitleClick)
+        }
             ?: AboutScreen(versionName = "", modifier = modifier)
     }
 }

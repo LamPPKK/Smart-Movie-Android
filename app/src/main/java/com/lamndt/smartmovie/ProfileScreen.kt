@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -48,14 +50,26 @@ import androidx.core.net.toUri
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.lamndt.smartmovie.designsystem.CinemaColors
+import com.lamndt.smartmovie.designsystem.PosterCard
 import com.lamndt.smartmovie.designsystem.R
 import com.lamndt.smartmovie.model.AccountMutationPayload
 import com.lamndt.smartmovie.model.PendingAccountMutation
+import com.lamndt.smartmovie.model.ImageKind
+import com.lamndt.smartmovie.model.MediaType
+import com.lamndt.smartmovie.model.PagedResult
+import com.lamndt.smartmovie.model.TitleSummary
 import com.lamndt.smartmovie.model.UserList
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun ProfileScreen(container: AppContainer, language: String, isTv: Boolean, modifier: Modifier = Modifier) {
+internal fun ProfileScreen(
+    container: AppContainer,
+    language: String,
+    isTv: Boolean,
+    modifier: Modifier = Modifier,
+    onTitleClick: (TitleSummary) -> Unit = {},
+) {
     val state by container.accountSession.state.collectAsState()
     val mutationRevision by container.accountSession.mutationRevision.collectAsState()
     val region by container.preferences.region.collectAsState()
@@ -73,6 +87,27 @@ internal fun ProfileScreen(container: AppContainer, language: String, isTv: Bool
     var listName by remember { mutableStateOf("") }
     var listDescription by remember { mutableStateOf("") }
     var listError by remember { mutableStateOf<String?>(null) }
+    var recommendationType by remember { mutableStateOf(MediaType.MOVIE) }
+    var recommendations by remember { mutableStateOf(AccountRecommendationsUiState()) }
+    var recommendationReload by remember { mutableStateOf(0) }
+    val signedInProfile = (state as? AccountSessionState.SignedIn)?.profile
+    val includeAdult = container.preferences.adultConfigured && unlocked
+
+    LaunchedEffect(signedInProfile?.id, recommendationType, language, includeAdult, recommendationReload) {
+        if (signedInProfile == null) {
+            recommendations = AccountRecommendationsUiState()
+        } else {
+            recommendations = recommendations.copy(items = emptyList(), page = 0, loading = true, error = null)
+            recommendations = runCatching {
+                container.account.recommendations(recommendationType, 1, language)
+            }.also { result ->
+                if (result.exceptionOrNull() is CancellationException) throw result.exceptionOrNull()!!
+            }.fold(
+                onSuccess = { page -> recommendationsFromPage(emptyList(), page, includeAdult) },
+                onFailure = { error -> recommendations.copy(loading = false, error = error.message.orEmpty()) },
+            )
+        }
+    }
 
     Column(
         modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 40.dp),
@@ -133,6 +168,67 @@ internal fun ProfileScreen(container: AppContainer, language: String, isTv: Bool
                         Text(value.message, color = MaterialTheme.colorScheme.error)
                         TextButton(onClick = { container.accountSession.refresh(language) }) { Text(stringResource(R.string.try_again)) }
                     }
+                }
+            }
+        }
+
+        if (state is AccountSessionState.SignedIn) Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.account_recommendations), style = MaterialTheme.typography.titleLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MediaType.entries.forEach { type ->
+                        FilterChip(
+                            selected = recommendationType == type,
+                            onClick = { recommendationType = type },
+                            label = { Text(stringResource(if (type == MediaType.MOVIE) R.string.movies else R.string.tv_series)) },
+                        )
+                    }
+                }
+                when {
+                    recommendations.loading && recommendations.items.isEmpty() -> CircularProgressIndicator()
+                    recommendations.error != null && recommendations.items.isEmpty() -> {
+                        Text(recommendations.error.orEmpty(), color = MaterialTheme.colorScheme.error)
+                        TextButton(onClick = { recommendationReload += 1 }) { Text(stringResource(R.string.try_again)) }
+                    }
+                    recommendations.items.isEmpty() -> Text(stringResource(R.string.no_account_recommendations), color = CinemaColors.Muted)
+                    else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        items(recommendations.items, key = TitleSummary::libraryKey) { title ->
+                            PosterCard(
+                                title = title,
+                                imageUrl = container.images.url(title.posterPath, ImageKind.POSTER),
+                                onClick = { onTitleClick(title) },
+                            )
+                        }
+                    }
+                }
+                if (recommendations.page in 1 until recommendations.totalPages) {
+                    Button(
+                        enabled = !recommendations.loading,
+                        onClick = {
+                            scope.launch {
+                                val requestedPage = recommendations.page + 1
+                                val requestedType = recommendationType
+                                recommendations = recommendations.copy(loading = true, error = null)
+                                val result = runCatching {
+                                    container.account.recommendations(requestedType, requestedPage, language)
+                                }.also { value ->
+                                    if (value.exceptionOrNull() is CancellationException) throw value.exceptionOrNull()!!
+                                }
+                                if (recommendationType == requestedType) {
+                                    recommendations = result.fold(
+                                        onSuccess = { page -> recommendationsFromPage(recommendations.items, page, includeAdult) },
+                                        onFailure = { error -> recommendations.copy(loading = false, error = error.message.orEmpty()) },
+                                    )
+                                }
+                            }
+                        },
+                    ) {
+                        if (recommendations.loading) CircularProgressIndicator(Modifier.size(18.dp))
+                        else Text(stringResource(R.string.load_more))
+                    }
+                }
+                if (recommendations.items.isNotEmpty()) recommendations.error?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -263,6 +359,24 @@ internal fun ProfileScreen(container: AppContainer, language: String, isTv: Bool
         },
     )
 }
+
+internal data class AccountRecommendationsUiState(
+    val items: List<TitleSummary> = emptyList(),
+    val page: Int = 0,
+    val totalPages: Int = 1,
+    val loading: Boolean = false,
+    val error: String? = null,
+)
+
+internal fun recommendationsFromPage(
+    existing: List<TitleSummary>,
+    page: PagedResult<TitleSummary>,
+    includeAdult: Boolean,
+): AccountRecommendationsUiState = AccountRecommendationsUiState(
+    items = (existing + page.results.filter { includeAdult || !it.adult }).distinctBy(TitleSummary::libraryKey),
+    page = page.page,
+    totalPages = page.totalPages,
+)
 
 internal fun applyPendingLists(remote: List<UserList>, pending: List<PendingAccountMutation>): List<UserList> {
     var result = remote

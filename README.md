@@ -27,6 +27,7 @@ Apple and Android keep native UI, lifecycle, and storage while sharing the addit
 - **Explore the complete catalog** through Home, advanced Discover, trending, pagination, retry, and cancellation.
 - **Search across entities** with discriminated Movie, TV, Person, Collection, Company, and Keyword results, or resolve an IMDb, TheTVDB, Wikidata, Facebook, Instagram, or X/Twitter ID.
 - **Open deep details** for titles, people, collections, organizations, keywords, seasons, episodes, and individual cast/crew credits, including navigable person/title links, role metadata, media, reviews, related content, providers, and release information.
+- **Use TMDb account recommendations** from Profile with separate Movie/TV feeds, retry, pagination, title navigation, deduplication, and local adult-PIN filtering across phone, Android TV, and KMP desktop/web.
 - **See where to watch** in a device or chosen region, open only TMDb URLs, and retain required JustWatch attribution.
 - **Keep adult content private by default** behind local confirmation, a six-digit PIN, and five-attempt lockout; Wear/public surfaces never receive it.
 - **Connect TMDb safely** in a browser or by TV QR. Rate Movie/TV/Episode titles and manage account library/lists through optimistic durable retry without exposing credentials.

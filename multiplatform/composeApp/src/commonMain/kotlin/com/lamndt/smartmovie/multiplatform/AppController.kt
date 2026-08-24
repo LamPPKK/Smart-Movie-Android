@@ -40,6 +40,7 @@ import com.lamndt.smartmovie.multiplatform.model.ExternalIdSource
 import com.lamndt.smartmovie.multiplatform.model.KeywordDetail
 import com.lamndt.smartmovie.multiplatform.model.OrganizationDetail
 import com.lamndt.smartmovie.multiplatform.model.PersonDetail
+import com.lamndt.smartmovie.multiplatform.model.PagedResult
 import com.lamndt.smartmovie.multiplatform.model.SearchScopeV2
 import com.lamndt.smartmovie.multiplatform.model.SeasonDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleDetailV2
@@ -126,6 +127,12 @@ data class SmartMovieState(
     val capabilities: CapabilitiesV2? = null,
     val account: AccountState = AccountState.Checking,
     val accountLists: LoadState<List<UserList>> = LoadState.Idle,
+    val accountRecommendationType: MediaType = MediaType.MOVIE,
+    val accountRecommendations: LoadState<List<TitleSummary>> = LoadState.Idle,
+    val accountRecommendationPage: Int = 0,
+    val accountRecommendationTotalPages: Int = 1,
+    val accountRecommendationsLoadingMore: Boolean = false,
+    val accountRecommendationError: String? = null,
     val regionOverride: String? = null,
     val adultConfigured: Boolean = false,
     val adultUnlocked: Boolean = false,
@@ -171,6 +178,7 @@ class AppController(
     private var detailJob: Job? = null
     private var titleRatingJob: Job? = null
     private var episodeRatingJob: Job? = null
+    private var recommendationsJob: Job? = null
 
     init {
         scope.launch { library.records.collect { records -> mutableState.update { it.copy(library = records) } } }
@@ -202,6 +210,9 @@ class AppController(
         }
         if (tab == AppTab.HOME && state.value.home is LoadState.Idle) reloadHome()
         if (tab == AppTab.EXPLORE && state.value.explore is LoadState.Idle) reloadExplore()
+        if (tab == AppTab.PROFILE && state.value.account is AccountState.SignedIn &&
+            state.value.accountRecommendations is LoadState.Idle
+        ) refreshRecommendations()
     }
 
     fun changeLocale(locale: AppLocale) {
@@ -216,6 +227,7 @@ class AppController(
             if (state.value.searchMode == CatalogSearchMode.CATALOG) scheduleSearch(immediate = true)
             else if (state.value.externalIdSearch !is LoadState.Idle) findExternalId()
         }
+        if (state.value.account is AccountState.SignedIn) refreshRecommendations()
     }
 
     fun changeHomeType(mediaType: MediaType) {
@@ -610,6 +622,7 @@ class AppController(
         store.putString(ADULT_DIGEST_KEY, pinDigest(salt, pin))
         resetAdultFailures()
         mutableState.update { it.copy(adultConfigured = true, adultUnlocked = true) }
+        refreshRecommendations()
         return true
     }
 
@@ -621,6 +634,7 @@ class AppController(
         if (pinDigest(salt, pin) == digest) {
             resetAdultFailures()
             mutableState.update { it.copy(adultUnlocked = true) }
+            refreshRecommendations()
             return true
         }
         val failures = snapshot.adultFailures + 1
@@ -632,7 +646,16 @@ class AppController(
     }
 
     fun lockAdult() {
-        mutableState.update { it.copy(adultUnlocked = false) }
+        recommendationsJob?.cancel()
+        mutableState.update { snapshot ->
+            val visible = (snapshot.accountRecommendations as? LoadState.Content)?.value
+                ?.filterNot(TitleSummary::adult)
+            snapshot.copy(
+                adultUnlocked = false,
+                accountRecommendations = visible?.let { LoadState.Content(it) } ?: snapshot.accountRecommendations,
+                accountRecommendationsLoadingMore = false,
+            )
+        }
     }
 
     fun beginSignIn(mode: String = authMode()) {
@@ -657,6 +680,7 @@ class AppController(
     fun signOut(keepAsLocal: Boolean) {
         val account = accountApi ?: return
         val accountId = (state.value.account as? AccountState.SignedIn)?.profile?.id
+        recommendationsJob?.cancel()
         scope.launch {
             runCatching { account.logout() }
             library.deactivateAccount(removeAccountData = !keepAsLocal)
@@ -665,6 +689,11 @@ class AppController(
                 it.copy(
                     account = AccountState.SignedOut,
                     accountLists = LoadState.Idle,
+                    accountRecommendations = LoadState.Idle,
+                    accountRecommendationPage = 0,
+                    accountRecommendationTotalPages = 1,
+                    accountRecommendationsLoadingMore = false,
+                    accountRecommendationError = null,
                     detailRating = AccountRatingState(),
                     episodeRating = AccountRatingState(),
                 )
@@ -675,6 +704,30 @@ class AppController(
     fun refreshLists() {
         val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
         scope.launch { refreshLists(profile.id) }
+    }
+
+    fun selectRecommendationType(mediaType: MediaType) {
+        if (mediaType == state.value.accountRecommendationType) return
+        mutableState.update {
+            it.copy(
+                accountRecommendationType = mediaType,
+                accountRecommendations = LoadState.Idle,
+                accountRecommendationPage = 0,
+                accountRecommendationTotalPages = 1,
+                accountRecommendationError = null,
+            )
+        }
+        refreshRecommendations()
+    }
+
+    fun refreshRecommendations() {
+        loadRecommendations(reset = true)
+    }
+
+    fun loadMoreRecommendations() {
+        val snapshot = state.value
+        if (snapshot.accountRecommendationsLoadingMore || snapshot.accountRecommendationPage !in 1 until snapshot.accountRecommendationTotalPages) return
+        loadRecommendations(reset = false)
     }
 
     fun createList(name: String, description: String) {
@@ -724,6 +777,75 @@ class AppController(
     }
 
     fun close() = scope.cancel()
+
+    private fun loadRecommendations(reset: Boolean) {
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
+        recommendationsJob?.cancel()
+        recommendationsJob = scope.launch { refreshRecommendations(profile.id, reset) }
+    }
+
+    private suspend fun refreshRecommendations(accountId: Int, reset: Boolean) {
+        val account = accountApi ?: return
+        val snapshot = state.value
+        val signedInId = (snapshot.account as? AccountState.SignedIn)?.profile?.id ?: return
+        if (signedInId != accountId) return
+        val mediaType = snapshot.accountRecommendationType
+        val existing = if (reset) emptyList() else {
+            (snapshot.accountRecommendations as? LoadState.Content)?.value.orEmpty()
+        }
+        val requestedPage = if (reset) 1 else snapshot.accountRecommendationPage + 1
+        mutableState.update {
+            if (reset) {
+                it.copy(
+                    accountRecommendations = LoadState.Loading,
+                    accountRecommendationPage = 0,
+                    accountRecommendationTotalPages = 1,
+                    accountRecommendationsLoadingMore = false,
+                    accountRecommendationError = null,
+                )
+            } else {
+                it.copy(accountRecommendationsLoadingMore = true, accountRecommendationError = null)
+            }
+        }
+        runCatching { account.recommendations(mediaType, requestedPage, snapshot.locale.backendTag) }
+            .propagateCancellation()
+            .onSuccess { page ->
+                val current = state.value
+                if ((current.account as? AccountState.SignedIn)?.profile?.id != accountId ||
+                    current.accountRecommendationType != mediaType
+                ) return@onSuccess
+                mutableState.update {
+                    it.copy(
+                        accountRecommendations = LoadState.Content(
+                            mergeAccountRecommendations(existing, page, includeAdult(it)),
+                        ),
+                        accountRecommendationPage = page.page,
+                        accountRecommendationTotalPages = page.totalPages,
+                        accountRecommendationsLoadingMore = false,
+                        accountRecommendationError = null,
+                    )
+                }
+            }
+            .onFailure { error ->
+                val current = state.value
+                if ((current.account as? AccountState.SignedIn)?.profile?.id != accountId ||
+                    current.accountRecommendationType != mediaType
+                ) return@onFailure
+                mutableState.update {
+                    if (reset) {
+                        it.copy(
+                            accountRecommendations = LoadState.Error(error.message.orEmpty()),
+                            accountRecommendationsLoadingMore = false,
+                        )
+                    } else {
+                        it.copy(
+                            accountRecommendationsLoadingMore = false,
+                            accountRecommendationError = error.message.orEmpty(),
+                        )
+                    }
+                }
+            }
+    }
 
     private suspend fun refreshLists(accountId: Int) {
         val account = accountApi ?: return
@@ -937,6 +1059,7 @@ class AppController(
             .onSuccess { profile ->
                 library.activateAccount(profile.id)
                 mutableState.update { it.copy(account = AccountState.SignedIn(profile)) }
+                refreshRecommendations(profile.id, reset = true)
                 syncAccountLibrary(profile.id)
                 flushAccountOutbox(profile.id)
                 refreshLists(profile.id)
@@ -959,6 +1082,7 @@ class AppController(
                         }
                     library.activateAccount(session.profile.id)
                     mutableState.update { it.copy(account = AccountState.SignedIn(session.profile)) }
+                    refreshRecommendations(session.profile.id, reset = true)
                     syncAccountLibrary(session.profile.id)
                     flushAccountOutbox(session.profile.id)
                     refreshLists(session.profile.id)
@@ -1033,6 +1157,13 @@ class AppController(
         const val MAX_LIBRARY_SYNC_PAGES = 50
     }
 }
+
+internal fun mergeAccountRecommendations(
+    existing: List<TitleSummary>,
+    page: PagedResult<TitleSummary>,
+    includeAdult: Boolean,
+): List<TitleSummary> = (existing + page.results.filter { includeAdult || !it.adult })
+    .distinctBy(TitleSummary::libraryKey)
 
 private fun AccountMutationPayload.isListMutation(): Boolean = when (this) {
     is AccountMutationPayload.CreateList,

@@ -66,6 +66,8 @@ class ContractConformanceTest {
         val credit = decodeV2<CreditDetail>("credit-detail")
         assertEquals(6384, credit.personSummary?.id)
         assertEquals("movie:603", credit.titleSummary?.libraryKey)
+        val recommendations = decodeV2<PagedResult<TitleSummary>>("account-recommendations")
+        assertEquals(listOf("movie:438631", "movie:999001"), recommendations.results.map(TitleSummary::libraryKey))
     }
 
     @Test
