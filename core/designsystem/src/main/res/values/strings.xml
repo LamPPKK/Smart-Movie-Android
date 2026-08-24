@@ -134,4 +134,16 @@
     <string name="account_recommendations">Account recommendations</string>
     <string name="no_account_recommendations">No account recommendations yet.</string>
     <string name="load_more">Load more</string>
+    <string name="open_list">Open</string>
+    <string name="close_list">Close list</string>
+    <string name="list_details">List details</string>
+    <string name="waiting_list_sync">Waiting for this list to sync before editing.</string>
+    <string name="public_list">Public list</string>
+    <string name="save_changes">Save changes</string>
+    <string name="titles_in_list">Titles in this list</string>
+    <string name="empty_list_titles">This list has no titles yet.</string>
+    <string name="remove_title">Remove</string>
+    <string name="add_titles">Add movies and TV series</string>
+    <string name="search_titles">Search titles</string>
+    <string name="add_title">Add</string>
 </resources>

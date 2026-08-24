@@ -12,6 +12,7 @@ import com.lamndt.smartmovie.multiplatform.data.PersistentLibrary
 import com.lamndt.smartmovie.multiplatform.data.PersistentAccountMutationOutbox
 import com.lamndt.smartmovie.multiplatform.data.PendingAccountMutation
 import com.lamndt.smartmovie.multiplatform.data.ListItemMutation
+import com.lamndt.smartmovie.multiplatform.data.applyPendingListDetail
 import com.lamndt.smartmovie.multiplatform.data.applyPendingLists
 import com.lamndt.smartmovie.multiplatform.data.createInstallationId
 import com.lamndt.smartmovie.multiplatform.data.pinDigest
@@ -127,6 +128,11 @@ data class SmartMovieState(
     val capabilities: CapabilitiesV2? = null,
     val account: AccountState = AccountState.Checking,
     val accountLists: LoadState<List<UserList>> = LoadState.Idle,
+    val selectedAccountListId: Int? = null,
+    val accountListDetail: LoadState<UserList> = LoadState.Idle,
+    val accountListLoadingMore: Boolean = false,
+    val accountListSearchQuery: String = "",
+    val accountListSearch: LoadState<List<TitleSummary>> = LoadState.Idle,
     val accountRecommendationType: MediaType = MediaType.MOVIE,
     val accountRecommendations: LoadState<List<TitleSummary>> = LoadState.Idle,
     val accountRecommendationPage: Int = 0,
@@ -179,6 +185,9 @@ class AppController(
     private var titleRatingJob: Job? = null
     private var episodeRatingJob: Job? = null
     private var recommendationsJob: Job? = null
+    private var accountListJob: Job? = null
+    private var accountListSearchJob: Job? = null
+    private var accountListsRequestRevision = 0
 
     init {
         scope.launch { library.records.collect { records -> mutableState.update { it.copy(library = records) } } }
@@ -217,9 +226,16 @@ class AppController(
 
     fun changeLocale(locale: AppLocale) {
         if (locale == state.value.locale) return
+        accountListSearchJob?.cancel()
         store.putString(LOCALE_KEY, locale.tag)
         mutableState.update {
-            it.copy(locale = locale, home = LoadState.Idle, explore = LoadState.Idle, search = LoadState.Idle)
+            it.copy(
+                locale = locale,
+                home = LoadState.Idle,
+                explore = LoadState.Idle,
+                search = LoadState.Idle,
+                accountListSearch = LoadState.Idle,
+            )
         }
         reloadHome()
         reloadGenresAndExplore()
@@ -228,6 +244,7 @@ class AppController(
             else if (state.value.externalIdSearch !is LoadState.Idle) findExternalId()
         }
         if (state.value.account is AccountState.SignedIn) refreshRecommendations()
+        if ((state.value.selectedAccountListId ?: -1) > 0) refreshAccountList()
     }
 
     fun changeHomeType(mediaType: MediaType) {
@@ -623,6 +640,7 @@ class AppController(
         resetAdultFailures()
         mutableState.update { it.copy(adultConfigured = true, adultUnlocked = true) }
         refreshRecommendations()
+        refreshAccountList()
         return true
     }
 
@@ -635,6 +653,7 @@ class AppController(
             resetAdultFailures()
             mutableState.update { it.copy(adultUnlocked = true) }
             refreshRecommendations()
+            refreshAccountList()
             return true
         }
         val failures = snapshot.adultFailures + 1
@@ -647,12 +666,19 @@ class AppController(
 
     fun lockAdult() {
         recommendationsJob?.cancel()
+        accountListSearchJob?.cancel()
         mutableState.update { snapshot ->
             val visible = (snapshot.accountRecommendations as? LoadState.Content)?.value
+                ?.filterNot(TitleSummary::adult)
+            val list = (snapshot.accountListDetail as? LoadState.Content)?.value
+                ?.let { value -> value.copy(results = value.results.filterNot(TitleSummary::adult)) }
+            val search = (snapshot.accountListSearch as? LoadState.Content)?.value
                 ?.filterNot(TitleSummary::adult)
             snapshot.copy(
                 adultUnlocked = false,
                 accountRecommendations = visible?.let { LoadState.Content(it) } ?: snapshot.accountRecommendations,
+                accountListDetail = list?.let { LoadState.Content(it) } ?: snapshot.accountListDetail,
+                accountListSearch = search?.let { LoadState.Content(it) } ?: LoadState.Idle,
                 accountRecommendationsLoadingMore = false,
             )
         }
@@ -689,6 +715,11 @@ class AppController(
                 it.copy(
                     account = AccountState.SignedOut,
                     accountLists = LoadState.Idle,
+                    selectedAccountListId = null,
+                    accountListDetail = LoadState.Idle,
+                    accountListLoadingMore = false,
+                    accountListSearchQuery = "",
+                    accountListSearch = LoadState.Idle,
                     accountRecommendations = LoadState.Idle,
                     accountRecommendationPage = 0,
                     accountRecommendationTotalPages = 1,
@@ -755,6 +786,7 @@ class AppController(
             accountOutbox.enqueue(profile.id, AccountMutationPayload.DeleteList(id))
         }
         publishOptimisticLists(profile.id)
+        if (state.value.selectedAccountListId == id) closeAccountList()
         scope.launch { flushAccountOutbox(profile.id) }
     }
 
@@ -766,14 +798,150 @@ class AppController(
             AccountMutationPayload.UpdateList(id, normalized, description.trim(), public),
         )
         publishOptimisticLists(profile.id)
+        mutableState.update { snapshot ->
+            val detail = (snapshot.accountListDetail as? LoadState.Content)?.value
+            snapshot.copy(
+                accountListDetail = if (detail?.id == id) {
+                    LoadState.Content(detail.copy(name = normalized, description = description.trim(), public = public))
+                } else snapshot.accountListDetail,
+            )
+        }
         scope.launch { flushAccountOutbox(profile.id) }
     }
 
-    fun mutateListItems(id: Int, items: List<ListItemMutation>, remove: Boolean) {
+    fun mutateListItems(
+        id: Int,
+        items: List<ListItemMutation>,
+        titles: List<TitleSummary> = emptyList(),
+        remove: Boolean,
+    ) {
         val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
         if (items.isEmpty()) return
-        accountOutbox.enqueue(profile.id, AccountMutationPayload.MutateListItems(id, items, remove))
+        accountOutbox.enqueue(profile.id, AccountMutationPayload.MutateListItems(id, items, titles, remove))
         scope.launch { flushAccountOutbox(profile.id) }
+    }
+
+    fun openAccountList(id: Int) {
+        val snapshot = state.value
+        val summary = (snapshot.accountLists as? LoadState.Content)?.value
+            ?.firstOrNull { it.id == id }
+            ?.let { list -> list.copy(results = list.results.filter { includeAdult(snapshot) || !it.adult }) }
+        mutableState.update {
+            it.copy(
+                selectedAccountListId = id,
+                accountListDetail = summary?.let { value -> LoadState.Content(value) } ?: LoadState.Loading,
+                accountListLoadingMore = false,
+                accountListSearchQuery = "",
+                accountListSearch = LoadState.Idle,
+            )
+        }
+        if (id > 0) loadAccountList(reset = true)
+    }
+
+    fun closeAccountList() {
+        accountListJob?.cancel()
+        accountListSearchJob?.cancel()
+        mutableState.update {
+            it.copy(
+                selectedAccountListId = null,
+                accountListDetail = LoadState.Idle,
+                accountListLoadingMore = false,
+                accountListSearchQuery = "",
+                accountListSearch = LoadState.Idle,
+            )
+        }
+    }
+
+    fun refreshAccountList() {
+        if ((state.value.selectedAccountListId ?: -1) > 0) loadAccountList(reset = true)
+    }
+
+    fun loadMoreAccountList() {
+        val detail = (state.value.accountListDetail as? LoadState.Content)?.value ?: return
+        if (state.value.accountListLoadingMore || (detail.page ?: 0) !in 1 until (detail.totalPages ?: 1)) return
+        loadAccountList(reset = false)
+    }
+
+    fun searchAccountList(query: String) {
+        val normalized = query.trim()
+        val list = (state.value.accountListDetail as? LoadState.Content)?.value ?: return
+        if (list.id < 0 || normalized.isEmpty()) return
+        accountListSearchJob?.cancel()
+        accountListSearchJob = scope.launch {
+            val snapshot = state.value
+            mutableState.update {
+                it.copy(accountListSearchQuery = normalized, accountListSearch = LoadState.Loading)
+            }
+            runCatching { api.search(normalized, SearchScope.ALL, 1, snapshot.locale.backendTag) }
+                .propagateCancellation()
+                .onSuccess { page ->
+                    mutableState.update { current ->
+                        if (current.selectedAccountListId != list.id ||
+                            current.accountListSearchQuery != normalized ||
+                            current.locale != snapshot.locale
+                        ) {
+                            return@update current
+                        }
+                        val currentList = (current.accountListDetail as? LoadState.Content)?.value ?: list
+                        current.copy(
+                            accountListSearch = LoadState.Content(
+                                filterAccountListSearchResults(page.results, currentList.results, includeAdult(current)),
+                            ),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    mutableState.update { current ->
+                        if (current.selectedAccountListId == list.id &&
+                            current.accountListSearchQuery == normalized &&
+                            current.locale == snapshot.locale
+                        ) {
+                            current.copy(accountListSearch = LoadState.Error(error.message.orEmpty()))
+                        } else current
+                    }
+                }
+        }
+    }
+
+    fun changeAccountListSearchQuery(query: String) {
+        accountListSearchJob?.cancel()
+        mutableState.update {
+            it.copy(accountListSearchQuery = query, accountListSearch = LoadState.Idle)
+        }
+    }
+
+    fun addAccountListTitle(title: TitleSummary) {
+        val list = (state.value.accountListDetail as? LoadState.Content)?.value ?: return
+        if (list.id < 0) return
+        mutateListItems(
+            list.id,
+            listOf(ListItemMutation(title.mediaType.wireValue, title.id)),
+            titles = listOf(title),
+            remove = false,
+        )
+        mutableState.update { snapshot ->
+            snapshot.copy(
+                accountListDetail = LoadState.Content(list.copy(results = (list.results + title).distinctBy(TitleSummary::libraryKey))),
+                accountListSearch = when (val search = snapshot.accountListSearch) {
+                    is LoadState.Content -> LoadState.Content(search.value.filterNot { it.libraryKey == title.libraryKey })
+                    else -> search
+                },
+            )
+        }
+    }
+
+    fun removeAccountListTitle(title: TitleSummary) {
+        val list = (state.value.accountListDetail as? LoadState.Content)?.value ?: return
+        if (list.id < 0) return
+        mutateListItems(
+            list.id,
+            listOf(ListItemMutation(title.mediaType.wireValue, title.id)),
+            titles = listOf(title),
+            remove = true,
+        )
+        mutableState.update {
+            it.copy(accountListDetail = LoadState.Content(list.copy(results = list.results.filterNot { value -> value.libraryKey == title.libraryKey })))
+        }
     }
 
     fun close() = scope.cancel()
@@ -849,21 +1017,30 @@ class AppController(
 
     private suspend fun refreshLists(accountId: Int) {
         val account = accountApi ?: return
-        val pending = accountOutbox.pending(accountId)
+        val requestRevision = ++accountListsRequestRevision
+        val initialPending = accountOutbox.pending(accountId)
         val current = (state.value.accountLists as? LoadState.Content)?.value.orEmpty().filter { it.id > 0 }
-        val hasPendingListMutation = pending.any { it.payload.isListMutation() }
+        val hasPendingListMutation = initialPending.any { it.payload.isListMutation() }
         if (current.isEmpty() && !hasPendingListMutation) {
             mutableState.update { it.copy(accountLists = LoadState.Loading) }
         }
-        runCatching { account.lists(1) }
+        runCatching { loadAllAccountLists(loadPage = account::lists) }
             .propagateCancellation()
-            .onSuccess { page ->
-                mutableState.update { it.copy(accountLists = LoadState.Content(applyPendingLists(page.results, pending))) }
+            .onSuccess { lists ->
+                val pending = accountOutbox.pending(accountId)
+                mutableState.update { currentState ->
+                    val currentAccountId = (currentState.account as? AccountState.SignedIn)?.profile?.id
+                    if (requestRevision != accountListsRequestRevision || currentAccountId != accountId) currentState
+                    else currentState.copy(accountLists = LoadState.Content(applyPendingLists(lists, pending)))
+                }
             }
             .onFailure { error ->
-                mutableState.update {
-                    it.copy(
-                        accountLists = if (hasPendingListMutation) {
+                val pending = accountOutbox.pending(accountId)
+                mutableState.update { currentState ->
+                    val currentAccountId = (currentState.account as? AccountState.SignedIn)?.profile?.id
+                    if (requestRevision != accountListsRequestRevision || currentAccountId != accountId) return@update currentState
+                    currentState.copy(
+                        accountLists = if (pending.any { it.payload.isListMutation() }) {
                             LoadState.Content(applyPendingLists(current, pending))
                         } else {
                             LoadState.Error(error.message.orEmpty())
@@ -871,6 +1048,64 @@ class AppController(
                     )
                 }
             }
+    }
+
+    private fun loadAccountList(reset: Boolean) {
+        val account = accountApi ?: return
+        val listId = state.value.selectedAccountListId ?: return
+        if (listId < 0) return
+        if (!reset && accountListJob?.isActive == true) return
+        if (reset) accountListJob?.cancel()
+        val existing = (state.value.accountListDetail as? LoadState.Content)?.value
+        val requestedPage = if (reset) 1 else (existing?.page ?: 1) + 1
+        mutableState.update {
+            if (reset) it.copy(accountListDetail = LoadState.Loading, accountListLoadingMore = false)
+            else it.copy(accountListLoadingMore = true)
+        }
+        accountListJob = scope.launch {
+            val snapshot = state.value
+            val profile = (snapshot.account as? AccountState.SignedIn)?.profile ?: return@launch
+            runCatching { account.list(listId, requestedPage, snapshot.locale.backendTag) }
+                .propagateCancellation()
+                .onSuccess { page ->
+                    mutableState.update { current ->
+                        if (current.selectedAccountListId != listId || current.locale != snapshot.locale) {
+                            return@update current
+                        }
+                        val merged = applyPendingListDetail(
+                            mergeAccountListPage(if (reset) null else existing, page, includeAdult(current)),
+                            accountOutbox.pending(profile.id),
+                            includeAdult(current),
+                        ) ?: return@update current.copy(
+                            selectedAccountListId = null,
+                            accountListDetail = LoadState.Idle,
+                            accountListLoadingMore = false,
+                        )
+                        current.copy(
+                            accountListDetail = LoadState.Content(merged),
+                            accountListLoadingMore = false,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    mutableState.update { current ->
+                        if (current.selectedAccountListId != listId || current.locale != snapshot.locale) {
+                            return@update current
+                        }
+                        val cached = existing?.let {
+                            applyPendingListDetail(it, accountOutbox.pending(profile.id), includeAdult(current))
+                        }
+                        current.copy(
+                            accountListDetail = when {
+                                reset && cached != null -> LoadState.Content(cached)
+                                reset -> LoadState.Error(error.message.orEmpty())
+                                else -> current.accountListDetail
+                            },
+                            accountListLoadingMore = false,
+                        )
+                    }
+                }
+        }
     }
 
     private fun publishOptimisticLists(accountId: Int) {
@@ -1158,12 +1393,46 @@ class AppController(
     }
 }
 
+internal suspend fun loadAllAccountLists(
+    maxPages: Int = 500,
+    loadPage: suspend (Int) -> PagedResult<UserList>,
+): List<UserList> {
+    var page = 1
+    var totalPages = 1
+    val lists = mutableListOf<UserList>()
+    do {
+        val response = loadPage(page)
+        lists += response.results
+        totalPages = response.totalPages.coerceIn(1, maxPages)
+        page += 1
+    } while (page <= totalPages)
+    return lists.distinctBy(UserList::id)
+}
+
 internal fun mergeAccountRecommendations(
     existing: List<TitleSummary>,
     page: PagedResult<TitleSummary>,
     includeAdult: Boolean,
 ): List<TitleSummary> = (existing + page.results.filter { includeAdult || !it.adult })
     .distinctBy(TitleSummary::libraryKey)
+
+internal fun mergeAccountListPage(existing: UserList?, page: UserList, includeAdult: Boolean): UserList {
+    val visible = page.results.filter { includeAdult || !it.adult }
+    val pageNumber = page.page ?: 1
+    val results = ((if (pageNumber > 1) existing?.results.orEmpty() else emptyList()) + visible)
+        .distinctBy(TitleSummary::libraryKey)
+    return page.copy(page = pageNumber, totalPages = page.totalPages ?: pageNumber, results = results)
+}
+
+internal fun filterAccountListSearchResults(
+    candidates: List<TitleSummary>,
+    existing: List<TitleSummary>,
+    includeAdult: Boolean,
+): List<TitleSummary> {
+    val existingKeys = existing.mapTo(hashSetOf(), TitleSummary::libraryKey)
+    return candidates.filter { (includeAdult || !it.adult) && it.libraryKey !in existingKeys }
+        .distinctBy(TitleSummary::libraryKey)
+}
 
 private fun AccountMutationPayload.isListMutation(): Boolean = when (this) {
     is AccountMutationPayload.CreateList,

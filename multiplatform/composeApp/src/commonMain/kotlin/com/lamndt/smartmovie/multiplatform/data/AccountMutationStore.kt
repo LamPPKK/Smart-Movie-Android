@@ -2,6 +2,7 @@ package com.lamndt.smartmovie.multiplatform.data
 
 import com.lamndt.smartmovie.multiplatform.model.MediaType
 import com.lamndt.smartmovie.multiplatform.model.MutationResult
+import com.lamndt.smartmovie.multiplatform.model.TitleSummary
 import com.lamndt.smartmovie.multiplatform.model.UserList
 import com.lamndt.smartmovie.multiplatform.platform.KeyValueStore
 import com.lamndt.smartmovie.multiplatform.platform.systemTimeMillis
@@ -58,6 +59,7 @@ sealed interface AccountMutationPayload {
     data class MutateListItems(
         val listId: Int,
         val items: List<ListItemMutation>,
+        val titles: List<TitleSummary> = emptyList(),
         val remove: Boolean,
     ) : AccountMutationPayload
 }
@@ -198,11 +200,29 @@ fun applyPendingLists(remote: List<UserList>, pending: List<PendingAccountMutati
                 ) else list
             }
             is AccountMutationPayload.DeleteList -> result = result.filterNot { it.id == payload.listId }
+            is AccountMutationPayload.MutateListItems -> result = result.map { list ->
+                if (list.id != payload.listId) return@map list
+                val keys = payload.items.mapTo(hashSetOf()) { "${it.mediaType}:${it.mediaId}" }
+                val results = if (payload.remove) {
+                    list.results.filterNot { it.libraryKey in keys }
+                } else {
+                    (list.results + payload.titles.filter { it.libraryKey in keys })
+                        .distinctBy(TitleSummary::libraryKey)
+                }
+                list.copy(results = results)
+            }
             is AccountMutationPayload.EpisodeRating,
-            is AccountMutationPayload.MutateListItems,
             is AccountMutationPayload.TitleRating,
             -> Unit
         }
     }
     return result
 }
+
+fun applyPendingListDetail(
+    remote: UserList,
+    pending: List<PendingAccountMutation>,
+    includeAdult: Boolean = true,
+): UserList? = applyPendingLists(listOf(remote), pending)
+    .firstOrNull { it.id == remote.id }
+    ?.let { list -> list.copy(results = list.results.filter { includeAdult || !it.adult }) }

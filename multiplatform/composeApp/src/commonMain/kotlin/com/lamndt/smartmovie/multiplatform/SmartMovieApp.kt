@@ -73,6 +73,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -420,10 +421,14 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
                                     Text(list.name, style = MaterialTheme.typography.titleMedium)
                                     Text(list.description, color = CinemaColors.Muted, maxLines = 2)
                                 }
-                                TextButton(onClick = { controller.deleteList(list.id) }) { Text(copy.deleteList) }
+                                Row {
+                                    TextButton(onClick = { controller.openAccountList(list.id) }) { Text(copy.openList) }
+                                    TextButton(onClick = { controller.deleteList(list.id) }) { Text(copy.deleteList) }
+                                }
                             }
                         }
                     }
+                    AccountListDetailPanel(state, controller, copy, uiCopy)
                 }
             }
         }
@@ -467,6 +472,96 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
             }
         }
         item { Text(copy.attribution, color = CinemaColors.Muted, style = MaterialTheme.typography.bodySmall) }
+    }
+}
+
+@Composable
+private fun AccountListDetailPanel(
+    state: SmartMovieState,
+    controller: AppController,
+    copy: ProfileCopy,
+    uiCopy: UiStrings,
+) {
+    val listId = state.selectedAccountListId ?: return
+    when (val detail = state.accountListDetail) {
+        LoadState.Idle -> Unit
+        LoadState.Loading -> CircularProgressIndicator()
+        is LoadState.Error -> MessagePane(uiCopy.serviceError, detail.message, uiCopy.retry, controller::refreshAccountList)
+        is LoadState.Content -> {
+            val list = detail.value
+            var name by remember(list.id, list.name) { mutableStateOf(list.name) }
+            var description by remember(list.id, list.description) { mutableStateOf(list.description) }
+            var public by remember(list.id, list.public) { mutableStateOf(list.public) }
+            var query by remember(list.id) { mutableStateOf("") }
+            Text(copy.listDetails, style = MaterialTheme.typography.titleLarge)
+            if (listId < 0) Text(copy.waitingListSync, color = CinemaColors.Muted)
+            OutlinedTextField(name, { name = it.take(100) }, label = { Text(copy.listName) }, singleLine = true)
+            OutlinedTextField(description, { description = it.take(1000) }, label = { Text(copy.listDescription) })
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Switch(public, { public = it }, enabled = listId > 0)
+                Text(copy.publicList)
+            }
+            Button(
+                onClick = { controller.updateList(listId, name, description, public) },
+                enabled = listId > 0 && name.isNotBlank(),
+            ) { Text(copy.saveChanges) }
+
+            Text(copy.titlesInList, style = MaterialTheme.typography.titleMedium)
+            if (list.results.isEmpty()) {
+                Text(copy.emptyListTitles, color = CinemaColors.Muted)
+            } else {
+                list.results.forEach { title ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { controller.openDetail(title) }, modifier = Modifier.weight(1f)) {
+                            Column(Modifier.fillMaxWidth()) {
+                                Text(title.title)
+                                Text(typeLabel(title.mediaType, uiCopy), color = CinemaColors.Muted)
+                            }
+                        }
+                        TextButton(
+                            onClick = { controller.removeAccountListTitle(title) },
+                            enabled = listId > 0,
+                        ) { Text(copy.removeTitle) }
+                    }
+                }
+            }
+            if ((list.page ?: 0) in 1 until (list.totalPages ?: 1)) {
+                Button(onClick = controller::loadMoreAccountList, enabled = !state.accountListLoadingMore) {
+                    if (state.accountListLoadingMore) CircularProgressIndicator(Modifier.size(18.dp))
+                    else Text(uiCopy.loadMore)
+                }
+            }
+
+            Text(copy.addTitles, style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                query,
+                {
+                    query = it
+                    controller.changeAccountListSearchQuery(it)
+                },
+                label = { Text(copy.searchTitles) },
+                singleLine = true,
+            )
+            Button(
+                onClick = { controller.searchAccountList(query) },
+                enabled = listId > 0 && query.isNotBlank() && state.accountListSearch !is LoadState.Loading,
+            ) { Text(uiCopy.search) }
+            when (val search = state.accountListSearch) {
+                LoadState.Idle -> Unit
+                LoadState.Loading -> CircularProgressIndicator()
+                is LoadState.Error -> Text(search.message, color = CinemaColors.Accent)
+                is LoadState.Content -> search.value.forEach { title ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(title.title)
+                            Text(typeLabel(title.mediaType, uiCopy), color = CinemaColors.Muted)
+                        }
+                        TextButton(onClick = { controller.addAccountListTitle(title) }) { Text(copy.addTitle) }
+                    }
+                }
+            }
+            TextButton(onClick = controller::closeAccountList) { Text(copy.closeList) }
+        }
     }
 }
 
@@ -1408,6 +1503,18 @@ private data class ProfileCopy(
     val deleteList: String,
     val recommendations: String,
     val noRecommendations: String,
+    val openList: String,
+    val closeList: String,
+    val listDetails: String,
+    val waitingListSync: String,
+    val publicList: String,
+    val saveChanges: String,
+    val titlesInList: String,
+    val emptyListTitles: String,
+    val removeTitle: String,
+    val addTitles: String,
+    val searchTitles: String,
+    val addTitle: String,
 )
 
 private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
@@ -1419,6 +1526,8 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "Too many attempts. Try again in five minutes.", "Six-digit PIN", "Unlock", "Enable", "Lock",
         "Movie data and images: TMDb. Availability data: JustWatch via TMDb.", "Custom lists", "List name", "Description", "Create list", "Delete",
         "Account recommendations", "No account recommendations yet.",
+        "Open", "Close list", "List details", "Waiting for this list to sync before editing.", "Public list", "Save changes",
+        "Titles in this list", "This list has no titles yet.", "Remove", "Add movies and TV series", "Search titles", "Add",
     )
     AppLocale.VIETNAMESE -> ProfileCopy(
         "Hồ sơ", "Tài khoản TMDb", "Đang kiểm tra phiên…", "Đăng nhập qua TMDb trong trình duyệt. SmartMovie không bao giờ nhận mật khẩu của bạn.",
@@ -1428,6 +1537,8 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "Sai quá nhiều lần. Hãy thử lại sau năm phút.", "PIN sáu chữ số", "Mở khóa", "Bật", "Khóa",
         "Dữ liệu và hình ảnh phim: TMDb. Dữ liệu nơi xem: JustWatch qua TMDb.", "Danh sách tùy chỉnh", "Tên danh sách", "Mô tả", "Tạo danh sách", "Xóa",
         "Đề xuất cho tài khoản", "Chưa có đề xuất cho tài khoản.",
+        "Mở", "Đóng danh sách", "Chi tiết danh sách", "Đang chờ đồng bộ danh sách trước khi chỉnh sửa.", "Danh sách công khai", "Lưu thay đổi",
+        "Nội dung trong danh sách", "Danh sách này chưa có nội dung.", "Gỡ", "Thêm phim và chương trình truyền hình", "Tìm phim hoặc chương trình", "Thêm",
     )
     AppLocale.JAPANESE -> ProfileCopy(
         "プロフィール", "TMDbアカウント", "セッションを確認中…", "ブラウザーでTMDbにログインします。SmartMovieがパスワードを取得することはありません。",
@@ -1437,6 +1548,8 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "試行回数を超えました。5分後に再試行してください。", "6桁PIN", "ロック解除", "有効にする", "ロック",
         "映画データと画像: TMDb。配信情報: TMDb経由のJustWatch。", "カスタムリスト", "リスト名", "説明", "リストを作成", "削除",
         "アカウントへのおすすめ", "おすすめはまだありません。",
+        "開く", "リストを閉じる", "リストの詳細", "編集する前にリストの同期を待っています。", "公開リスト", "変更を保存",
+        "リスト内の作品", "このリストにはまだ作品がありません。", "削除", "映画とTVシリーズを追加", "作品を検索", "追加",
     )
     AppLocale.KOREAN -> ProfileCopy(
         "프로필", "TMDb 계정", "세션 확인 중…", "브라우저에서 TMDb에 로그인합니다. SmartMovie는 비밀번호를 받지 않습니다.",
@@ -1446,6 +1559,8 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "시도 횟수를 초과했습니다. 5분 후 다시 시도하세요.", "6자리 PIN", "잠금 해제", "사용", "잠금",
         "영화 데이터 및 이미지: TMDb. 시청 가능 정보: TMDb를 통한 JustWatch.", "사용자 목록", "목록 이름", "설명", "목록 만들기", "삭제",
         "계정 추천", "아직 계정 추천이 없습니다.",
+        "열기", "목록 닫기", "목록 세부 정보", "편집하기 전에 목록 동기화를 기다리는 중입니다.", "공개 목록", "변경 사항 저장",
+        "목록의 콘텐츠", "이 목록에는 아직 콘텐츠가 없습니다.", "제거", "영화 및 TV 시리즈 추가", "콘텐츠 검색", "추가",
     )
     AppLocale.CHINESE_SIMPLIFIED -> ProfileCopy(
         "个人资料", "TMDb 账户", "正在检查会话…", "请在浏览器中登录 TMDb。SmartMovie 不会获取您的密码。",
@@ -1455,6 +1570,8 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "尝试次数过多，请五分钟后重试。", "六位 PIN", "解锁", "启用", "锁定",
         "电影数据和图片：TMDb。可观看信息：通过 TMDb 提供的 JustWatch。", "自定义列表", "列表名称", "说明", "创建列表", "删除",
         "账户推荐", "暂无账户推荐。",
+        "打开", "关闭列表", "列表详情", "正在等待列表同步后再编辑。", "公开列表", "保存更改",
+        "列表中的内容", "此列表中还没有内容。", "移除", "添加电影和电视剧", "搜索内容", "添加",
     )
     AppLocale.CHINESE_TRADITIONAL -> ProfileCopy(
         "個人資料", "TMDb 帳戶", "正在檢查工作階段…", "請在瀏覽器中登入 TMDb。SmartMovie 不會取得您的密碼。",
@@ -1464,5 +1581,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "嘗試次數過多，請五分鐘後再試。", "六位 PIN", "解鎖", "啟用", "鎖定",
         "電影資料與圖片：TMDb。可觀看資訊：由 TMDb 提供的 JustWatch。", "自訂清單", "清單名稱", "說明", "建立清單", "刪除",
         "帳戶推薦", "目前沒有帳戶推薦。",
+        "開啟", "關閉清單", "清單詳情", "正在等待清單同步後再編輯。", "公開清單", "儲存變更",
+        "清單中的內容", "此清單中還沒有內容。", "移除", "加入電影與電視影集", "搜尋內容", "加入",
     )
 }

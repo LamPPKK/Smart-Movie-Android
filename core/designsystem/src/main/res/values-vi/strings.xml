@@ -33,4 +33,16 @@
     <string name="account_recommendations">Đề xuất cho tài khoản</string>
     <string name="no_account_recommendations">Chưa có đề xuất cho tài khoản.</string>
     <string name="load_more">Tải thêm</string>
+    <string name="open_list">Mở</string>
+    <string name="close_list">Đóng danh sách</string>
+    <string name="list_details">Chi tiết danh sách</string>
+    <string name="waiting_list_sync">Đang chờ đồng bộ danh sách trước khi chỉnh sửa.</string>
+    <string name="public_list">Danh sách công khai</string>
+    <string name="save_changes">Lưu thay đổi</string>
+    <string name="titles_in_list">Nội dung trong danh sách</string>
+    <string name="empty_list_titles">Danh sách này chưa có nội dung.</string>
+    <string name="remove_title">Gỡ</string>
+    <string name="add_titles">Thêm phim và chương trình truyền hình</string>
+    <string name="search_titles">Tìm phim hoặc chương trình</string>
+    <string name="add_title">Thêm</string>
 </resources>

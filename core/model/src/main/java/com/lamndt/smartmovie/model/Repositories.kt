@@ -113,6 +113,7 @@ sealed interface AccountMutationPayload {
     data class MutateListItems(
         val listId: Int,
         val items: List<UserListItemMutation>,
+        val titles: List<TitleSummary> = emptyList(),
         val remove: Boolean,
     ) : AccountMutationPayload
 }

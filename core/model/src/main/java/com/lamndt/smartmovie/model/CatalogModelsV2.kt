@@ -481,5 +481,7 @@ data class UserList(
     val name: String,
     val description: String = "",
     val public: Boolean = false,
+    val page: Int? = null,
+    @SerialName("total_pages") val totalPages: Int? = null,
     val results: List<TitleSummary> = emptyList(),
 )

@@ -29,4 +29,16 @@
     <string name="account_recommendations">账户推荐</string>
     <string name="no_account_recommendations">暂无账户推荐。</string>
     <string name="load_more">加载更多</string>
+    <string name="open_list">打开</string>
+    <string name="close_list">关闭列表</string>
+    <string name="list_details">列表详情</string>
+    <string name="waiting_list_sync">正在等待列表同步后再编辑。</string>
+    <string name="public_list">公开列表</string>
+    <string name="save_changes">保存更改</string>
+    <string name="titles_in_list">列表中的内容</string>
+    <string name="empty_list_titles">此列表中还没有内容。</string>
+    <string name="remove_title">移除</string>
+    <string name="add_titles">添加电影和电视剧</string>
+    <string name="search_titles">搜索内容</string>
+    <string name="add_title">添加</string>
 </resources>

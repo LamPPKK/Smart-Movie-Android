@@ -29,4 +29,16 @@
     <string name="account_recommendations">アカウントへのおすすめ</string>
     <string name="no_account_recommendations">おすすめはまだありません。</string>
     <string name="load_more">さらに読み込む</string>
+    <string name="open_list">開く</string>
+    <string name="close_list">リストを閉じる</string>
+    <string name="list_details">リストの詳細</string>
+    <string name="waiting_list_sync">編集する前にリストの同期を待っています。</string>
+    <string name="public_list">公開リスト</string>
+    <string name="save_changes">変更を保存</string>
+    <string name="titles_in_list">リスト内の作品</string>
+    <string name="empty_list_titles">このリストにはまだ作品がありません。</string>
+    <string name="remove_title">削除</string>
+    <string name="add_titles">映画とTVシリーズを追加</string>
+    <string name="search_titles">作品を検索</string>
+    <string name="add_title">追加</string>
 </resources>

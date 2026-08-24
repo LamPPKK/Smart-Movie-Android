@@ -29,4 +29,16 @@
     <string name="account_recommendations">帳戶推薦</string>
     <string name="no_account_recommendations">目前沒有帳戶推薦。</string>
     <string name="load_more">載入更多</string>
+    <string name="open_list">開啟</string>
+    <string name="close_list">關閉清單</string>
+    <string name="list_details">清單詳情</string>
+    <string name="waiting_list_sync">正在等待清單同步後再編輯。</string>
+    <string name="public_list">公開清單</string>
+    <string name="save_changes">儲存變更</string>
+    <string name="titles_in_list">清單中的內容</string>
+    <string name="empty_list_titles">此清單中還沒有內容。</string>
+    <string name="remove_title">移除</string>
+    <string name="add_titles">加入電影與電視影集</string>
+    <string name="search_titles">搜尋內容</string>
+    <string name="add_title">加入</string>
 </resources>

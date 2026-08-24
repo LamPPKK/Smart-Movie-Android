@@ -29,4 +29,16 @@
     <string name="account_recommendations">계정 추천</string>
     <string name="no_account_recommendations">아직 계정 추천이 없습니다.</string>
     <string name="load_more">더 불러오기</string>
+    <string name="open_list">열기</string>
+    <string name="close_list">목록 닫기</string>
+    <string name="list_details">목록 세부 정보</string>
+    <string name="waiting_list_sync">편집하기 전에 목록 동기화를 기다리는 중입니다.</string>
+    <string name="public_list">공개 목록</string>
+    <string name="save_changes">변경 사항 저장</string>
+    <string name="titles_in_list">목록의 콘텐츠</string>
+    <string name="empty_list_titles">이 목록에는 아직 콘텐츠가 없습니다.</string>
+    <string name="remove_title">제거</string>
+    <string name="add_titles">영화 및 TV 시리즈 추가</string>
+    <string name="search_titles">콘텐츠 검색</string>
+    <string name="add_title">추가</string>
 </resources>

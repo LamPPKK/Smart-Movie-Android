@@ -2,6 +2,7 @@ package com.lamndt.smartmovie.multiplatform.data
 
 import com.lamndt.smartmovie.multiplatform.model.MediaType
 import com.lamndt.smartmovie.multiplatform.model.MutationResult
+import com.lamndt.smartmovie.multiplatform.model.TitleSummary
 import com.lamndt.smartmovie.multiplatform.model.UserList
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -81,6 +82,75 @@ class PersistentAccountMutationOutboxTest {
         assertEquals("Updated", result.first().name)
         assertTrue(result.first().public)
     }
+
+    @Test
+    fun pendingItemSnapshotsOverlayRemoteDetailAndLegacyPayloadStillLoads() {
+        val movie = title(1, MediaType.MOVIE)
+        val series = title(3, MediaType.TV)
+        val remove = PendingAccountMutation(
+            "01234567-0000-4000-8000-000000000004",
+            7,
+            AccountMutationPayload.MutateListItems(
+                10,
+                listOf(ListItemMutation("movie", movie.id)),
+                titles = listOf(movie),
+                remove = true,
+            ),
+            1,
+        )
+        val add = PendingAccountMutation(
+            "01234567-0000-4000-8000-000000000005",
+            7,
+            AccountMutationPayload.MutateListItems(
+                10,
+                listOf(ListItemMutation("tv", series.id)),
+                titles = listOf(series),
+                remove = false,
+            ),
+            2,
+        )
+
+        val merged = applyPendingListDetail(UserList(10, "Remote", results = listOf(movie)), listOf(add, remove))
+
+        assertEquals(listOf("tv:3"), merged?.results?.map(TitleSummary::libraryKey))
+
+        val store = MemoryStore().apply {
+            putString(
+                "smartmovie_account_mutation_outbox_v1",
+                """[{"id":"legacy","accountId":7,"payload":{"type":"mutate_list_items","listId":10,"items":[{"media_type":"movie","media_id":1}],"remove":false},"createdAt":3}]""",
+            )
+        }
+        val legacy = PersistentAccountMutationOutbox(store).pending(7).single().payload as AccountMutationPayload.MutateListItems
+        assertTrue(legacy.titles.isEmpty())
+    }
+
+    @Test
+    fun lockedDetailDoesNotRestorePendingAdultSnapshot() {
+        val adult = title(2, MediaType.MOVIE).copy(adult = true)
+        val pending = PendingAccountMutation(
+            "01234567-0000-4000-8000-000000000006",
+            7,
+            AccountMutationPayload.MutateListItems(
+                10,
+                listOf(ListItemMutation("movie", adult.id)),
+                titles = listOf(adult),
+                remove = false,
+            ),
+            1,
+        )
+
+        val merged = applyPendingListDetail(UserList(10, "Remote"), listOf(pending), includeAdult = false)
+
+        assertTrue(merged?.results.orEmpty().isEmpty())
+    }
+
+    private fun title(id: Int, type: MediaType) = TitleSummary(
+        id = id,
+        mediaType = type,
+        title = "Title $id",
+        originalTitle = "Title $id",
+        overview = "",
+    )
 
     private companion object {
         const val CREATE_ID = "01234567-0000-4000-8000-000000000001"
