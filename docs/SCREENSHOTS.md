@@ -1,6 +1,6 @@
 # SmartMovie screen gallery
 
-This gallery documents the SmartMovie 2.0 interface across the shared Compose Multiplatform flow and the native Android form factors. The captures use deterministic local preview data so they remain stable in documentation and visual-regression tests.
+This gallery documents the SmartMovie 3.0 interface across the shared Compose Multiplatform flow and native Android form factors. Captures use deterministic local catalog data so they remain stable and never expose an account session, adult title, personal list, or production credential.
 
 ## Core flow — Compose Multiplatform
 
@@ -67,7 +67,7 @@ The watch companion mirrors the active title on the paired phone and exposes rem
 
 ## Capture notes
 
-- Compose Multiplatform captures were generated at `390 × 844` and `1280 × 720` from the deterministic local `/v1` preview fixture.
+- Compose Multiplatform captures were generated at `390 × 844` and `1280 × 720` from deterministic contract-compatible preview data.
 - Native images are Roborazzi golden baselines used by Android CI for compact phone, expanded tablet, 1080p TV, and round Wear OS coverage.
 - Artwork placeholders are intentional in deterministic previews; production builds load configured poster and backdrop URLs from the SmartMovie Worker.
 - Android Auto is intentionally excluded because SmartMovie is a video catalog and does not declare an Android for Cars app category.

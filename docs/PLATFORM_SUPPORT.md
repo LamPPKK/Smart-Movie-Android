@@ -1,12 +1,12 @@
 # SmartMovie platform support
 
-This document defines what “supported” means for every SmartMovie 2.0 target. It is deliberately stricter than a compatibility claim: a platform is listed as supported only when its input model, layout, packaging, and release behavior are represented in the codebase.
+This document defines what “supported” means for every SmartMovie 3.0 target. It is deliberately stricter than a compatibility claim: a platform is supported only when its input model, layout, account/privacy behavior, packaging, and release gate are represented in the codebase.
 
 ## Support matrix
 
 | Platform | Delivery | Experience | Status |
 | --- | --- | --- | --- |
-| Android phone | Main AAB | Four-tab touch UI and full-screen detail | Supported, API 26+ |
+| Android phone | Main AAB | Five-destination touch UI, entity/account flows, and full-screen detail | Supported, API 26+ |
 | Tablet and foldable | Main AAB | Navigation rail, adaptive grids, and list-detail pane | Supported |
 | ChromeOS | Main AAB | Resizable large-screen UI, keyboard/mouse input, Ctrl/Cmd+1–4 tabs, Ctrl/Cmd+F Search | Supported |
 | Android TV | Main AAB | Dedicated 10-foot UI, Leanback launcher, D-pad focus, TV IME | Supported |
@@ -30,6 +30,7 @@ At 600 dp and above, bottom navigation becomes a navigation rail and title selec
 - Ctrl/Cmd+2: Explore
 - Ctrl/Cmd+3 or Ctrl/Cmd+F: Search
 - Ctrl/Cmd+4: Library
+- Ctrl/Cmd+5: Profile
 
 This follows Android's guidance that ChromeOS window resizing should be handled as a normal configuration change by adaptive layouts: [ChromeOS window management](https://developer.android.com/topic/arc/window-management).
 
@@ -45,7 +46,7 @@ The `wear` module is a non-standalone companion application. It uses application
 
 The phone advertises a SmartMovie-specific capability and publishes the currently visible detail context as a persistent Data Item. The watch targets only reachable nodes with that capability and sends transient commands through the Message API. This matches the intended split in the [Wear OS Data Layer](https://developer.android.com/training/wearables/data/overview): synchronized state for the current title and messages for remote-control actions.
 
-The remote mirrors:
+The remote mirrors only non-adult context:
 
 - title, media type, year, artwork, and rating;
 - whether a YouTube trailer is available;
@@ -60,7 +61,7 @@ It can request:
 
 Commands are accepted only while the paired phone is connected, SmartMovie is in the foreground, and the watch's `libraryKey` matches the phone's active detail. This prevents a stale watch screen from mutating another title. Toggle responses update the watch immediately, while Room remains the source of truth on the phone.
 
-The watch app has no catalog API client, account, database, or independent browsing mode. Its manifest therefore declares `com.google.android.wearable.standalone=false`.
+The watch app has no catalog API client, account, adult content, database, or independent browsing mode. Its manifest therefore declares `com.google.android.wearable.standalone=false`.
 
 ## Android XR
 
@@ -76,9 +77,9 @@ Accordingly, this release intentionally has no `CarAppService`, automotive descr
 
 ## Desktop and web
 
-The `multiplatform` build contains one shared Compose application for Home, Explore, Search, Library, and Detail. It uses immutable `StateFlow` state and a Ktor 3 client that calls only the SmartMovie Worker `/v1` contract. Installation IDs and Favorite/Watchlist snapshots remain in the platform store except for the anonymous installation ID sent as the Worker client header.
+The `multiplatform` build contains one shared Compose application for Home, Explore, Search, Library, Profile, deep entity details, TMDb authorization, ratings, and custom lists. It uses immutable `StateFlow`, a Ktor 3 `/v2` client, local PIN state, and account-scoped durable outboxes. Installation identity, library snapshots, and pending mutations remain in Java Preferences or browser `localStorage`; Web session credentials use secure Worker cookies.
 
-Desktop distributions are configured for DMG/PKG, MSI/EXE, and DEB/RPM, while CI also produces portable application images on each desktop OS. Web builds include both Wasm and JavaScript outputs, a manifest, and a service worker; the production Worker must allow the deployed web origin through CORS.
+Desktop distributions are configured for DMG/PKG, MSI/EXE, and DEB/RPM, while CI also produces portable images on each desktop OS. Web builds include Wasm and JavaScript outputs, a manifest, and a service worker; production must configure CORS, callback allowlist, secure cookies, CSRF, and correct `application/wasm` hosting.
 
 The selected Compose Multiplatform toolchain targets desktop JVM and Web/Wasm. The minimums are macOS 13 on Apple silicon, Windows 10, Ubuntu 20.04-compatible Linux, and 64-bit desktop systems. Web/Wasm remains Beta while desktop is Stable. See [Compose Multiplatform platform support](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html) and [Kotlin Multiplatform stability levels](https://kotlinlang.org/docs/multiplatform/supported-platforms.html).
 
@@ -93,3 +94,5 @@ The protected release workflow creates:
 3. A Web/Wasm static distribution and portable macOS, Windows, and Linux application images from the Compose Multiplatform workflow.
 
 Both Android AABs must be signed by the same release key. Debug variants likewise share `com.lamndt.smartmovie.debug`, allowing Data Layer communication during development.
+
+All three desktop portable images plus JavaScript and Wasm distributions are release blockers for the coordinated 3.0 train; they are not optional side artifacts.

@@ -13,11 +13,11 @@ The separate `SmartMovie` repository owns the native SwiftUI clients for iPhone,
 
 ## Architecture
 
-`composeApp` owns the shared catalog contracts, Ktor Worker client, retry/cancellation behavior, anonymous installation ID, persisted Favorite/Watchlist library, six-locale copy, UDF controller, and adaptive cinematic UI. Platform source sets provide only storage, URL handoff, API base URL, and entry points.
+`composeApp` owns the shared `/v2` catalog/account contracts, Ktor Worker client, retry/cancellation behavior, anonymous installation ID, local-first Favorite/Watchlist library, account-scoped durable mutation outbox, adult PIN state, six-locale copy, UDF controller, and adaptive cinematic UI. Platform source sets provide storage, secure session behavior, URL handoff, API base URL, and entry points.
 
 Desktop conformance tests decode the repository-level `catalog-contract` fixtures. The vendored snapshot is shared with native Android and is updated by an automated cross-repository pull request whenever the Worker contract changes.
 
-All catalog traffic goes through `https://catalog.smartmovie.app/v1`. Desktop development can override the origin with `SMARTMOVIE_CATALOG_BASE_URL`; web development can use `?api=https://…`. The `?preview=1` switch is reserved for the deterministic local preview server.
+All catalog/account traffic goes through `https://catalog.smartmovie.app/v2`; `/v1` remains for deterministic legacy preview and 2.0 compatibility. Desktop development can override the origin with `SMARTMOVIE_CATALOG_BASE_URL`; web development can use `?api=https://…`. The `?preview=1` switch is reserved for the deterministic local preview server.
 
 ## Build
 
@@ -45,6 +45,7 @@ Open `http://127.0.0.1:8099/?preview=1`. The server supplies deterministic `/v1`
 
 ## Release boundaries
 
-- Web hosting must serve `.wasm` with `application/wasm` and the production Worker must allow the web origin through CORS.
+- Web hosting must serve `.wasm` with `application/wasm`; production must configure CORS, browser callback allowlist, secure cookies, and CSRF.
 - Notarized macOS and signed Windows installers require protected signing identities.
-- The library is local per platform; there is no SmartMovie account or real-time sync.
+- There is no separate SmartMovie identity. Optional TMDb approval synchronizes account content while local caches/outboxes remain platform-specific.
+- Desktop JVM, JavaScript, and Wasm are release blockers for the coordinated 3.0 train.

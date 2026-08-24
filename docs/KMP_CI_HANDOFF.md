@@ -1,10 +1,12 @@
-# Compose Multiplatform CI handoff
+# Historical Compose Multiplatform CI handoff
+
+> Historical incident note: the failure below describes GitHub Actions run `32047761144`. The current checkout contains the dependency metadata repair and, on 25 August 2026, passed strict desktop tests/compile, JS distribution, optimized Wasm distribution, and `createDistributable` locally on macOS. The next CI run on the committed branch remains the authoritative cross-OS confirmation.
 
 Status captured on 18 August 2026 after GitHub Actions run [32047761144](https://github.com/LamPPKK/Android.Smart.Movie/actions/runs/32047761144).
 
 ## Confirmed state
 
-The release train and catalog contract checks pass. The Ubuntu shared job also passes desktop tests, desktop compilation, JavaScript distribution, Wasm distribution, and web artifact upload. The remaining failure is isolated to `:composeApp:createDistributable` in the macOS, Windows, and Ubuntu portable-image matrix.
+At the time of GitHub Actions run `32047761144`, the release train and catalog contract checks passed. The Ubuntu shared job also passed desktop tests, desktop compilation, JavaScript distribution, Wasm distribution, and web artifact upload. The remaining failure in that historical run was isolated to `:composeApp:createDistributable` in the macOS, Windows, and Ubuntu portable-image matrix.
 
 All three packaging jobs reject these unlisted artifacts under strict Gradle dependency verification:
 
@@ -36,7 +38,7 @@ Generate verification metadata for `:composeApp:createDistributable` on each mat
 ./gradlew --write-verification-metadata sha256 :composeApp:createDistributable
 ```
 
-Collect the metadata diff from macOS arm64, Windows x64, and Ubuntu x64, merge only the platform-specific artifacts actually resolved by those jobs, and compare each value with Maven Central before committing. Then rerun the full Compose Multiplatform CI matrix once. This should also reveal whether the macOS arm64 path needs a matching Skiko runtime after the platform POM is accepted.
+The remediation used platform-specific dependency metadata and checksum verification, followed by the successful local strict build described above. The next full Compose Multiplatform CI matrix remains responsible for confirming macOS arm64, Windows x64, and Ubuntu x64 packaging on clean hosts.
 
 ## Separate external blocker
 

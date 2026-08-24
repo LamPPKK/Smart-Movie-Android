@@ -2,20 +2,20 @@
 
 ## Purpose
 
-The native Android verification lane covers the Play app and Wear companion independently from Compose Multiplatform desktop/web releases. Contract fixtures are shared across the native and desktop clients, but a desktop or web failure does not block an Android store candidate unless the catalog contract itself is incompatible.
+The native Android lane covers the Play app and Wear companion; the Compose Multiplatform lane covers desktop JVM, JavaScript, and Wasm. They run independently for diagnosis, but every lane blocks the coordinated SmartMovie 3.0 release train.
 
 ## Native test matrix
 
 | Area | Tests | Responsibilities |
 | --- | ---: | --- |
-| App and screenshot validation | 4 | Backup rules plus phone, tablet, and TV golden previews |
-| Data | 6 | Repository behavior, Paging sources, Favorite/Watchlist storage, and offline reads |
-| Domain model and contract | 6 | Catalog model invariants plus canonical fixture decoding and additive compatibility |
-| Network and error contract | 8 | Six-route decoding, normalized errors, retry, cancellation, and unknown-field compatibility |
-| Phone/Wear remote protocol | 7 | Versioned remote messages, reachability behavior, and Wear ViewModel state |
-| Feature models | 7 | Home, Explore, Search, Detail, and Library state transitions |
+| App and screenshot validation | Variable | Backup/privacy rules plus phone, tablet, TV, Profile/detail behavior, and golden previews |
+| Data | Variable | Paging, Room migrations, local-first library merge, durable account/library outboxes, restart, retry, and acknowledgement checks |
+| Domain model and contract | Variable | `/v1` + `/v2` discriminator fixtures, nullable/unknown fields, pagination, and additive compatibility |
+| Network and error contract | Variable | Catalog/account routes, normalized errors, retry/cancellation, auth state, CSRF, and unknown-field compatibility |
+| Phone/Wear remote protocol | Variable | Versioned safe-context messages, reachability, stale-command rejection, and Wear state |
+| Feature models | Variable | Home, Explore, entity Search/Detail, Library, Profile, adult PIN, rating, and custom-list state |
 
-Total native baseline: 38 tests across 17 result suites. Compose Multiplatform desktop contract and state tests are reported separately by the multiplatform CI lane.
+Do not hard-code a release verdict to a historical test count. The authoritative result is zero failures from the current tasks plus committed Room schema and contract checks.
 
 ## Local verification
 
@@ -52,7 +52,7 @@ To force a fresh test execution rather than accept Gradle's `UP-TO-DATE` result:
   validateDebugScreenshotTest
 ```
 
-On 17 August 2026, the fresh command executed 292 Gradle tasks and all 38 native tests passed with zero failures, errors, or skips. The complete non-device gate also passed lint, screenshot validation, the main debug APK, the Wear debug APK, release/contract consistency, and the committed Room schema check.
+The latest local 3.0 feature gate passed unit tests, lint, screenshot validation, main/Wear debug APKs, and strict dependency verification. CI device jobs remain authoritative for emulator input/launch behavior.
 
 ## Emulator verification
 
@@ -66,11 +66,12 @@ The TV smoke lane requires an API 36 Android TV x86_64 image. It installs the ma
 
 The 17 August 2026 local device run was not executed because the only configured API 34 AVD was incomplete: its SDK directory was approximately 35 MB and did not contain `system.img`. No physical device was connected. This is a local SDK blocker rather than an application failure; the API 35 phone and API 36 TV jobs remain required in GitHub Actions before release.
 
-The latest Compose Multiplatform CI investigation is recorded in [KMP CI handoff](KMP_CI_HANDOFF.md). Shared desktop tests, desktop compilation, and JS/Wasm distributions are green; portable desktop packaging still has a strict dependency-metadata blocker.
+The latest local KMP gate passed desktop tests and non-incremental compile, JavaScript development distribution, optimized Wasm distribution, and a portable macOS application image with strict dependency verification. CI must reproduce portable images on macOS, Windows, and Linux.
 
 ## Release interpretation
 
 - A native unit, lint, golden, APK, instrumentation, or TV smoke failure blocks the Android candidate.
+- A desktop test/compile/package, JavaScript, or Wasm failure blocks the coordinated release train.
 - Missing local JDKs, system images, signing secrets, or devices are environment blockers and must not be recorded as product regressions.
 - The main and Wear AABs must share application ID, semantic version, and signing key.
 - `catalog-contract/manifest.json` must match the canonical OpenAPI checksum, fixture checksum, contract version, and release train before production promotion.

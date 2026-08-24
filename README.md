@@ -1,34 +1,36 @@
-# SmartMovie 2.0 — Android, Wear OS, desktop and web
+# SmartMovie 3.0 — Android, Wear OS, desktop and web
 
 [![Android CI](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml)
 [![Compose Multiplatform CI](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/multiplatform-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/multiplatform-ci.yml)
 
-SmartMovie is a cinematic movie and TV catalog built natively for Android. Discover titles, filter the catalog, search, open rich details and trailers, and keep independent Favorite and Watchlist collections that remain readable offline.
+SmartMovie is a cinematic TMDb catalog built natively for Android. It covers movies, television, people, collections, organizations, keywords, seasons, and episodes; adds region-aware availability and trailers; and can optionally synchronize library, ratings, recommendations, and mixed lists through browser-approved TMDb access.
 
 The native app adapts from phones to tablets, foldables, ChromeOS, Android TV, and Android XR Home Space. A Wear OS companion turns the watch into a remote for the title open on the paired phone. An isolated Compose Multiplatform app brings the same product flow to macOS, Windows, Linux, and responsive Web/Wasm.
 
 > [!NOTE]
-> SmartMovie is a catalog and trailer app. It does not stream movies or TV episodes, require a SmartMovie account, display advertising, or offer in-app purchases.
+> SmartMovie is a catalog and trailer app. It does not stream movies or episodes, create a separate SmartMovie identity, collect a TMDb password, display advertising, or offer in-app purchases.
 
 > [!IMPORTANT]
-> SmartMovie 2.0 is under active development. Automated source gates are in place; production Worker domains, protected signing identities, final store artwork, and Play metadata still require release-owner configuration.
+> SmartMovie 3.0 is under active development. Automated source gates are in place; production Worker D1/session configuration, protected signing identities, final store artwork, privacy/support URLs, and Play metadata still require release-owner configuration.
 
-## Two repositories, one SmartMovie 2.0
+## Two repositories, one SmartMovie 3.0
 
 | Repository | Owns | Mobile release role |
 | --- | --- | --- |
 | **[Android.Smart.Movie](https://github.com/LamPPKK/Android.Smart.Movie)** (this repository) | Native Android and Wear OS apps, Compose Multiplatform desktop/web app, checksummed contract snapshot | Google Play source of truth |
 | **[SmartMovie](https://github.com/LamPPKK/SmartMovie)** | Native SwiftUI Apple apps, `SmartMovieKit`, Cloudflare Worker, canonical OpenAPI 3.1 contract and fixtures | App Store source of truth and backend owner |
 
-The Apple and Android mobile apps keep native UI, lifecycle, and local persistence while sharing the same `/v1` catalog behavior, six locales, semantic release train, error rules, and decoder fixtures. There is intentionally no cross-platform account or Favorite/Watchlist synchronization in 2.0.
+Apple and Android keep native UI, lifecycle, and storage while sharing the additive `/v2` Worker contract, six locales, semantic release train, normalized errors, and decoder fixtures. `/v1` remains available for 2.0 clients. TMDb is the post-login account source of truth; each client remains local-first through a durable, account-scoped outbox.
 
 ## What you can do
 
-- **Discover movies and TV series** from curated Home shelves for trending, popular, top-rated, now playing/on air, and upcoming titles.
-- **Explore with useful filters** for media type, genre, year, rating, and sort order, backed by deduplicated Paging data.
-- **Search quickly** with debounce, cancellation, retry handling, and Movie, TV Series, or All scopes.
-- **Open rich title details** with ratings, release data, genres, overview, runtime or seasons, cast, similar titles, and language-aware YouTube trailers.
-- **Keep a private local library** with independent Favorite and Watchlist actions stored in Room on Android and platform-local storage in the desktop/web app.
+- **Explore the complete catalog** through Home, advanced Discover, trending, pagination, retry, and cancellation.
+- **Search across entities** with discriminated Movie, TV, Person, Collection, Company, and Keyword results.
+- **Open deep details** for titles, people, collections, organizations, keywords, seasons, and episodes, including credits, media, reviews, related content, providers, and release information.
+- **See where to watch** in a device or chosen region, open only TMDb URLs, and retain required JustWatch attribution.
+- **Keep adult content private by default** behind local confirmation, a six-digit PIN, and five-attempt lockout; Wear/public surfaces never receive it.
+- **Connect TMDb safely** in a browser or by TV QR. Rate Movie/TV/Episode titles and manage account library/lists through optimistic durable retry without exposing credentials.
+- **Keep a local-first library** with independent Favorite and Watchlist records in Room or the KMP platform store.
 - **Use an interface built for each screen**: bottom navigation on phones, rail/list-detail layouts on larger windows, a dedicated 10-foot TV composition, and compact Wear OS actions.
 - **Navigate without touch** using keyboard shortcuts on ChromeOS/desktop and focus-preserving D-pad navigation on Android TV.
 - **Use the app in six languages**: English, Vietnamese, Japanese, Korean, Simplified Chinese, and Traditional Chinese.
@@ -84,16 +86,16 @@ See the complete [screen gallery](docs/SCREENSHOTS.md) for Home, Explore, Search
 
 | App / device | Minimum / target | Experience | Release artifact |
 | --- | ---: | --- | --- |
-| Android phone | Android 8 / API 26+ | Four-destination bottom navigation and compact detail flow | Main Android AAB |
+| Android phone | Android 8 / API 26+ | Five-destination navigation, entity details, account Profile, and compact detail flow | Main Android AAB |
 | Tablet and foldable | Android 8 / API 26+ | Adaptive rail, expanded shelves, and list-detail layouts | Main Android AAB |
 | ChromeOS | Android 8 / API 26+ | Resizable windows, pointer, and Ctrl/Cmd shortcuts | Main Android AAB |
 | Android TV | Android 8 / API 26+ | Dedicated 10-foot UI, D-pad focus, TV search, retained navigation state | Main Android AAB |
-| Android XR | Home Space panel | Resizable adaptive 2D experience; no immersive scene in 2.0 | Main Android AAB |
+| Android XR | Home Space panel | Resizable adaptive 2D experience; no immersive scene | Main Android AAB |
 | Wear OS | Paired companion | Non-standalone remote over the Play services Data Layer | Wear companion AAB |
 | Desktop | macOS 13+, Windows 10+, Ubuntu 20.04-compatible Linux | Shared Compose app with local library and native installers | DMG/PKG, MSI/EXE, DEB/RPM |
 | Web | Modern JS/Wasm browser | Responsive Compose app with browser-local library; beta | Static JS/Wasm distribution |
 
-The main and Wear AABs use the same Play application identity, semantic version, version code, and signing key. Desktop/web releases are independently verified and do not block an Android or Play Store release.
+The main and Wear AABs use the same Play application identity, semantic version, version code, and signing key. Desktop JVM, JavaScript, and Wasm are also release blockers for the coordinated 3.0 train.
 
 ## Architecture
 
@@ -119,9 +121,10 @@ flowchart LR
         Web --> Shared
     end
 
-    Core -->|"HTTPS /v1"| Worker["SmartMovie Cloudflare Worker"]
-    Shared -->|"HTTPS /v1"| Worker
-    Worker -->|"server-side Bearer token"| TMDb["TMDb API"]
+    Core -->|"HTTPS /v2"| Worker["SmartMovie Cloudflare Worker"]
+    Shared -->|"HTTPS /v2"| Worker
+    Worker -->|"server-side v3/v4 credentials"| TMDb["TMDb API"]
+    Worker --> Sessions["D1 session broker"]
     Snapshot["Versioned OpenAPI + fixtures snapshot"] -. conformance .-> Core
     Snapshot -. conformance .-> Shared
 ```
@@ -135,14 +138,14 @@ The native UI uses unidirectional data flow with immutable `UiState`, `StateFlow
 | `app` | Mobile entry point, dedicated TV activity, Navigation 3, adaptive navigation, and application container |
 | `core:model` | Immutable domain models and repository contracts |
 | `core:network` | Retrofit, Kotlin Serialization, installation identity, retry/cancellation policy |
-| `core:database` | Room library, migrations, and committed schemas |
-| `core:data` | Repository implementations, image URL policy, Paging sources |
+| `core:database` | Room library/account outboxes, lossless migrations, and committed schemas |
+| `core:data` | Repository implementations, durable mutation delivery, image URL policy, Paging sources |
 | `core:remote` | Versioned phone/watch commands and state serialization |
 | `core:designsystem` | Cinematic palette, offline fonts, and shared accessible components |
 | `feature:*` | Home, Explore, Search, Library, Detail, and About |
 | `wear` | Compose for Wear OS companion and Data Layer remote |
 | `catalog-contract` | Checksummed snapshot of the canonical Worker contract and fixtures |
-| `multiplatform/composeApp` | Desktop/web shared state, client, persistence, UI, and platform entry points |
+| `multiplatform/composeApp` | Desktop/web catalog + account state, persistent outboxes, adaptive UI, and platform entry points |
 
 ## Repository layout
 
@@ -154,7 +157,7 @@ Android.Smart.Movie/
 ├── feature/             # Product feature modules
 ├── catalog-contract/    # Versioned snapshot from the canonical Worker contract
 ├── multiplatform/       # Desktop JVM plus JS/Wasm Compose application
-├── release/             # Shared SmartMovie 2.0 release-train manifest
+├── release/             # Shared SmartMovie 3.0 release-train manifest
 ├── scripts/             # Read-only Doctor and scoped release checks
 ├── docs/                # Screenshots, testing, privacy, platform support, release docs
 └── .github/workflows/   # Native CI, emulator smoke tests, KMP builds, signed releases
@@ -184,7 +187,7 @@ cd Android.Smart.Movie
 ./gradlew --dependency-verification=strict :app:assembleDebug :wear:assembleDebug
 ```
 
-The native debug build calls `https://staging-catalog.smartmovie.app/`; release calls `https://catalog.smartmovie.app/`. Both expose only the matching SmartMovie Worker `/v1` contract. No TMDb or Cloudflare credential belongs in either client.
+The native debug build calls `https://staging-catalog.smartmovie.app/`; release calls `https://catalog.smartmovie.app/`. Both support legacy `/v1` and additive `/v2`. `/v2/capabilities` keeps account UI disabled until the deployed Worker has D1, encryption, callback, and allowlist configuration. No TMDb or Cloudflare credential belongs in a client.
 
 ### Run desktop or web
 
@@ -218,7 +221,7 @@ Run the native source gates from the repository root:
 ./scripts/verify-release.sh mobile
 ```
 
-The native baseline contains 38 unit, contract, network, remote, feature, and screenshot-validation tests. CI also runs phone instrumentation on API 35 and a dedicated Android TV launch/D-pad smoke test with Linux KVM enabled.
+Native tests cover model/contract/network/data/Room migrations, durable account/library outboxes, feature state, remote protocol, and screenshot validation. CI also runs API 35 phone instrumentation and a dedicated Android TV launch/D-pad smoke with Linux KVM enabled.
 
 Run KMP verification independently with JDK 21:
 
@@ -244,22 +247,27 @@ The manifest records the contract version, upstream commit, OpenAPI SHA-256, and
 
 Run `./scripts/verify-release.sh mobile`, `./scripts/verify-release.sh kmp`, or omit the scope to check the full repository. A store candidate also requires a real 40-character upstream commit in the manifest; the local bootstrap marker is development-only.
 
+The backend repository's canonical [TMDb coverage matrix](https://github.com/LamPPKK/SmartMovie/blob/main/docs/TMDB_COVERAGE.md) distinguishes user-facing, backend-only, intentionally excluded, and still-blocking endpoint groups. A green contract checksum alone does not mean every product surface is complete.
+
 ## Privacy and security
 
-- TMDb authentication exists only in the companion repository's protected Worker secrets.
+- TMDb application credentials and encrypted upstream account tokens exist only in the companion repository's protected Worker services.
 - The Android library is stored in Room and included in Google Auto Backup; HTTP cache and the installation UUID are excluded.
+- Native Android stores only the opaque SmartMovie session in Keystore-backed storage; Web uses secure cookie auth.
+- Favorite, Watchlist, rating, and custom-list mutations update optimistically and remain in account-scoped durable outboxes until the Worker acknowledges the same idempotency key.
+- The adult PIN and lockout state remain local per device and are excluded from backup/account transport.
 - Wear OS commands and current-title state travel only through the paired-device Data Layer.
-- KMP libraries remain local to each platform: Java Preferences on desktop and `localStorage` on web.
-- There is no SmartMovie account, analytics SDK, advertising SDK, in-app purchase flow, or real-time cross-platform synchronization.
+- KMP caches/outboxes remain in Java Preferences on desktop and `localStorage` on web.
+- There is no separate SmartMovie identity, analytics SDK, advertising SDK, or in-app purchase flow.
 
 ## Release status
 
-The shared release manifest pins SmartMovie `2.0.0`. Android `versionName` matches the Apple marketing version; Android `versionCode` and Apple build numbers increase independently.
+The shared release manifest pins SmartMovie `3.0.0` and contract `2.0.0`. Android `versionName` matches the Apple marketing version; Android `versionCode` and Apple build numbers increase independently.
 
 The protected `production` GitHub environment must provide `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. The signed release workflow produces both the main and Wear companion AABs for the same Play listing. Desktop signing/notarization identities are separate and do not block Play delivery.
 
-Before Play submission, activate the Worker domains, pass the contract smoke tests, configure signing, run Play Internal Testing on phone/tablet/TV/Wear devices, and complete store artwork, screenshots, privacy, and support metadata.
+Before Play submission, configure Worker D1/session secrets and callback domains, pass catalog + protected account smoke tests, configure signing, run Play Internal Testing on phone/tablet/TV/Wear devices, build desktop/JS/Wasm candidates, and complete artwork, screenshots, privacy, age rating, attribution, and support metadata.
 
 ## Attribution
 
-This product uses the TMDB API but is not endorsed or certified by TMDB. Movie and television metadata and artwork are supplied by [The Movie Database](https://www.themoviedb.org/).
+This product uses the TMDB API but is not endorsed or certified by TMDB. Movie and television metadata and artwork are supplied by [The Movie Database](https://www.themoviedb.org/). Availability data is supplied by JustWatch through TMDb and is attributed wherever shown.
