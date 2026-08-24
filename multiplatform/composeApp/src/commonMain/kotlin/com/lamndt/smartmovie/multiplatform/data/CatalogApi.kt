@@ -12,6 +12,7 @@ import com.lamndt.smartmovie.multiplatform.model.TitleSummary
 import com.lamndt.smartmovie.multiplatform.model.CapabilitiesV2
 import com.lamndt.smartmovie.multiplatform.model.CatalogEntity
 import com.lamndt.smartmovie.multiplatform.model.CollectionDetail
+import com.lamndt.smartmovie.multiplatform.model.CreditDetail
 import com.lamndt.smartmovie.multiplatform.model.EntityKind
 import com.lamndt.smartmovie.multiplatform.model.EpisodeDetail
 import com.lamndt.smartmovie.multiplatform.model.ExternalIdFindResult
@@ -68,6 +69,7 @@ interface CatalogApiV2 : CatalogApi {
     suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail
     suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail
     suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail
+    suspend fun credit(id: String, language: String): CreditDetail
 }
 
 class CatalogFailure(
@@ -223,6 +225,9 @@ class KtorCatalogApi(
     }
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = request {
         client.get("$root/v2/tv/$seriesId/seasons/$season/episodes/$number") { smartMovieHeaders(); parameter("language", language) }
+    }
+    override suspend fun credit(id: String, language: String): CreditDetail = request {
+        client.get("$root/v2/credits/${id.encodeURLPathPart()}") { smartMovieHeaders(); parameter("language", language) }
     }
 
     private fun io.ktor.client.request.HttpRequestBuilder.smartMovieHeaders() {

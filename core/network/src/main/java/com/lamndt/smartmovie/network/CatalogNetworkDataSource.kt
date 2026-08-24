@@ -5,6 +5,7 @@ import com.lamndt.smartmovie.model.CatalogException
 import com.lamndt.smartmovie.model.CapabilitiesV2
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CollectionDetail
+import com.lamndt.smartmovie.model.CreditDetail
 import com.lamndt.smartmovie.model.DiscoverFilter
 import com.lamndt.smartmovie.model.Genre
 import com.lamndt.smartmovie.model.HomeFeed
@@ -68,6 +69,7 @@ interface CatalogRemoteDataSourceV2 : CatalogRemoteDataSource {
     suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail
     suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail
     suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail
+    suspend fun credit(id: String, language: String): CreditDetail
 }
 
 class CatalogNetworkDataSource(
@@ -168,6 +170,10 @@ class CatalogNetworkDataSource(
     override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = execute { service.season(it, seriesId, number, language) }
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = execute {
         service.episode(it, seriesId, season, number, language)
+    }
+
+    override suspend fun credit(id: String, language: String): CreditDetail = execute {
+        service.credit(it, id, language)
     }
 
     private suspend fun <T> execute(block: suspend (String) -> T): T {

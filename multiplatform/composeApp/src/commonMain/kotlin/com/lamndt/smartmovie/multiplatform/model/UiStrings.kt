@@ -59,6 +59,15 @@ data class UiStrings(
     val platformEdition: String,
     val loadMore: String,
     val close: String,
+    val creditDetails: String,
+    val person: String,
+    val role: String,
+    val character: String,
+    val job: String,
+    val department: String,
+    val crew: String,
+    val guestStars: String,
+    val creditTitle: String,
 )
 
 fun strings(locale: AppLocale): UiStrings = when (locale) {
@@ -72,6 +81,7 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "Similar titles", "Rating", "Year", "Sort", "Popularity", "Top rated", "Release date", "Reset",
         "Try again", "Loading…", "No titles found", "Your library is ready for its first title",
         "SmartMovie could not reach the catalog", "Language", "Multiplatform edition", "Load more", "Close",
+        "Credit details", "Person", "Role", "Character", "Job", "Department", "Crew", "Guest stars", "Title",
     )
     AppLocale.VIETNAMESE -> UiStrings(
         "Trang chủ", "Khám phá", "Tìm kiếm", "Thư viện", "Hồ sơ", "Phim điện ảnh", "Phim bộ", "Khám phá",
@@ -83,6 +93,7 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "Tựa phim tương tự", "Điểm", "Năm", "Sắp xếp", "Phổ biến", "Đánh giá cao", "Ngày phát hành", "Đặt lại",
         "Thử lại", "Đang tải…", "Không tìm thấy tựa phim", "Thư viện đang chờ tựa phim đầu tiên",
         "SmartMovie không thể kết nối danh mục", "Ngôn ngữ", "Phiên bản đa nền tảng", "Tải thêm", "Đóng",
+        "Chi tiết vai diễn", "Người", "Vai trò", "Nhân vật", "Công việc", "Bộ phận", "Đoàn làm phim", "Diễn viên khách mời", "Tựa phim",
     )
     AppLocale.JAPANESE -> UiStrings(
         "ホーム", "見つける", "検索", "ライブラリ", "プロフィール", "映画", "テレビ", "作品を探す",
@@ -94,6 +105,7 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "関連作品", "評価", "年", "並び替え", "人気順", "高評価", "公開日", "リセット",
         "再試行", "読み込み中…", "作品が見つかりません", "最初の作品をライブラリに追加しましょう",
         "カタログに接続できません", "言語", "マルチプラットフォーム版", "さらに読み込む", "閉じる",
+        "クレジット詳細", "人物", "役割", "役名", "担当", "部門", "スタッフ", "ゲスト出演", "作品",
     )
     AppLocale.KOREAN -> UiStrings(
         "홈", "둘러보기", "검색", "라이브러리", "프로필", "영화", "TV 시리즈", "작품 찾기",
@@ -105,6 +117,7 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "비슷한 작품", "평점", "연도", "정렬", "인기순", "평점순", "공개일", "초기화",
         "다시 시도", "불러오는 중…", "작품을 찾을 수 없습니다", "첫 작품을 라이브러리에 추가해 보세요",
         "카탈로그에 연결할 수 없습니다", "언어", "멀티플랫폼 에디션", "더 불러오기", "닫기",
+        "크레딧 상세", "인물", "역할", "배역", "직무", "부서", "제작진", "게스트 출연", "작품",
     )
     AppLocale.CHINESE_SIMPLIFIED -> UiStrings(
         "首页", "探索", "搜索", "片库", "个人资料", "电影", "剧集", "发现作品",
@@ -116,6 +129,7 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "相似作品", "评分", "年份", "排序", "热门", "高分", "上映日期", "重置",
         "重试", "加载中…", "未找到作品", "把第一部作品加入片库吧",
         "SmartMovie 无法连接目录", "语言", "多平台版本", "加载更多", "关闭",
+        "演职员详情", "人物", "角色", "饰演", "职务", "部门", "幕后人员", "客串演员", "作品",
     )
     AppLocale.CHINESE_TRADITIONAL -> UiStrings(
         "首頁", "探索", "搜尋", "片庫", "個人資料", "電影", "影集", "探索作品",
@@ -127,5 +141,6 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "相似作品", "評分", "年份", "排序", "熱門", "高評分", "上映日期", "重設",
         "再試一次", "載入中…", "找不到作品", "將第一部作品加入片庫吧",
         "SmartMovie 無法連線至目錄", "語言", "多平台版本", "載入更多", "關閉",
+        "演職員詳情", "人物", "角色", "飾演", "職務", "部門", "幕後人員", "客串演員", "作品",
     )
 }

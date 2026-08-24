@@ -32,6 +32,7 @@ interface CatalogV2Repository : CatalogRepository {
     suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail
     suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail
     suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail
+    suspend fun credit(id: String, language: String): CreditDetail
 }
 
 interface AccountRepository {

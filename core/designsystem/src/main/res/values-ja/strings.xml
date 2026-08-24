@@ -16,4 +16,14 @@
     <string name="keep_local_library_question">TMDbライブラリをこの端末に残しますか？</string><string name="keep_local_library">ローカルとして保持</string><string name="remove_account_data">アカウントデータを削除</string><string name="tmdb_qr_code">TMDbでSmartMovieを承認するQRコード</string><string name="custom_lists">カスタムリスト</string><string name="list_name">リスト名</string><string name="list_description">説明</string><string name="create_list">リストを作成</string><string name="delete_list">削除</string>
     <string name="people">人物</string><string name="collections">コレクション</string><string name="companies">会社</string><string name="keywords">キーワード</string><string name="biography">略歴</string><string name="known_for">主な作品</string><string name="related_titles">関連作品</string><string name="seasons_episodes">シーズンとエピソード</string><string name="where_to_watch">視聴方法</string><string name="justwatch_attribution">配信情報はJustWatch提供</string><plurals name="seasons"><item quantity="other">%dシーズン</item></plurals>
     <string name="your_rating">あなたの評価</string><string name="save_rating">評価を保存</string><string name="remove_rating">評価を削除</string><string name="rating_pending">同期を待機中</string>
+    <string name="credit_details">クレジット詳細</string>
+    <string name="credit_unavailable">クレジットを表示できません</string>
+    <string name="person">人物</string>
+    <string name="role">役割</string>
+    <string name="character">役名</string>
+    <string name="job">担当</string>
+    <string name="department">部門</string>
+    <string name="crew">スタッフ</string>
+    <string name="guest_stars">ゲスト出演</string>
+    <string name="credit_title">作品</string>
 </resources>

@@ -64,6 +64,7 @@ import com.lamndt.smartmovie.feature.search.SearchRoute
 import com.lamndt.smartmovie.data.ImageUrlFactory
 import com.lamndt.smartmovie.model.CatalogRepository
 import com.lamndt.smartmovie.model.CatalogEntity
+import com.lamndt.smartmovie.model.Credit
 import com.lamndt.smartmovie.model.CatalogLocale
 import com.lamndt.smartmovie.model.LibraryRepository
 import com.lamndt.smartmovie.model.MediaType
@@ -116,6 +117,9 @@ internal data class EntityKey(
     val episodeNumber: Int? = null,
 ) : NavKey
 
+@Serializable
+private data class CreditKey(val id: String, val label: String) : NavKey
+
 @Composable
 fun SmartMovieApp(container: AppContainer) {
     SmartMovieContent(
@@ -167,6 +171,7 @@ internal fun SmartMovieContent(
                         if (entity is CatalogEntity.Title) backStack.add(entity.value.toDetailKey())
                         else backStack.add(entity.toEntityKey())
                     },
+                    onCreditClick = { credit -> credit.creditId?.let { backStack.add(CreditKey(it, credit.title.orEmpty())) } },
                     watchRemote = watchRemote,
                     appContainer = appContainer,
                 )
@@ -185,6 +190,7 @@ internal fun SmartMovieContent(
                         region = providerRegion?.value ?: locale.country,
                         includeAdult = appContainer?.preferences?.includeAdult == true,
                         onEntityClick = { entity -> backStack.add(entity.toEntityKey()) },
+                        onCreditClick = { credit -> credit.creditId?.let { backStack.add(CreditKey(it, credit.title.orEmpty())) } },
                         accountRating = accountRating.value,
                         accountRatingEnabled = accountRating.signedIn,
                         accountRatingPending = accountRating.pending,
@@ -203,7 +209,22 @@ internal fun SmartMovieContent(
                         onBack = { backStack.removeLastOrNull() },
                         onTitle = { backStack.add(it.toDetailKey()) },
                         onEntity = { backStack.add(it.toEntityKey()) },
+                        onCredit = { credit -> credit.creditId?.let { backStack.add(CreditKey(it, credit.title.orEmpty())) } },
                         appContainer = appContainer,
+                    )
+                }
+            }
+            entry<CreditKey> { key ->
+                CinemaBackground {
+                    CreditDetailScreen(
+                        creditId = key.id,
+                        label = key.label,
+                        catalog = catalog as com.lamndt.smartmovie.model.CatalogV2Repository,
+                        images = images,
+                        language = language,
+                        onBack = { backStack.removeLastOrNull() },
+                        onPerson = { backStack.add(CatalogEntity.Person(it).toEntityKey()) },
+                        onTitle = { backStack.add(it.toDetailKey()) },
                     )
                 }
             }
@@ -220,6 +241,7 @@ internal fun AppRoot(
     language: String,
     onTitleClick: (TitleSummary) -> Unit,
     onEntityClick: (CatalogEntity) -> Unit = {},
+    onCreditClick: (Credit) -> Unit = {},
     watchRemote: PhoneWatchRemoteController? = null,
     appContainer: AppContainer? = null,
 ) {
@@ -285,6 +307,7 @@ internal fun AppRoot(
                         region = providerRegion?.value,
                         includeAdult = appContainer?.preferences?.includeAdult == true,
                         onEntityClick = onEntityClick,
+                        onCreditClick = onCreditClick,
                         accountRating = accountRating.value,
                         accountRatingEnabled = accountRating.signedIn,
                         accountRatingPending = accountRating.pending,

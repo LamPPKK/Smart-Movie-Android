@@ -16,4 +16,14 @@
     <string name="keep_local_library_question">在此设备保留 TMDb 片库吗？</string><string name="keep_local_library">保留为本地数据</string><string name="remove_account_data">删除账户数据</string><string name="tmdb_qr_code">在 TMDb 授权 SmartMovie 的二维码</string><string name="custom_lists">自定义列表</string><string name="list_name">列表名称</string><string name="list_description">说明</string><string name="create_list">创建列表</string><string name="delete_list">删除</string>
     <string name="people">人物</string><string name="collections">合集</string><string name="companies">公司</string><string name="keywords">关键词</string><string name="biography">个人简介</string><string name="known_for">代表作品</string><string name="related_titles">相关作品</string><string name="seasons_episodes">季与集</string><string name="where_to_watch">在哪里观看</string><string name="justwatch_attribution">可观看信息由 JustWatch 提供</string><plurals name="seasons"><item quantity="other">%d 季</item></plurals>
     <string name="your_rating">我的评分</string><string name="save_rating">保存评分</string><string name="remove_rating">删除评分</string><string name="rating_pending">等待同步</string>
+    <string name="credit_details">演职员详情</string>
+    <string name="credit_unavailable">无法加载演职员详情</string>
+    <string name="person">人物</string>
+    <string name="role">角色</string>
+    <string name="character">饰演</string>
+    <string name="job">职务</string>
+    <string name="department">部门</string>
+    <string name="crew">幕后人员</string>
+    <string name="guest_stars">客串演员</string>
+    <string name="credit_title">作品</string>
 </resources>

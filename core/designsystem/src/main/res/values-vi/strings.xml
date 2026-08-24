@@ -20,4 +20,14 @@
     <string name="people">Con người</string><string name="collections">Bộ sưu tập</string><string name="companies">Công ty</string><string name="keywords">Từ khóa</string><string name="biography">Tiểu sử</string><string name="known_for">Nổi tiếng với</string><string name="related_titles">Nội dung liên quan</string><string name="seasons_episodes">Mùa và tập</string><string name="where_to_watch">Xem ở đâu</string><string name="justwatch_attribution">Dữ liệu nơi xem do JustWatch cung cấp</string>
     <plurals name="seasons"><item quantity="other">%d mùa</item></plurals>
     <string name="your_rating">Điểm của bạn</string><string name="save_rating">Lưu điểm</string><string name="remove_rating">Xóa điểm</string><string name="rating_pending">Đang chờ đồng bộ</string>
+    <string name="credit_details">Chi tiết vai diễn</string>
+    <string name="credit_unavailable">Không thể tải vai diễn</string>
+    <string name="person">Người</string>
+    <string name="role">Vai trò</string>
+    <string name="character">Nhân vật</string>
+    <string name="job">Công việc</string>
+    <string name="department">Bộ phận</string>
+    <string name="crew">Đoàn làm phim</string>
+    <string name="guest_stars">Diễn viên khách mời</string>
+    <string name="credit_title">Tựa phim</string>
 </resources>

@@ -63,6 +63,9 @@ class ContractConformanceTest {
         assertEquals(11, decodeV2<SeasonDetail>("season").seriesId)
         val episode = decodeV2<EpisodeDetail>("episode")
         assertEquals("11:1:1", "${episode.seriesId}:${episode.seasonNumber}:${episode.episodeNumber}")
+        val credit = decodeV2<CreditDetail>("credit-detail")
+        assertEquals(6384, credit.personSummary?.id)
+        assertEquals("movie:603", credit.titleSummary?.libraryKey)
     }
 
     @Test

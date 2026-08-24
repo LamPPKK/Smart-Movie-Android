@@ -121,4 +121,14 @@
     <string name="save_rating">Save rating</string>
     <string name="remove_rating">Remove rating</string>
     <string name="rating_pending">Waiting to sync</string>
+    <string name="credit_details">Credit details</string>
+    <string name="credit_unavailable">Credit unavailable</string>
+    <string name="person">Person</string>
+    <string name="role">Role</string>
+    <string name="character">Character</string>
+    <string name="job">Job</string>
+    <string name="department">Department</string>
+    <string name="crew">Crew</string>
+    <string name="guest_stars">Guest stars</string>
+    <string name="credit_title">Title</string>
 </resources>

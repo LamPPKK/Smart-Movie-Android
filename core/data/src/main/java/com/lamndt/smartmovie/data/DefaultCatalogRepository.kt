@@ -5,6 +5,7 @@ import com.lamndt.smartmovie.model.CatalogV2Repository
 import com.lamndt.smartmovie.model.CapabilitiesV2
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CollectionDetail
+import com.lamndt.smartmovie.model.CreditDetail
 import com.lamndt.smartmovie.model.DiscoverFilter
 import com.lamndt.smartmovie.model.Genre
 import com.lamndt.smartmovie.model.HomeFeed
@@ -68,6 +69,7 @@ class DefaultCatalogRepository(private val network: CatalogRemoteDataSource) : C
     override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = v2().season(seriesId, number, language)
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail =
         v2().episode(seriesId, season, number, language)
+    override suspend fun credit(id: String, language: String): CreditDetail = v2().credit(id, language)
 
     private fun v2(): CatalogRemoteDataSourceV2 = network as? CatalogRemoteDataSourceV2
         ?: error("The configured catalog data source does not support /v2")

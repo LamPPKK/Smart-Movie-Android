@@ -7,6 +7,7 @@ import com.lamndt.smartmovie.model.AuthSession
 import com.lamndt.smartmovie.model.CapabilitiesV2
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CollectionDetail
+import com.lamndt.smartmovie.model.CreditDetail
 import com.lamndt.smartmovie.model.EpisodeDetail
 import com.lamndt.smartmovie.model.HomeFeed
 import com.lamndt.smartmovie.model.ImageConfiguration
@@ -145,6 +146,11 @@ internal interface CatalogService {
         @Header(CLIENT_HEADER) clientId: String, @Path("seriesId") seriesId: Int, @Path("season") season: Int,
         @Path("number") number: Int, @Query("language") language: String,
     ): EpisodeDetail
+    @GET("v2/credits/{creditId}") suspend fun credit(
+        @Header(CLIENT_HEADER) clientId: String,
+        @Path("creditId") creditId: String,
+        @Query("language") language: String,
+    ): CreditDetail
 
     @POST("v2/auth/attempts") suspend fun createAuthAttempt(
         @Header(CLIENT_HEADER) clientId: String, @Body body: AuthAttemptRequest,

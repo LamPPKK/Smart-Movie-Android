@@ -62,6 +62,19 @@ class CatalogNetworkDataSourceTest {
     }
 
     @Test
+    fun creditDetail_sendsLocaleAndDecodesStableLinks() = runTest {
+        server.enqueue(MockResponse().setBody(CREDIT).setHeader("Content-Type", "application/json"))
+
+        val result = source().credit("52fe425bc3a36847f80181c1", "ja-JP")
+        val request = server.takeRequest()
+
+        assertThat(result.personSummary?.name).isEqualTo("Keanu Reeves")
+        assertThat(result.titleSummary?.libraryKey).isEqualTo("movie:603")
+        assertThat(request.requestUrl?.encodedPath).isEqualTo("/v2/credits/52fe425bc3a36847f80181c1")
+        assertThat(request.requestUrl?.queryParameter("language")).isEqualTo("ja-JP")
+    }
+
+    @Test
     fun rateLimit_retriesTwiceAndHonorsRetryAfter() = runTest {
         repeat(2) { server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "2").setBody(ERROR)) }
         server.enqueue(MockResponse().setBody(PAGE).setHeader("Content-Type", "application/json"))
@@ -128,6 +141,7 @@ class CatalogNetworkDataSourceTest {
     private companion object {
         const val PAGE = """{"page":2,"total_pages":4,"results":[{"id":42,"media_type":"movie","title":"Dune","original_title":"Dune","overview":"","vote_average":8.4,"genre_ids":[]}]}"""
         const val FIND = """{"source":"imdb_id","external_id":"tt0133093","results":[{"entity_kind":"movie","id":603,"media_type":"movie","title":"The Matrix","original_title":"The Matrix","overview":"","vote_average":8.2,"genre_ids":[]},{"entity_kind":"person","id":6384,"name":"Keanu Reeves","known_for":[]}]}"""
+        const val CREDIT = """{"credit_id":"52fe425bc3a36847f80181c1","credit_type":"cast","department":"Acting","job":"Actor","character":"Neo","person_summary":{"entity_kind":"person","id":6384,"name":"Keanu Reeves","known_for":[]},"title_summary":{"entity_kind":"movie","id":603,"media_type":"movie","title":"The Matrix","original_title":"The Matrix","overview":"","vote_average":8.2,"genre_ids":[]}}"""
         const val ERROR = """{"error":{"code":"not_found","message":"Missing","request_id":"request-1"}}"""
     }
 }

@@ -72,6 +72,7 @@ import com.lamndt.smartmovie.designsystem.StateMessage
 import com.lamndt.smartmovie.designsystem.isWindowWidthAtLeast
 import com.lamndt.smartmovie.model.CatalogRepository
 import com.lamndt.smartmovie.model.CatalogEntity
+import com.lamndt.smartmovie.model.Credit
 import com.lamndt.smartmovie.model.ImageKind
 import com.lamndt.smartmovie.model.LibraryCollection
 import com.lamndt.smartmovie.model.LibraryMembership
@@ -104,6 +105,7 @@ fun DetailRoute(
     region: String? = null,
     includeAdult: Boolean = false,
     onEntityClick: (CatalogEntity) -> Unit = {},
+    onCreditClick: (Credit) -> Unit = {},
     accountRating: Double? = null,
     accountRatingEnabled: Boolean = false,
     accountRatingPending: Boolean = false,
@@ -132,6 +134,7 @@ fun DetailRoute(
         onBack = onBack,
         onTitleClick = onTitleClick,
         onEntityClick = onEntityClick,
+        onCreditClick = onCreditClick,
         onRetry = detailViewModel::refresh,
         onToggle = detailViewModel::toggle,
         modifier = modifier,
@@ -151,6 +154,7 @@ fun DetailScreen(
     onBack: () -> Unit,
     onTitleClick: (TitleSummary) -> Unit,
     onEntityClick: (CatalogEntity) -> Unit = {},
+    onCreditClick: (Credit) -> Unit = {},
     onRetry: () -> Unit,
     onToggle: (LibraryCollection) -> Unit,
     modifier: Modifier = Modifier,
@@ -174,7 +178,9 @@ fun DetailScreen(
         when (val detail = state.detail) {
             Loadable.Idle, Loadable.Loading -> item { LoadingMessage(Modifier.height(260.dp)) }
             is Loadable.Failed -> item { StateMessage(stringResource(R.string.details_unavailable), message = detail.message, retry = onRetry) }
-            is Loadable.Loaded -> item { DetailBody(detail.value, state.deepDetail, images, onTitleClick, onEntityClick) }
+            is Loadable.Loaded -> item {
+                DetailBody(detail.value, state.deepDetail, images, onTitleClick, onEntityClick, onCreditClick)
+            }
         }
     }
 }
@@ -302,6 +308,7 @@ private fun DetailBody(
     images: ImageUrlFactory,
     onTitleClick: (TitleSummary) -> Unit,
     onEntityClick: (CatalogEntity) -> Unit,
+    onCreditClick: (Credit) -> Unit,
 ) {
     val wide = isWindowWidthAtLeast(700)
     Column(
@@ -331,7 +338,10 @@ private fun DetailBody(
                 Text(listOfNotNull(detail.status, detail.runtimeMinutes?.let { stringResource(R.string.runtime_minutes, it) }, detail.numberOfSeasons?.let { pluralStringResource(R.plurals.seasons, it, it) }).joinToString(" • "), color = CinemaColors.Muted)
             }
         }
-        if (detail.cast.isNotEmpty()) {
+        if (deep != null) {
+            CreditShelf(stringResource(R.string.cast), deep.cast, images, onCreditClick)
+            CreditShelf(stringResource(R.string.crew), deep.crew, images, onCreditClick)
+        } else if (detail.cast.isNotEmpty()) {
             SectionTitle(stringResource(R.string.cast))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 items(detail.cast, key = { it.id }) { member ->

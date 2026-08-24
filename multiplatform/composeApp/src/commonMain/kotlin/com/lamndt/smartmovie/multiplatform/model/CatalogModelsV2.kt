@@ -205,6 +205,17 @@ data class Credit(
 )
 
 @Serializable
+data class CreditDetail(
+    @SerialName("credit_id") val creditId: String,
+    @SerialName("credit_type") val creditType: String? = null,
+    val department: String? = null,
+    val job: String? = null,
+    val character: String? = null,
+    @SerialName("person_summary") val personSummary: PersonSummary? = null,
+    @SerialName("title_summary") val titleSummary: TitleSummary? = null,
+)
+
+@Serializable
 data class ImageAsset(
     val kind: String,
     @SerialName("file_path") val filePath: String,

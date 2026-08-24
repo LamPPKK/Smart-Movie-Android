@@ -5,6 +5,7 @@ import com.lamndt.smartmovie.model.CatalogV2Repository
 import com.lamndt.smartmovie.model.CapabilitiesV2
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CollectionDetail
+import com.lamndt.smartmovie.model.CreditDetail
 import com.lamndt.smartmovie.model.DiscoverFilter
 import com.lamndt.smartmovie.model.Genre
 import com.lamndt.smartmovie.model.HomeFeed
@@ -112,6 +113,7 @@ class FakeCatalogV2Repository(
     override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = error("Not configured")
     override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = error("Not configured")
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = error("Not configured")
+    override suspend fun credit(id: String, language: String): CreditDetail = error("Not configured")
 }
 
 class FakeLibraryRepository : LibraryRepository {

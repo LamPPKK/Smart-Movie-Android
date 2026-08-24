@@ -101,6 +101,7 @@ import com.lamndt.smartmovie.multiplatform.data.LibraryRecord
 import com.lamndt.smartmovie.multiplatform.model.AppLocale
 import com.lamndt.smartmovie.multiplatform.model.CatalogEntity
 import com.lamndt.smartmovie.multiplatform.model.CatalogSearchMode
+import com.lamndt.smartmovie.multiplatform.model.Credit
 import com.lamndt.smartmovie.multiplatform.model.DiscoverSort
 import com.lamndt.smartmovie.multiplatform.model.EntityKind
 import com.lamndt.smartmovie.multiplatform.model.ExternalIdSource
@@ -156,7 +157,7 @@ fun SmartMovieApp(controller: AppController = remember { AppController() }) {
                                     } else Modifier.fillMaxSize(),
                                 )
                             }
-                            if (state.entitySelection != null) {
+                            if (state.entitySelection != null || state.creditSelection != null) {
                                 EntityDetailPane(
                                     state = state,
                                     copy = copy,
@@ -174,7 +175,9 @@ fun SmartMovieApp(controller: AppController = remember { AppController() }) {
                             if (state.detailSelection != null) {
                                 DetailPane(state, copy, controller, Modifier.fillMaxSize())
                             }
-                            if (state.entitySelection != null) EntityDetailPane(state, copy, controller, Modifier.fillMaxSize())
+                            if (state.entitySelection != null || state.creditSelection != null) {
+                                EntityDetailPane(state, copy, controller, Modifier.fillMaxSize())
+                            }
                         }
                         CompactNavigation(state.selectedTab, copy, controller::selectTab)
                     }
@@ -938,6 +941,12 @@ private fun EntityDetailContent(
             image = images.backdrop(detail.value.stillPath)
             related = emptyList()
         }
+        is EntityDetail.Credit -> {
+            title = detail.value.personSummary?.name ?: copy.creditDetails
+            overview = ""
+            image = images.profile(detail.value.personSummary?.profilePath)
+            related = listOfNotNull(detail.value.titleSummary)
+        }
     }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
         item {
@@ -958,6 +967,38 @@ private fun EntityDetailContent(
                 Text(overview, color = CinemaColors.Foreground.copy(alpha = 0.82f), style = MaterialTheme.typography.bodyLarge)
             }
         }
+        if (detail is EntityDetail.Person) item {
+            Column(Modifier.padding(horizontal = 28.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                CreditShelf(copy.cast, detail.value.credits.cast, images, controller::openCredit)
+                CreditShelf(copy.crew, detail.value.credits.crew, images, controller::openCredit)
+            }
+        }
+        if (detail is EntityDetail.Season) item {
+            Column(Modifier.padding(horizontal = 28.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                CreditShelf(copy.cast, detail.value.credits.cast, images, controller::openCredit)
+                CreditShelf(copy.crew, detail.value.credits.crew, images, controller::openCredit)
+            }
+        }
+        if (detail is EntityDetail.Credit) item {
+            Column(
+                Modifier.padding(horizontal = 28.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                SectionTitle(copy.role)
+                detail.value.character?.let { Text("${copy.character}: $it") }
+                detail.value.job?.let { Text("${copy.job}: $it") }
+                detail.value.department?.let { Text("${copy.department}: $it") }
+            }
+        }
+        if (detail is EntityDetail.Credit) detail.value.personSummary?.let { person ->
+            item {
+                AssistChip(
+                    onClick = { controller.openEntity(CatalogEntity.Person(person)) },
+                    label = { Text("${copy.person}: ${person.name}") },
+                    modifier = Modifier.padding(horizontal = 28.dp),
+                )
+            }
+        }
         if (detail is EntityDetail.Season && detail.value.episodes.isNotEmpty()) item {
             Column(Modifier.padding(horizontal = 28.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SectionTitle(entityKindLabel(EntityKind.EPISODE, state.locale))
@@ -975,10 +1016,10 @@ private fun EntityDetailContent(
                 }
             }
         }
-        if (detail is EntityDetail.Episode && detail.value.guestStars.isNotEmpty()) item {
+        if (detail is EntityDetail.Episode) item {
             Column(Modifier.padding(horizontal = 28.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SectionTitle(copy.cast)
-                Text(detail.value.guestStars.mapNotNull { it.title }.joinToString(" · "), color = CinemaColors.Muted)
+                CreditShelf(copy.guestStars, detail.value.guestStars, images, controller::openCredit)
+                CreditShelf(copy.crew, detail.value.crew, images, controller::openCredit)
             }
         }
         if (detail is EntityDetail.Episode && state.account is AccountState.SignedIn) item {
@@ -991,7 +1032,10 @@ private fun EntityDetailContent(
         }
         if (related.isNotEmpty()) item {
             Column(Modifier.padding(top = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                SectionTitle(copy.details, Modifier.padding(horizontal = 28.dp))
+                SectionTitle(
+                    if (detail is EntityDetail.Credit) copy.creditTitle else copy.details,
+                    Modifier.padding(horizontal = 28.dp),
+                )
                 LazyRow(contentPadding = PaddingValues(horizontal = 28.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(related.distinctBy(TitleSummary::libraryKey), key = { it.libraryKey }) { item ->
                         PosterCard(item, images, typeLabel(item.mediaType, copy), { controller.openDetail(item) })
@@ -1007,6 +1051,40 @@ private fun creditTitle(credit: com.lamndt.smartmovie.multiplatform.model.Credit
     val mediaType = credit.mediaType ?: return null
     val title = credit.title ?: return null
     return TitleSummary(id, mediaType, title, title, "", posterPath = credit.posterPath)
+}
+
+@Composable
+private fun CreditShelf(
+    label: String,
+    credits: List<Credit>,
+    images: ImageUrlFactory,
+    onCredit: (Credit) -> Unit,
+) {
+    if (credits.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        SectionTitle(label)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            items(credits.take(40).mapIndexed { index, credit -> index to credit }, key = { (index, credit) ->
+                credit.creditId ?: "$index:${credit.id}"
+            }) { (_, credit) ->
+                val profile = credit.mediaType == null
+                Column(
+                    Modifier.width(112.dp).clickable(enabled = credit.creditId != null) { onCredit(credit) },
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    RemoteArtwork(
+                        if (profile) images.profile(credit.profilePath) else images.poster(credit.posterPath),
+                        credit.title.orEmpty(),
+                        Modifier.fillMaxWidth().aspectRatio(if (profile) 0.78f else 0.68f).clip(CinemaCardShape),
+                    )
+                    Text(credit.title.orEmpty(), style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    (credit.character ?: credit.job ?: credit.department)?.let { role ->
+                        Text(role, style = MaterialTheme.typography.labelMedium, color = CinemaColors.Muted, maxLines = 2)
+                    }
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -1109,7 +1187,18 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
                 }
             }
         }
-        if (detail.cast.isNotEmpty()) {
+        val deepCredits = state.deepDetail
+        if (deepCredits != null) {
+            item {
+                Column(
+                    Modifier.padding(start = 28.dp, top = 28.dp, end = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    CreditShelf(copy.cast, deepCredits.cast, images, controller::openCredit)
+                    CreditShelf(copy.crew, deepCredits.crew, images, controller::openCredit)
+                }
+            }
+        } else if (detail.cast.isNotEmpty()) {
             item {
                 Column(Modifier.padding(top = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     SectionTitle(copy.cast, Modifier.padding(horizontal = 28.dp))

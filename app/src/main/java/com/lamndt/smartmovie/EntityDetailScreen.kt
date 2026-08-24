@@ -39,9 +39,11 @@ import com.lamndt.smartmovie.designsystem.RemoteArtwork
 import com.lamndt.smartmovie.designsystem.SectionTitle
 import com.lamndt.smartmovie.designsystem.StateMessage
 import com.lamndt.smartmovie.feature.detail.AccountRatingControl
+import com.lamndt.smartmovie.feature.detail.CreditShelf
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CatalogV2Repository
 import com.lamndt.smartmovie.model.CollectionDetail
+import com.lamndt.smartmovie.model.Credit
 import com.lamndt.smartmovie.model.EntityKind
 import com.lamndt.smartmovie.model.EpisodeDetail
 import com.lamndt.smartmovie.model.ImageKind
@@ -71,6 +73,7 @@ internal fun EntityDetailScreen(
     onBack: () -> Unit,
     onTitle: (TitleSummary) -> Unit,
     onEntity: (CatalogEntity) -> Unit,
+    onCredit: (Credit) -> Unit,
     appContainer: AppContainer? = null,
 ) {
     var state by remember(key) { mutableStateOf<EntityDetailState>(EntityDetailState.Loading) }
@@ -106,18 +109,23 @@ internal fun EntityDetailScreen(
         when (val value = state) {
             EntityDetailState.Loading -> LoadingMessage(Modifier.fillMaxSize())
             is EntityDetailState.Failed -> StateMessage(stringResource(R.string.details_unavailable), Modifier.fillMaxSize(), value.message)
-            is EntityDetailState.Person -> PersonContent(value.value, images, onTitle)
+            is EntityDetailState.Person -> PersonContent(value.value, images, onTitle, onCredit)
             is EntityDetailState.Collection -> TitleCatalog(value.value.overview, value.value.parts, images, onTitle)
             is EntityDetailState.Organization -> TitleCatalog(value.value.description, value.value.titles.results, images, onTitle)
             is EntityDetailState.Keyword -> TitleCatalog("", value.value.titles.results, images, onTitle)
-            is EntityDetailState.Season -> SeasonContent(value.value, images, onEntity)
-            is EntityDetailState.Episode -> EpisodeContent(value.value, images, episodeRating)
+            is EntityDetailState.Season -> SeasonContent(value.value, images, onEntity, onCredit)
+            is EntityDetailState.Episode -> EpisodeContent(value.value, images, episodeRating, onCredit)
         }
     }
 }
 
 @Composable
-private fun PersonContent(value: PersonDetail, images: ImageUrlFactory, onTitle: (TitleSummary) -> Unit) {
+private fun PersonContent(
+    value: PersonDetail,
+    images: ImageUrlFactory,
+    onTitle: (TitleSummary) -> Unit,
+    onCredit: (Credit) -> Unit,
+) {
     LazyColumn(contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -131,6 +139,8 @@ private fun PersonContent(value: PersonDetail, images: ImageUrlFactory, onTitle:
         }
         if (value.biography.isNotBlank()) item { SectionTitle(stringResource(R.string.biography)); Text(value.biography, color = CinemaColors.Muted) }
         item { TitleShelf(stringResource(R.string.known_for), value.knownFor, images, onTitle) }
+        item { CreditShelf(stringResource(R.string.cast), value.credits.cast, images, onCredit) }
+        item { CreditShelf(stringResource(R.string.crew), value.credits.crew, images, onCredit) }
     }
 }
 
@@ -155,9 +165,16 @@ private fun TitleShelf(label: String, titles: List<TitleSummary>, images: ImageU
 }
 
 @Composable
-private fun SeasonContent(value: SeasonDetail, images: ImageUrlFactory, onEntity: (CatalogEntity) -> Unit) {
+private fun SeasonContent(
+    value: SeasonDetail,
+    images: ImageUrlFactory,
+    onEntity: (CatalogEntity) -> Unit,
+    onCredit: (Credit) -> Unit,
+) {
     LazyColumn(contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (value.overview.isNotBlank()) item { Text(value.overview, color = CinemaColors.Muted) }
+        item { CreditShelf(stringResource(R.string.cast), value.credits.cast, images, onCredit) }
+        item { CreditShelf(stringResource(R.string.crew), value.credits.crew, images, onCredit) }
         items(value.episodes, key = { it.episodeKey }) { episode ->
             Row(
                 Modifier.fillMaxWidth().clickable { onEntity(CatalogEntity.Episode(episode)) }.padding(10.dp),
@@ -174,12 +191,19 @@ private fun SeasonContent(value: SeasonDetail, images: ImageUrlFactory, onEntity
 }
 
 @Composable
-private fun EpisodeContent(value: EpisodeDetail, images: ImageUrlFactory, rating: AccountRatingBinding) {
+private fun EpisodeContent(
+    value: EpisodeDetail,
+    images: ImageUrlFactory,
+    rating: AccountRatingBinding,
+    onCredit: (Credit) -> Unit,
+) {
     LazyColumn(contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { RemoteArtwork(images.url(value.stillPath, ImageKind.BACKDROP), value.name, Modifier.fillMaxWidth().aspectRatio(1.77f)) }
         item { Text("S${value.seasonNumber} · E${value.episodeNumber}", color = CinemaColors.Accent, fontWeight = FontWeight.Black) }
         item { Text(value.name, style = MaterialTheme.typography.displayMedium) }
         item { Text(value.overview, color = CinemaColors.Muted) }
+        item { CreditShelf(stringResource(R.string.guest_stars), value.guestStars, images, onCredit) }
+        item { CreditShelf(stringResource(R.string.crew), value.crew, images, onCredit) }
         if (rating.signedIn) item {
             AccountRatingControl(
                 value = rating.value,

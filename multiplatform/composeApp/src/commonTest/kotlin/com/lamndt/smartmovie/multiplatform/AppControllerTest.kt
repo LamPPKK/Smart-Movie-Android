@@ -8,6 +8,8 @@ import com.lamndt.smartmovie.multiplatform.model.CapabilitiesV2
 import com.lamndt.smartmovie.multiplatform.model.CatalogEntity
 import com.lamndt.smartmovie.multiplatform.model.CatalogSearchMode
 import com.lamndt.smartmovie.multiplatform.model.CollectionDetail
+import com.lamndt.smartmovie.multiplatform.model.Credit
+import com.lamndt.smartmovie.multiplatform.model.CreditDetail
 import com.lamndt.smartmovie.multiplatform.model.EntityKind
 import com.lamndt.smartmovie.multiplatform.model.EpisodeDetail
 import com.lamndt.smartmovie.multiplatform.model.ExternalIdFindResult
@@ -98,12 +100,31 @@ class AppControllerTest {
         assertEquals(" Q83495 ", controller.state.value.searchQuery)
         controller.close()
     }
+
+    @Test
+    fun creditDetailPublishesStablePersonAndTitleNavigation() = runTest {
+        val api = FakeCatalogApi()
+        val appScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val controller = AppController(MemoryStore(), apiFactory = { api }, scope = appScope)
+        advanceUntilIdle()
+
+        controller.openCredit(Credit(creditId = "credit-603", id = 6384, title = "Keanu Reeves"))
+        advanceUntilIdle()
+
+        assertEquals(listOf(Pair("credit-603", "en-US")), api.creditCalls)
+        val result = assertIs<LoadState.Content<EntityDetail>>(controller.state.value.entityDetail)
+        val credit = assertIs<EntityDetail.Credit>(result.value).value
+        assertEquals(6384, credit.personSummary?.id)
+        assertEquals("movie:603", credit.titleSummary?.libraryKey)
+        controller.close()
+    }
 }
 
 private class FakeCatalogApi : CatalogApiV2 {
     val searchQueries = mutableListOf<String>()
     val discoverFilters = mutableListOf<DiscoverFilter>()
     val externalIdCalls = mutableListOf<Triple<String, ExternalIdSource, String>>()
+    val creditCalls = mutableListOf<Pair<String, String>>()
 
     override suspend fun home(mediaType: MediaType, language: String) = HomeFeed(mediaType)
     override suspend fun genres(mediaType: MediaType, language: String): List<Genre> = emptyList()
@@ -178,4 +199,16 @@ private class FakeCatalogApi : CatalogApiV2 {
     override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = error("Not used")
     override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = error("Not used")
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = error("Not used")
+    override suspend fun credit(id: String, language: String): CreditDetail {
+        creditCalls += id to language
+        return CreditDetail(
+            creditId = id,
+            creditType = "cast",
+            department = "Acting",
+            job = "Actor",
+            character = "Neo",
+            personSummary = PersonSummary(6384, "Keanu Reeves"),
+            titleSummary = TitleSummary(603, MediaType.MOVIE, "The Matrix", "The Matrix", ""),
+        )
+    }
 }

@@ -32,6 +32,8 @@ import com.lamndt.smartmovie.multiplatform.model.CatalogEntity
 import com.lamndt.smartmovie.multiplatform.model.CapabilitiesV2
 import com.lamndt.smartmovie.multiplatform.model.CastMember
 import com.lamndt.smartmovie.multiplatform.model.CollectionDetail
+import com.lamndt.smartmovie.multiplatform.model.Credit
+import com.lamndt.smartmovie.multiplatform.model.CreditDetail
 import com.lamndt.smartmovie.multiplatform.model.CatalogSearchMode
 import com.lamndt.smartmovie.multiplatform.model.EpisodeDetail
 import com.lamndt.smartmovie.multiplatform.model.ExternalIdSource
@@ -79,6 +81,7 @@ sealed interface EntityDetail {
     data class Keyword(val value: KeywordDetail) : EntityDetail
     data class Season(val value: SeasonDetail) : EntityDetail
     data class Episode(val value: EpisodeDetail) : EntityDetail
+    data class Credit(val value: CreditDetail) : EntityDetail
 }
 
 sealed interface LoadState<out T> {
@@ -117,6 +120,7 @@ data class SmartMovieState(
     val detailSelection: TitleSummary? = null,
     val detailRating: AccountRatingState = AccountRatingState(),
     val entitySelection: CatalogEntity? = null,
+    val creditSelection: String? = null,
     val entityDetail: LoadState<EntityDetail> = LoadState.Idle,
     val episodeRating: AccountRatingState = AccountRatingState(),
     val capabilities: CapabilitiesV2? = null,
@@ -192,6 +196,7 @@ class AppController(
                 detail = LoadState.Idle,
                 deepDetail = null,
                 entitySelection = null,
+                creditSelection = null,
                 entityDetail = LoadState.Idle,
             )
         }
@@ -436,7 +441,15 @@ class AppController(
 
     fun openDetail(title: TitleSummary) {
         detailJob?.cancel()
-        mutableState.update { it.copy(detailSelection = title, detail = LoadState.Loading, detailRating = AccountRatingState()) }
+        mutableState.update {
+            it.copy(
+                detailSelection = title,
+                detail = LoadState.Loading,
+                detailRating = AccountRatingState(),
+                entitySelection = null,
+                creditSelection = null,
+            )
+        }
         refreshTitleRating(title)
         detailJob = scope.launch {
             val snapshot = state.value
@@ -467,7 +480,15 @@ class AppController(
         }
         val catalog = apiV2 ?: return
         detailJob?.cancel()
-        mutableState.update { it.copy(entitySelection = entity, entityDetail = LoadState.Loading, episodeRating = AccountRatingState()) }
+        mutableState.update {
+            it.copy(
+                detailSelection = null,
+                entitySelection = entity,
+                creditSelection = null,
+                entityDetail = LoadState.Loading,
+                episodeRating = AccountRatingState(),
+            )
+        }
         if (entity is CatalogEntity.Episode) refreshEpisodeRating(entity.value.seriesId, entity.value.seasonNumber, entity.value.episodeNumber)
         detailJob = scope.launch {
             val language = state.value.locale.backendTag
@@ -492,6 +513,30 @@ class AppController(
         }
     }
 
+    fun openCredit(credit: Credit) {
+        val creditID = credit.creditId ?: return
+        openCredit(creditID)
+    }
+
+    private fun openCredit(creditID: String) {
+        val catalog = apiV2 ?: return
+        detailJob?.cancel()
+        mutableState.update {
+            it.copy(
+                detailSelection = null,
+                entitySelection = null,
+                creditSelection = creditID,
+                entityDetail = LoadState.Loading,
+            )
+        }
+        detailJob = scope.launch {
+            runCatching { EntityDetail.Credit(catalog.credit(creditID, state.value.locale.backendTag)) }
+                .propagateCancellation()
+                .onSuccess { detail -> mutableState.update { it.copy(entityDetail = LoadState.Content(detail)) } }
+                .onFailure { error -> mutableState.update { it.copy(entityDetail = LoadState.Error(error.message.orEmpty())) } }
+        }
+    }
+
     fun closeDetail() {
         detailJob?.cancel()
         titleRatingJob?.cancel()
@@ -503,6 +548,7 @@ class AppController(
                 deepDetail = null,
                 detailRating = AccountRatingState(),
                 entitySelection = null,
+                creditSelection = null,
                 entityDetail = LoadState.Idle,
                 episodeRating = AccountRatingState(),
             )
@@ -511,7 +557,10 @@ class AppController(
 
     fun retryDetail() = state.value.detailSelection?.let(::openDetail)
 
-    fun retryEntityDetail() = state.value.entitySelection?.let(::openEntity)
+    fun retryEntityDetail() {
+        state.value.creditSelection?.let(::openCredit)
+            ?: state.value.entitySelection?.let(::openEntity)
+    }
 
     fun toggleLibrary(title: TitleSummary, collection: LibraryCollection) {
         library.toggle(title, collection)
