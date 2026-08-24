@@ -71,6 +71,7 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -124,6 +125,7 @@ import com.lamndt.smartmovie.multiplatform.ui.RatingBadge
 import com.lamndt.smartmovie.multiplatform.ui.RemoteArtwork
 import com.lamndt.smartmovie.multiplatform.ui.SectionTitle
 import com.lamndt.smartmovie.multiplatform.ui.SmartMovieTheme
+import kotlin.math.roundToInt
 
 @Composable
 fun SmartMovieApp(controller: AppController = remember { AppController() }) {
@@ -937,6 +939,14 @@ private fun EntityDetailContent(
                 Text(detail.value.guestStars.mapNotNull { it.title }.joinToString(" · "), color = CinemaColors.Muted)
             }
         }
+        if (detail is EntityDetail.Episode && state.account is AccountState.SignedIn) item {
+            AccountRatingPanel(
+                rating = state.episodeRating,
+                locale = state.locale,
+                onChange = controller::rateEpisode,
+                modifier = Modifier.padding(horizontal = 28.dp, vertical = 18.dp),
+            )
+        }
         if (related.isNotEmpty()) item {
             Column(Modifier.padding(top = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 SectionTitle(copy.details, Modifier.padding(horizontal = 28.dp))
@@ -1016,6 +1026,13 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
                         Icon(if (record?.isWatchlisted == true) Icons.Default.Bookmark else Icons.Default.BookmarkBorder, contentDescription = null)
                         Text(if (record?.isWatchlisted == true) copy.removeWatchlist else copy.watchLater, Modifier.padding(start = 7.dp))
                     }
+                }
+                if (state.account is AccountState.SignedIn) {
+                    AccountRatingPanel(
+                        rating = state.detailRating,
+                        locale = state.locale,
+                        onChange = controller::rateTitle,
+                    )
                 }
                 if (detail.genres.isNotEmpty()) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -1097,6 +1114,37 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
 }
 
 @Composable
+private fun AccountRatingPanel(
+    rating: AccountRatingState,
+    locale: AppLocale,
+    onChange: (Double?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val copy = ratingCopy(locale)
+    var draft by remember(rating.value) { mutableStateOf((rating.value ?: 5.0).toFloat()) }
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = CinemaColors.Elevated) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                SectionTitle(copy.title)
+                Text("${((draft * 2).roundToInt() / 2f)} / 10", color = CinemaColors.Accent)
+            }
+            Slider(
+                value = draft,
+                onValueChange = { draft = (it * 2).roundToInt() / 2f },
+                valueRange = 0.5f..10f,
+                steps = 18,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { onChange(draft.toDouble()) }) { Text(copy.save) }
+                if (rating.value != null) TextButton(onClick = { onChange(null) }) { Text(copy.remove) }
+                if (rating.pending) Text(copy.pending, color = CinemaColors.Muted)
+            }
+            rating.error?.let { Text(it, color = CinemaColors.Accent, style = MaterialTheme.typography.bodySmall) }
+        }
+    }
+}
+
+@Composable
 private fun DetailClose(label: String, onClose: () -> Unit, modifier: Modifier = Modifier) {
     IconButton(
         onClick = onClose,
@@ -1107,6 +1155,17 @@ private fun DetailClose(label: String, onClose: () -> Unit, modifier: Modifier =
 }
 
 private fun typeLabel(type: MediaType, copy: UiStrings): String = if (type == MediaType.MOVIE) copy.movies else copy.tvSeries
+
+private data class RatingCopy(val title: String, val save: String, val remove: String, val pending: String)
+
+private fun ratingCopy(locale: AppLocale): RatingCopy = when (locale) {
+    AppLocale.ENGLISH -> RatingCopy("Your rating", "Save rating", "Remove rating", "Waiting to sync")
+    AppLocale.VIETNAMESE -> RatingCopy("Điểm của bạn", "Lưu điểm", "Xóa điểm", "Đang chờ đồng bộ")
+    AppLocale.JAPANESE -> RatingCopy("あなたの評価", "評価を保存", "評価を削除", "同期を待機中")
+    AppLocale.KOREAN -> RatingCopy("내 평점", "평점 저장", "평점 삭제", "동기화 대기 중")
+    AppLocale.CHINESE_SIMPLIFIED -> RatingCopy("我的评分", "保存评分", "删除评分", "等待同步")
+    AppLocale.CHINESE_TRADITIONAL -> RatingCopy("我的評分", "儲存評分", "刪除評分", "等待同步")
+}
 
 private fun scopeLabel(scope: SearchScope, copy: UiStrings): String = when (scope) {
     SearchScope.ALL -> copy.all

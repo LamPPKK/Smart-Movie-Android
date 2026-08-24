@@ -3,10 +3,12 @@ package com.lamndt.smartmovie.multiplatform.data
 import com.lamndt.smartmovie.multiplatform.model.AccountProfile
 import com.lamndt.smartmovie.multiplatform.model.AuthAttempt
 import com.lamndt.smartmovie.multiplatform.model.AuthSession
+import com.lamndt.smartmovie.multiplatform.model.EpisodeAccountState
 import com.lamndt.smartmovie.multiplatform.model.MediaType
 import com.lamndt.smartmovie.multiplatform.model.MutationResult
 import com.lamndt.smartmovie.multiplatform.model.PagedResult
 import com.lamndt.smartmovie.multiplatform.model.TitleSummary
+import com.lamndt.smartmovie.multiplatform.model.TitleAccountState
 import com.lamndt.smartmovie.multiplatform.model.UserList
 import com.lamndt.smartmovie.multiplatform.platform.SessionCredentialStore
 import com.lamndt.smartmovie.multiplatform.platform.createSessionCredentialStore
@@ -34,6 +36,8 @@ interface AccountApi {
     suspend fun authAttempt(id: String, deviceCode: String?): String
     suspend fun completeAuth(id: String, deviceCode: String?): AuthSession
     suspend fun profile(): AccountProfile
+    suspend fun accountState(mediaType: MediaType, id: Int): TitleAccountState
+    suspend fun episodeAccountState(seriesId: Int, season: Int, episode: Int): EpisodeAccountState
     suspend fun refreshCSRF(): String
     suspend fun logout()
     suspend fun library(collection: LibraryCollection, mediaType: MediaType, page: Int, language: String): PagedResult<TitleSummary>
@@ -95,6 +99,14 @@ class KtorAccountApi(
         return profile
     }
 
+    override suspend fun accountState(mediaType: MediaType, id: Int): TitleAccountState = response {
+        client.get("$root/v2/account/state/${mediaType.wireValue}/$id") { headers(authenticated = true) }
+    }
+
+    override suspend fun episodeAccountState(seriesId: Int, season: Int, episode: Int): EpisodeAccountState = response {
+        client.get("$root/v2/account/state/episode/$seriesId/$season/$episode") { headers(authenticated = true) }
+    }
+
     override suspend fun refreshCSRF(): String = response<CSRFResponse> {
         client.get("$root/v2/auth/csrf") { headers(authenticated = true) }
     }.csrfToken.also { csrfToken = it }
@@ -123,7 +135,9 @@ class KtorAccountApi(
         mutationId: String,
     ): MutationResult = response {
         client.put("$root/v2/account/${collection.wireValue}/${mediaType.wireValue}") {
-            headers(authenticated = true); contentType(ContentType.Application.Json); setBody(AccountLibraryMutation(mediaId, enabled, mutationId))
+            headers(authenticated = true, mutationId = mutationId)
+            contentType(ContentType.Application.Json)
+            setBody(AccountLibraryMutation(mediaId, enabled, mutationId))
         }
     }
 
@@ -132,7 +146,9 @@ class KtorAccountApi(
             headers(authenticated = true, mutationId = mutationId)
         }
         else client.put("$root/v2/account/ratings/${mediaType.wireValue}/$id") {
-            headers(authenticated = true); contentType(ContentType.Application.Json); setBody(RatingMutation(value, mutationId))
+            headers(authenticated = true, mutationId = mutationId)
+            contentType(ContentType.Application.Json)
+            setBody(RatingMutation(value, mutationId))
         }
     }
 
@@ -146,7 +162,9 @@ class KtorAccountApi(
         val path = "$root/v2/account/ratings/episode/$seriesId/$season/$episode"
         if (value == null) client.delete(path) { headers(authenticated = true, mutationId = mutationId) }
         else client.put(path) {
-            headers(authenticated = true); contentType(ContentType.Application.Json); setBody(RatingMutation(value, mutationId))
+            headers(authenticated = true, mutationId = mutationId)
+            contentType(ContentType.Application.Json)
+            setBody(RatingMutation(value, mutationId))
         }
     }
 
@@ -173,7 +191,7 @@ class KtorAccountApi(
         mutationId: String,
     ): MutationResult = response {
         client.post("$root/v2/account/lists") {
-            headers(authenticated = true); contentType(ContentType.Application.Json)
+            headers(authenticated = true, mutationId = mutationId); contentType(ContentType.Application.Json)
             setBody(ListMetadata(name, description, public, region, language, mutationId))
         }
     }
@@ -186,7 +204,7 @@ class KtorAccountApi(
         mutationId: String,
     ): MutationResult = response {
         client.put("$root/v2/account/lists/$id") {
-            headers(authenticated = true); contentType(ContentType.Application.Json)
+            headers(authenticated = true, mutationId = mutationId); contentType(ContentType.Application.Json)
             setBody(ListMetadata(name, description, public, null, null, mutationId))
         }
     }
@@ -203,9 +221,13 @@ class KtorAccountApi(
     ): MutationResult = response {
         val path = "$root/v2/account/lists/$id/items"
         if (remove) client.delete(path) {
-            headers(authenticated = true); contentType(ContentType.Application.Json); setBody(ListItemsMutation(items, mutationId))
+            headers(authenticated = true, mutationId = mutationId)
+            contentType(ContentType.Application.Json)
+            setBody(ListItemsMutation(items, mutationId))
         } else client.post(path) {
-            headers(authenticated = true); contentType(ContentType.Application.Json); setBody(ListItemsMutation(items, mutationId))
+            headers(authenticated = true, mutationId = mutationId)
+            contentType(ContentType.Application.Json)
+            setBody(ListItemsMutation(items, mutationId))
         }
     }
 

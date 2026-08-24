@@ -12,6 +12,9 @@ import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 
@@ -413,7 +416,34 @@ data class MutationResult(
     val success: Boolean? = null,
     @SerialName("status_code") val statusCode: Int? = null,
     @SerialName("status_message") val statusMessage: String? = null,
+    @SerialName("list_id") val listId: Int? = null,
 )
+
+@Serializable
+data class TitleAccountState(
+    @SerialName("media_type") val mediaType: MediaType,
+    @SerialName("media_id") val mediaId: Int,
+    val favorite: Boolean,
+    val watchlist: Boolean,
+    val rated: JsonElement,
+) {
+    val ratingValue: Double? get() = rated.ratingValue()
+}
+
+@Serializable
+data class EpisodeAccountState(
+    @SerialName("series_id") val seriesId: Int,
+    @SerialName("season_number") val seasonNumber: Int,
+    @SerialName("episode_number") val episodeNumber: Int,
+    val rated: JsonElement,
+) {
+    val ratingValue: Double? get() = rated.ratingValue()
+}
+
+private fun JsonElement.ratingValue(): Double? = (this as? JsonObject)
+    ?.get("value")
+    ?.jsonPrimitive
+    ?.doubleOrNull
 
 @Serializable
 data class UserList(

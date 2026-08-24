@@ -3,11 +3,16 @@ package com.lamndt.smartmovie.multiplatform
 import com.lamndt.smartmovie.multiplatform.data.CatalogApi
 import com.lamndt.smartmovie.multiplatform.data.CatalogApiV2
 import com.lamndt.smartmovie.multiplatform.data.AccountApi
+import com.lamndt.smartmovie.multiplatform.data.AccountMutationPayload
 import com.lamndt.smartmovie.multiplatform.data.KtorAccountApi
 import com.lamndt.smartmovie.multiplatform.data.KtorCatalogApi
 import com.lamndt.smartmovie.multiplatform.data.LibraryCollection
 import com.lamndt.smartmovie.multiplatform.data.LibraryRecord
 import com.lamndt.smartmovie.multiplatform.data.PersistentLibrary
+import com.lamndt.smartmovie.multiplatform.data.PersistentAccountMutationOutbox
+import com.lamndt.smartmovie.multiplatform.data.PendingAccountMutation
+import com.lamndt.smartmovie.multiplatform.data.ListItemMutation
+import com.lamndt.smartmovie.multiplatform.data.applyPendingLists
 import com.lamndt.smartmovie.multiplatform.data.createInstallationId
 import com.lamndt.smartmovie.multiplatform.data.pinDigest
 import com.lamndt.smartmovie.multiplatform.model.AppLocale
@@ -53,6 +58,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 enum class AppTab { HOME, EXPLORE, SEARCH, LIBRARY, PROFILE }
 
@@ -104,8 +110,10 @@ data class SmartMovieState(
     val detail: LoadState<TitleDetail> = LoadState.Idle,
     val deepDetail: TitleDetailV2? = null,
     val detailSelection: TitleSummary? = null,
+    val detailRating: AccountRatingState = AccountRatingState(),
     val entitySelection: CatalogEntity? = null,
     val entityDetail: LoadState<EntityDetail> = LoadState.Idle,
+    val episodeRating: AccountRatingState = AccountRatingState(),
     val capabilities: CapabilitiesV2? = null,
     val account: AccountState = AccountState.Checking,
     val accountLists: LoadState<List<UserList>> = LoadState.Idle,
@@ -116,6 +124,12 @@ data class SmartMovieState(
     val adultLockUntil: Long = 0,
 )
 
+data class AccountRatingState(
+    val value: Double? = null,
+    val pending: Boolean = false,
+    val error: String? = null,
+)
+
 class AppController(
     private val store: KeyValueStore = createKeyValueStore(),
     apiFactory: (String) -> CatalogApi = { KtorCatalogApi(baseUrl = catalogBaseUrl(), clientId = it) },
@@ -123,6 +137,7 @@ class AppController(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val library = PersistentLibrary(store)
+    private val accountOutbox = PersistentAccountMutationOutbox(store)
     private val clientId = store.getString(INSTALLATION_ID_KEY)
         ?.takeIf { it.length == 36 }
         ?: createInstallationId().also { store.putString(INSTALLATION_ID_KEY, it) }
@@ -145,6 +160,8 @@ class AppController(
     private var exploreJob: Job? = null
     private var searchJob: Job? = null
     private var detailJob: Job? = null
+    private var titleRatingJob: Job? = null
+    private var episodeRatingJob: Job? = null
 
     init {
         scope.launch { library.records.collect { records -> mutableState.update { it.copy(library = records) } } }
@@ -341,7 +358,8 @@ class AppController(
 
     fun openDetail(title: TitleSummary) {
         detailJob?.cancel()
-        mutableState.update { it.copy(detailSelection = title, detail = LoadState.Loading) }
+        mutableState.update { it.copy(detailSelection = title, detail = LoadState.Loading, detailRating = AccountRatingState()) }
+        refreshTitleRating(title)
         detailJob = scope.launch {
             val snapshot = state.value
             runCatching {
@@ -371,7 +389,8 @@ class AppController(
         }
         val catalog = apiV2 ?: return
         detailJob?.cancel()
-        mutableState.update { it.copy(entitySelection = entity, entityDetail = LoadState.Loading) }
+        mutableState.update { it.copy(entitySelection = entity, entityDetail = LoadState.Loading, episodeRating = AccountRatingState()) }
+        if (entity is CatalogEntity.Episode) refreshEpisodeRating(entity.value.seriesId, entity.value.seasonNumber, entity.value.episodeNumber)
         detailJob = scope.launch {
             val language = state.value.locale.backendTag
             runCatching {
@@ -397,13 +416,17 @@ class AppController(
 
     fun closeDetail() {
         detailJob?.cancel()
+        titleRatingJob?.cancel()
+        episodeRatingJob?.cancel()
         mutableState.update {
             it.copy(
                 detailSelection = null,
                 detail = LoadState.Idle,
                 deepDetail = null,
+                detailRating = AccountRatingState(),
                 entitySelection = null,
                 entityDetail = LoadState.Idle,
+                episodeRating = AccountRatingState(),
             )
         }
     }
@@ -415,6 +438,32 @@ class AppController(
     fun toggleLibrary(title: TitleSummary, collection: LibraryCollection) {
         library.toggle(title, collection)
         scope.launch { flushLibraryOutbox() }
+    }
+
+    fun rateTitle(value: Double?) {
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
+        val title = state.value.detailSelection ?: return
+        val rating = normalizeRating(value)
+        accountOutbox.enqueue(profile.id, AccountMutationPayload.TitleRating(title.mediaType, title.id, rating))
+        mutableState.update { it.copy(detailRating = AccountRatingState(rating, pending = true)) }
+        scope.launch { flushAccountOutbox(profile.id) }
+    }
+
+    fun rateEpisode(value: Double?) {
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
+        val episode = (state.value.entitySelection as? CatalogEntity.Episode)?.value ?: return
+        val rating = normalizeRating(value)
+        accountOutbox.enqueue(
+            profile.id,
+            AccountMutationPayload.EpisodeRating(
+                episode.seriesId,
+                episode.seasonNumber,
+                episode.episodeNumber,
+                rating,
+            ),
+        )
+        mutableState.update { it.copy(episodeRating = AccountRatingState(rating, pending = true)) }
+        scope.launch { flushAccountOutbox(profile.id) }
     }
 
     fun changeLibraryCollection(collection: LibraryCollection) {
@@ -480,47 +529,217 @@ class AppController(
 
     fun signOut(keepAsLocal: Boolean) {
         val account = accountApi ?: return
+        val accountId = (state.value.account as? AccountState.SignedIn)?.profile?.id
         scope.launch {
             runCatching { account.logout() }
             library.deactivateAccount(removeAccountData = !keepAsLocal)
-            mutableState.update { it.copy(account = AccountState.SignedOut, accountLists = LoadState.Idle) }
+            if (!keepAsLocal && accountId != null) accountOutbox.clear(accountId)
+            mutableState.update {
+                it.copy(
+                    account = AccountState.SignedOut,
+                    accountLists = LoadState.Idle,
+                    detailRating = AccountRatingState(),
+                    episodeRating = AccountRatingState(),
+                )
+            }
         }
     }
 
     fun refreshLists() {
-        val account = accountApi ?: return
-        if (state.value.account !is AccountState.SignedIn) return
-        scope.launch {
-            mutableState.update { it.copy(accountLists = LoadState.Loading) }
-            runCatching { account.lists(1) }
-                .onSuccess { page -> mutableState.update { it.copy(accountLists = LoadState.Content(page.results)) } }
-                .onFailure { error -> mutableState.update { it.copy(accountLists = LoadState.Error(error.message.orEmpty())) } }
-        }
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
+        scope.launch { refreshLists(profile.id) }
     }
 
     fun createList(name: String, description: String) {
-        val account = accountApi ?: return
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
         val normalized = name.trim().takeIf(String::isNotEmpty) ?: return
-        scope.launch {
-            val language = state.value.locale.tag.substringBefore('-')
-            val region = state.value.regionOverride ?: "US"
-            runCatching {
-                account.createList(normalized, description.trim(), false, region, language, createInstallationId())
-            }.onSuccess { refreshLists() }
-                .onFailure { error -> mutableState.update { it.copy(accountLists = LoadState.Error(error.message.orEmpty())) } }
-        }
+        accountOutbox.enqueue(
+            profile.id,
+            AccountMutationPayload.CreateList(
+                normalized,
+                description.trim(),
+                public = false,
+                region = state.value.regionOverride ?: "US",
+                language = state.value.locale.tag.substringBefore('-'),
+            ),
+        )
+        publishOptimisticLists(profile.id)
+        scope.launch { flushAccountOutbox(profile.id) }
     }
 
     fun deleteList(id: Int) {
-        val account = accountApi ?: return
-        scope.launch {
-            runCatching { account.deleteList(id, createInstallationId()) }
-                .onSuccess { refreshLists() }
-                .onFailure { error -> mutableState.update { it.copy(accountLists = LoadState.Error(error.message.orEmpty())) } }
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
+        if (id < 0) {
+            accountOutbox.pending(profile.id).firstOrNull { it.localListId == id }?.let { accountOutbox.cancel(it.id) }
+        } else {
+            accountOutbox.enqueue(profile.id, AccountMutationPayload.DeleteList(id))
         }
+        publishOptimisticLists(profile.id)
+        scope.launch { flushAccountOutbox(profile.id) }
+    }
+
+    fun updateList(id: Int, name: String, description: String, public: Boolean) {
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
+        val normalized = name.trim().takeIf(String::isNotEmpty) ?: return
+        accountOutbox.enqueue(
+            profile.id,
+            AccountMutationPayload.UpdateList(id, normalized, description.trim(), public),
+        )
+        publishOptimisticLists(profile.id)
+        scope.launch { flushAccountOutbox(profile.id) }
+    }
+
+    fun mutateListItems(id: Int, items: List<ListItemMutation>, remove: Boolean) {
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile ?: return
+        if (items.isEmpty()) return
+        accountOutbox.enqueue(profile.id, AccountMutationPayload.MutateListItems(id, items, remove))
+        scope.launch { flushAccountOutbox(profile.id) }
     }
 
     fun close() = scope.cancel()
+
+    private suspend fun refreshLists(accountId: Int) {
+        val account = accountApi ?: return
+        val pending = accountOutbox.pending(accountId)
+        val current = (state.value.accountLists as? LoadState.Content)?.value.orEmpty().filter { it.id > 0 }
+        val hasPendingListMutation = pending.any { it.payload.isListMutation() }
+        if (current.isEmpty() && !hasPendingListMutation) {
+            mutableState.update { it.copy(accountLists = LoadState.Loading) }
+        }
+        runCatching { account.lists(1) }
+            .propagateCancellation()
+            .onSuccess { page ->
+                mutableState.update { it.copy(accountLists = LoadState.Content(applyPendingLists(page.results, pending))) }
+            }
+            .onFailure { error ->
+                mutableState.update {
+                    it.copy(
+                        accountLists = if (hasPendingListMutation) {
+                            LoadState.Content(applyPendingLists(current, pending))
+                        } else {
+                            LoadState.Error(error.message.orEmpty())
+                        },
+                    )
+                }
+            }
+    }
+
+    private fun publishOptimisticLists(accountId: Int) {
+        val remote = (state.value.accountLists as? LoadState.Content)?.value.orEmpty().filter { it.id > 0 }
+        val pending = accountOutbox.pending(accountId)
+        mutableState.update { it.copy(accountLists = LoadState.Content(applyPendingLists(remote, pending))) }
+    }
+
+    private fun refreshTitleRating(title: TitleSummary) {
+        titleRatingJob?.cancel()
+        val account = accountApi
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile
+        if (account == null || profile == null) {
+            mutableState.update { it.copy(detailRating = AccountRatingState()) }
+            return
+        }
+        titleRatingJob = scope.launch {
+            val local = accountOutbox.pending(profile.id).lastOrNull { mutation ->
+                val payload = mutation.payload as? AccountMutationPayload.TitleRating
+                payload?.mediaType == title.mediaType && payload.mediaId == title.id
+            }
+            if (local != null) {
+                val payload = local.payload as AccountMutationPayload.TitleRating
+                mutableState.update {
+                    it.copy(detailRating = AccountRatingState(payload.value, pending = true, error = local.lastError))
+                }
+                return@launch
+            }
+            runCatching { account.accountState(title.mediaType, title.id).ratingValue }
+                .propagateCancellation()
+                .onSuccess { value -> mutableState.update { it.copy(detailRating = AccountRatingState(value)) } }
+                .onFailure { error -> mutableState.update {
+                    it.copy(detailRating = it.detailRating.copy(pending = false, error = error.message))
+                } }
+        }
+    }
+
+    private fun refreshEpisodeRating(seriesId: Int, season: Int, episode: Int) {
+        episodeRatingJob?.cancel()
+        val account = accountApi
+        val profile = (state.value.account as? AccountState.SignedIn)?.profile
+        if (account == null || profile == null) {
+            mutableState.update { it.copy(episodeRating = AccountRatingState()) }
+            return
+        }
+        episodeRatingJob = scope.launch {
+            val local = accountOutbox.pending(profile.id).lastOrNull { mutation ->
+                val payload = mutation.payload as? AccountMutationPayload.EpisodeRating
+                payload?.seriesId == seriesId && payload.seasonNumber == season && payload.episodeNumber == episode
+            }
+            if (local != null) {
+                val payload = local.payload as AccountMutationPayload.EpisodeRating
+                mutableState.update {
+                    it.copy(episodeRating = AccountRatingState(payload.value, pending = true, error = local.lastError))
+                }
+                return@launch
+            }
+            runCatching { account.episodeAccountState(seriesId, season, episode).ratingValue }
+                .propagateCancellation()
+                .onSuccess { value -> mutableState.update { it.copy(episodeRating = AccountRatingState(value)) } }
+                .onFailure { error -> mutableState.update {
+                    it.copy(episodeRating = it.episodeRating.copy(pending = false, error = error.message))
+                } }
+        }
+    }
+
+    private suspend fun flushAccountOutbox(accountId: Int) {
+        val account = accountApi ?: return
+        if ((state.value.account as? AccountState.SignedIn)?.profile?.id != accountId) return
+        val before = accountOutbox.pending(accountId)
+        accountOutbox.flush(accountId) { mutation -> dispatchAccountMutation(account, mutation) }
+        if (before.any { it.payload.isListMutation() }) refreshLists(accountId)
+        state.value.detailSelection?.let(::refreshTitleRating)
+        (state.value.entitySelection as? CatalogEntity.Episode)?.value?.let { episode ->
+            refreshEpisodeRating(episode.seriesId, episode.seasonNumber, episode.episodeNumber)
+        }
+    }
+
+    private suspend fun dispatchAccountMutation(
+        account: AccountApi,
+        mutation: PendingAccountMutation,
+    ) = when (val payload = mutation.payload) {
+        is AccountMutationPayload.TitleRating -> account.setRating(
+            payload.mediaType,
+            payload.mediaId,
+            payload.value,
+            mutation.id,
+        )
+        is AccountMutationPayload.EpisodeRating -> account.setEpisodeRating(
+            payload.seriesId,
+            payload.seasonNumber,
+            payload.episodeNumber,
+            payload.value,
+            mutation.id,
+        )
+        is AccountMutationPayload.CreateList -> account.createList(
+            payload.name,
+            payload.description,
+            payload.public,
+            payload.region,
+            payload.language,
+            mutation.id,
+        )
+        is AccountMutationPayload.UpdateList -> account.updateList(
+            payload.listId,
+            payload.name,
+            payload.description,
+            payload.public,
+            mutation.id,
+        )
+        is AccountMutationPayload.DeleteList -> account.deleteList(payload.listId, mutation.id)
+        is AccountMutationPayload.MutateListItems -> account.mutateListItems(
+            payload.listId,
+            payload.items,
+            payload.remove,
+            mutation.id,
+        )
+    }
 
     private fun reloadGenresAndExplore() {
         scope.launch {
@@ -591,7 +810,8 @@ class AppController(
                 library.activateAccount(profile.id)
                 mutableState.update { it.copy(account = AccountState.SignedIn(profile)) }
                 syncAccountLibrary(profile.id)
-                refreshLists()
+                flushAccountOutbox(profile.id)
+                refreshLists(profile.id)
             }
             .onFailure { mutableState.update { it.copy(account = AccountState.SignedOut) } }
     }
@@ -612,7 +832,8 @@ class AppController(
                     library.activateAccount(session.profile.id)
                     mutableState.update { it.copy(account = AccountState.SignedIn(session.profile)) }
                     syncAccountLibrary(session.profile.id)
-                    refreshLists()
+                    flushAccountOutbox(session.profile.id)
+                    refreshLists(session.profile.id)
                     return
                 }
                 "expired", "denied" -> {
@@ -659,6 +880,10 @@ class AppController(
     private fun includeAdult(snapshot: SmartMovieState): Boolean = snapshot.adultConfigured &&
         snapshot.adultUnlocked && snapshot.adultLockUntil <= systemTimeMillis()
 
+    private fun normalizeRating(value: Double?): Double? = value?.let {
+        ((it * 2).roundToInt() / 2.0).coerceIn(0.5, 10.0)
+    }
+
     private fun resetAdultFailures() {
         store.putString(ADULT_FAILURES_KEY, "0")
         store.putString(ADULT_LOCK_UNTIL_KEY, "0")
@@ -679,6 +904,17 @@ class AppController(
         const val MAX_AUTH_POLLS = 120
         const val MAX_LIBRARY_SYNC_PAGES = 50
     }
+}
+
+private fun AccountMutationPayload.isListMutation(): Boolean = when (this) {
+    is AccountMutationPayload.CreateList,
+    is AccountMutationPayload.DeleteList,
+    is AccountMutationPayload.MutateListItems,
+    is AccountMutationPayload.UpdateList,
+    -> true
+    is AccountMutationPayload.EpisodeRating,
+    is AccountMutationPayload.TitleRating,
+    -> false
 }
 
 private fun TitleDetailV2.toLegacy(): TitleDetail = TitleDetail(
