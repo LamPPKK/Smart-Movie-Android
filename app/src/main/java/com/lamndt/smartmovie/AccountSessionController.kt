@@ -1,11 +1,15 @@
 package com.lamndt.smartmovie
 
 import com.lamndt.smartmovie.model.AccountProfile
+import com.lamndt.smartmovie.model.AccountMutationFlushReport
+import com.lamndt.smartmovie.model.AccountMutationOutbox
+import com.lamndt.smartmovie.model.AccountMutationPayload
 import com.lamndt.smartmovie.model.AccountRepository
 import com.lamndt.smartmovie.model.AuthAttempt
 import com.lamndt.smartmovie.model.LibraryCollection
 import com.lamndt.smartmovie.model.LibrarySyncRepository
 import com.lamndt.smartmovie.model.MediaType
+import com.lamndt.smartmovie.model.PendingAccountMutation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -27,10 +31,13 @@ sealed interface AccountSessionState {
 class AccountSessionController(
     private val account: AccountRepository,
     private val library: LibrarySyncRepository,
+    private val accountOutbox: AccountMutationOutbox,
     private val scope: CoroutineScope,
 ) {
     private val mutableState = MutableStateFlow<AccountSessionState>(AccountSessionState.Checking)
     val state: StateFlow<AccountSessionState> = mutableState.asStateFlow()
+    private val mutableMutationRevision = MutableStateFlow(0L)
+    val mutationRevision: StateFlow<Long> = mutableMutationRevision.asStateFlow()
     private var polling: Job? = null
 
     fun refresh(language: String) = scope.launch {
@@ -63,12 +70,36 @@ class AccountSessionController(
 
     suspend fun logout(removeAccountData: Boolean) {
         polling?.cancel()
+        val accountId = (mutableState.value as? AccountSessionState.SignedIn)?.profile?.id
         runCatching { account.logout() }
         library.deactivateAccount(removeAccountData)
+        if (removeAccountData && accountId != null) accountOutbox.clear(accountId)
+        mutableMutationRevision.value++
         mutableState.value = AccountSessionState.SignedOut
     }
 
-    suspend fun flushOutbox() {
+    suspend fun queueAccountMutation(payload: AccountMutationPayload): PendingAccountMutation {
+        val profile = (mutableState.value as? AccountSessionState.SignedIn)?.profile
+            ?: error("A TMDb account is required for this action.")
+        val mutation = accountOutbox.enqueue(profile.id, payload)
+        mutableMutationRevision.value++
+        scope.launch { flushOutbox() }
+        return mutation
+    }
+
+    suspend fun pendingAccountMutations(): List<PendingAccountMutation> {
+        val profile = (mutableState.value as? AccountSessionState.SignedIn)?.profile ?: return emptyList()
+        return accountOutbox.pending(profile.id)
+    }
+
+    suspend fun cancelLocalList(localListId: Int): Boolean {
+        val mutation = pendingAccountMutations().firstOrNull { it.localListId == localListId } ?: return false
+        accountOutbox.cancel(mutation.id)
+        mutableMutationRevision.value++
+        return true
+    }
+
+    suspend fun flushOutbox(): AccountMutationFlushReport? {
         for (mutation in library.pendingMutations()) {
             try {
                 account.setLibrary(
@@ -81,6 +112,10 @@ class AccountSessionController(
                 library.failMutation(mutation.id, error.message ?: "Account service unavailable")
                 break
             }
+        }
+        val profile = (mutableState.value as? AccountSessionState.SignedIn)?.profile ?: return null
+        return accountOutbox.flush(profile.id).also { report ->
+            if (report.delivered.isNotEmpty()) mutableMutationRevision.value++
         }
     }
 

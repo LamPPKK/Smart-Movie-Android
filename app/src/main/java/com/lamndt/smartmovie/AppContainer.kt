@@ -3,6 +3,7 @@ package com.lamndt.smartmovie
 import android.content.Context
 import com.lamndt.smartmovie.data.DefaultCatalogRepository
 import com.lamndt.smartmovie.data.DefaultLibraryRepository
+import com.lamndt.smartmovie.data.DurableAccountMutationOutbox
 import com.lamndt.smartmovie.data.ImageUrlFactory
 import com.lamndt.smartmovie.database.SmartMovieDatabase
 import com.lamndt.smartmovie.model.CatalogRepository
@@ -28,8 +29,9 @@ class AppContainer(context: Context, baseUrl: String) {
     val catalog: CatalogV2Repository = DefaultCatalogRepository(network)
     val library: LibrarySyncRepository = DefaultLibraryRepository(database)
     val account: AccountRepository = AccountNetworkRepository(context, baseUrl)
+    val accountOutbox = DurableAccountMutationOutbox(database, account)
     val preferences = CatalogPreferences(context)
-    val accountSession = AccountSessionController(account, library, applicationScope)
+    val accountSession = AccountSessionController(account, library, accountOutbox, applicationScope)
     val watchRemote: PhoneWatchRemoteController by lazy {
         PhoneWatchRemoteController(context, library, applicationScope)
     }

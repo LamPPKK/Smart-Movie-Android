@@ -49,13 +49,15 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.lamndt.smartmovie.designsystem.CinemaColors
 import com.lamndt.smartmovie.designsystem.R
+import com.lamndt.smartmovie.model.AccountMutationPayload
+import com.lamndt.smartmovie.model.PendingAccountMutation
 import com.lamndt.smartmovie.model.UserList
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 @Composable
 internal fun ProfileScreen(container: AppContainer, language: String, isTv: Boolean, modifier: Modifier = Modifier) {
     val state by container.accountSession.state.collectAsState()
+    val mutationRevision by container.accountSession.mutationRevision.collectAsState()
     val region by container.preferences.region.collectAsState()
     val unlocked by container.preferences.adultUnlocked.collectAsState()
     val scope = rememberCoroutineScope()
@@ -105,10 +107,16 @@ internal fun ProfileScreen(container: AppContainer, language: String, isTv: Bool
                         }
                     }
                     is AccountSessionState.SignedIn -> {
-                        LaunchedEffect(value.profile.id) {
-                            runCatching { container.account.lists(1).results }
-                                .onSuccess { lists = it; listError = null }
-                                .onFailure { listError = it.message }
+                        LaunchedEffect(value.profile.id, mutationRevision) {
+                            val remote = runCatching { container.account.lists(1).results }
+                            val pending = container.accountSession.pendingAccountMutations()
+                            remote.onSuccess {
+                                lists = applyPendingLists(it, pending)
+                                listError = pending.lastOrNull { mutation -> mutation.lastError != null }?.lastError
+                            }.onFailure {
+                                lists = applyPendingLists(lists.filter { list -> list.id > 0 }, pending)
+                                listError = it.message
+                            }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Icon(Icons.Default.AccountCircle, null, Modifier.size(56.dp), tint = CinemaColors.Accent)
@@ -148,12 +156,20 @@ internal fun ProfileScreen(container: AppContainer, language: String, isTv: Bool
                     val description = listDescription.trim()
                     scope.launch {
                         runCatching {
-                            container.account.createList(
-                                name, description, false, region ?: "US", language.substringBefore('-'), UUID.randomUUID().toString(),
+                            container.accountSession.queueAccountMutation(
+                                AccountMutationPayload.CreateList(
+                                    name = name,
+                                    description = description,
+                                    isPublic = false,
+                                    region = region ?: "US",
+                                    language = language.substringBefore('-'),
+                                ),
                             )
-                            container.account.lists(1).results
-                        }.onSuccess {
-                            lists = it; listName = ""; listDescription = ""; listError = null
+                        }.onSuccess { mutation ->
+                            lists = applyPendingLists(lists, listOf(mutation))
+                            listName = ""
+                            listDescription = ""
+                            listError = null
                         }.onFailure { listError = it.message }
                     }
                 }) { Text(stringResource(R.string.create_list)) }
@@ -166,8 +182,10 @@ internal fun ProfileScreen(container: AppContainer, language: String, isTv: Bool
                         }
                         TextButton(onClick = {
                             scope.launch {
-                                runCatching { container.account.deleteList(list.id, UUID.randomUUID().toString()) }
-                                    .onSuccess { lists = lists.filterNot { it.id == list.id } }
+                                runCatching {
+                                    if (list.id < 0) container.accountSession.cancelLocalList(list.id)
+                                    else container.accountSession.queueAccountMutation(AccountMutationPayload.DeleteList(list.id))
+                                }.onSuccess { lists = lists.filterNot { it.id == list.id } }
                                     .onFailure { listError = it.message }
                             }
                         }) { Text(stringResource(R.string.delete_list)) }
@@ -244,6 +262,36 @@ internal fun ProfileScreen(container: AppContainer, language: String, isTv: Bool
             }
         },
     )
+}
+
+internal fun applyPendingLists(remote: List<UserList>, pending: List<PendingAccountMutation>): List<UserList> {
+    var result = remote
+    pending.sortedBy(PendingAccountMutation::createdAt).forEach { mutation ->
+        when (val payload = mutation.payload) {
+            is AccountMutationPayload.CreateList -> {
+                val localId = mutation.localListId ?: return@forEach
+                result = result.filterNot { it.id == localId } + UserList(
+                    id = localId,
+                    name = payload.name,
+                    description = payload.description,
+                    public = payload.isPublic,
+                )
+            }
+            is AccountMutationPayload.UpdateList -> result = result.map { list ->
+                if (list.id == payload.listId) list.copy(
+                    name = payload.name,
+                    description = payload.description,
+                    public = payload.isPublic,
+                ) else list
+            }
+            is AccountMutationPayload.DeleteList -> result = result.filterNot { it.id == payload.listId }
+            is AccountMutationPayload.MutateListItems,
+            is AccountMutationPayload.TitleRating,
+            is AccountMutationPayload.EpisodeRating,
+            -> Unit
+        }
+    }
+    return result
 }
 
 @Composable

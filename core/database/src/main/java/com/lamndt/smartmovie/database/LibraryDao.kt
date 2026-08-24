@@ -46,4 +46,19 @@ interface LibraryDao {
 
     @Query("DELETE FROM library_outbox")
     suspend fun clearOutbox()
+
+    @Upsert
+    suspend fun upsertAccountMutation(item: AccountMutationOutboxEntity)
+
+    @Query("SELECT * FROM account_mutation_outbox WHERE accountId = :accountId ORDER BY createdAt ASC, mutationId ASC LIMIT :limit")
+    suspend fun pendingAccountMutations(accountId: Int, limit: Int): List<AccountMutationOutboxEntity>
+
+    @Query("SELECT * FROM account_mutation_outbox WHERE mutationId = :id LIMIT 1")
+    suspend fun accountMutation(id: String): AccountMutationOutboxEntity?
+
+    @Delete
+    suspend fun deleteAccountMutation(item: AccountMutationOutboxEntity)
+
+    @Query("DELETE FROM account_mutation_outbox WHERE accountId = :accountId")
+    suspend fun clearAccountMutations(accountId: Int)
 }

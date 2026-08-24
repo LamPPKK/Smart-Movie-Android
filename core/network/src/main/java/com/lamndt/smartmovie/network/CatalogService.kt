@@ -19,6 +19,8 @@ import com.lamndt.smartmovie.model.SeasonDetail
 import com.lamndt.smartmovie.model.TitleDetail
 import com.lamndt.smartmovie.model.TitleDetailV2
 import com.lamndt.smartmovie.model.TitleSummary
+import com.lamndt.smartmovie.model.TitleAccountState
+import com.lamndt.smartmovie.model.EpisodeAccountState
 import com.lamndt.smartmovie.model.UserList
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -147,6 +149,14 @@ internal interface CatalogService {
     @GET("v2/account/profile") suspend fun profile(
         @Header(CLIENT_HEADER) clientId: String, @Header("Authorization") authorization: String,
     ): AccountProfile
+    @GET("v2/account/state/{mediaType}/{id}") suspend fun accountState(
+        @Header(CLIENT_HEADER) clientId: String, @Header("Authorization") authorization: String,
+        @Path("mediaType") mediaType: String, @Path("id") id: Int,
+    ): TitleAccountState
+    @GET("v2/account/state/episode/{seriesId}/{season}/{episode}") suspend fun episodeAccountState(
+        @Header(CLIENT_HEADER) clientId: String, @Header("Authorization") authorization: String,
+        @Path("seriesId") seriesId: Int, @Path("season") season: Int, @Path("episode") episode: Int,
+    ): EpisodeAccountState
     @POST("v2/auth/logout") suspend fun logout(
         @Header(CLIENT_HEADER) clientId: String, @Header("Authorization") authorization: String,
     ): LogoutResult

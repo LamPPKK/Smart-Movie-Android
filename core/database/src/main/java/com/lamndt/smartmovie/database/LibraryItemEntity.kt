@@ -42,3 +42,14 @@ data class LibraryOutboxEntity(
     val lastAttemptAt: Long? = null,
     val lastError: String? = null,
 )
+
+@Entity(tableName = "account_mutation_outbox")
+data class AccountMutationOutboxEntity(
+    @PrimaryKey val mutationId: String,
+    val accountId: Int,
+    val payloadJson: String,
+    val createdAt: Long,
+    val attemptCount: Int = 0,
+    val lastAttemptAt: Long? = null,
+    val lastError: String? = null,
+)

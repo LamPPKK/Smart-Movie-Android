@@ -13,6 +13,8 @@ import com.lamndt.smartmovie.model.MediaType
 import com.lamndt.smartmovie.model.MutationResult
 import com.lamndt.smartmovie.model.PagedResult
 import com.lamndt.smartmovie.model.TitleSummary
+import com.lamndt.smartmovie.model.TitleAccountState
+import com.lamndt.smartmovie.model.EpisodeAccountState
 import com.lamndt.smartmovie.model.UserList
 import com.lamndt.smartmovie.model.UserListItemMutation
 import kotlinx.serialization.json.Json
@@ -54,6 +56,12 @@ class AccountNetworkRepository(
         }
 
     override suspend fun profile(): AccountProfile = service.profile(clientIdProvider(), authorization())
+
+    override suspend fun accountState(mediaType: MediaType, mediaId: Int): TitleAccountState =
+        service.accountState(clientIdProvider(), authorization(), mediaType.wireValue, mediaId)
+
+    override suspend fun episodeAccountState(seriesId: Int, season: Int, episode: Int): EpisodeAccountState =
+        service.episodeAccountState(clientIdProvider(), authorization(), seriesId, season, episode)
 
     override suspend fun logout() {
         runCatching { service.logout(clientIdProvider(), authorization()) }

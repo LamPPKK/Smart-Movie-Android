@@ -7,7 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [LibraryItemEntity::class, LibraryOutboxEntity::class], version = 2, exportSchema = true)
+@Database(
+    entities = [LibraryItemEntity::class, LibraryOutboxEntity::class, AccountMutationOutboxEntity::class],
+    version = 3,
+    exportSchema = true,
+)
 abstract class SmartMovieDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
 
@@ -16,7 +20,7 @@ abstract class SmartMovieDatabase : RoomDatabase() {
             context.applicationContext,
             SmartMovieDatabase::class.java,
             "smartmovie_library.db",
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -35,6 +39,22 @@ abstract class SmartMovieDatabase : RoomDatabase() {
                         collection TEXT NOT NULL,
                         enabled INTEGER NOT NULL,
                         accountId INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        attemptCount INTEGER NOT NULL DEFAULT 0,
+                        lastAttemptAt INTEGER,
+                        lastError TEXT
+                    )""".trimIndent(),
+                )
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS account_mutation_outbox (
+                        mutationId TEXT NOT NULL PRIMARY KEY,
+                        accountId INTEGER NOT NULL,
+                        payloadJson TEXT NOT NULL,
                         createdAt INTEGER NOT NULL,
                         attemptCount INTEGER NOT NULL DEFAULT 0,
                         lastAttemptAt INTEGER,

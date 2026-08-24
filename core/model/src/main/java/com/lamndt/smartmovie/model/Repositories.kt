@@ -1,6 +1,8 @@
 package com.lamndt.smartmovie.model
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 interface CatalogRepository {
     suspend fun home(mediaType: MediaType, language: String): HomeFeed
@@ -36,6 +38,8 @@ interface AccountRepository {
     suspend fun authAttempt(id: String, deviceCode: String?): String
     suspend fun completeAuth(id: String, deviceCode: String?): AuthSession
     suspend fun profile(): AccountProfile
+    suspend fun accountState(mediaType: MediaType, mediaId: Int): TitleAccountState
+    suspend fun episodeAccountState(seriesId: Int, season: Int, episode: Int): EpisodeAccountState
     suspend fun logout()
     suspend fun library(
         collection: LibraryCollection,
@@ -61,7 +65,83 @@ interface AccountRepository {
     suspend fun mutateListItems(id: Int, items: List<UserListItemMutation>, remove: Boolean, mutationId: String): MutationResult
 }
 
+@Serializable
 data class UserListItemMutation(val mediaType: MediaType, val mediaId: Int, val comment: String? = null)
+
+@Serializable
+sealed interface AccountMutationPayload {
+    @Serializable
+    @SerialName("title_rating")
+    data class TitleRating(val mediaType: MediaType, val mediaId: Int, val value: Double?) : AccountMutationPayload
+
+    @Serializable
+    @SerialName("episode_rating")
+    data class EpisodeRating(
+        val seriesId: Int,
+        val seasonNumber: Int,
+        val episodeNumber: Int,
+        val value: Double?,
+    ) : AccountMutationPayload
+
+    @Serializable
+    @SerialName("create_list")
+    data class CreateList(
+        val name: String,
+        val description: String,
+        val isPublic: Boolean,
+        val region: String,
+        val language: String,
+    ) : AccountMutationPayload
+
+    @Serializable
+    @SerialName("update_list")
+    data class UpdateList(
+        val listId: Int,
+        val name: String,
+        val description: String,
+        val isPublic: Boolean,
+    ) : AccountMutationPayload
+
+    @Serializable
+    @SerialName("delete_list")
+    data class DeleteList(val listId: Int) : AccountMutationPayload
+
+    @Serializable
+    @SerialName("mutate_list_items")
+    data class MutateListItems(
+        val listId: Int,
+        val items: List<UserListItemMutation>,
+        val remove: Boolean,
+    ) : AccountMutationPayload
+}
+
+data class PendingAccountMutation(
+    val id: String,
+    val accountId: Int,
+    val payload: AccountMutationPayload,
+    val createdAt: Long,
+    val attemptCount: Int,
+    val lastAttemptAt: Long?,
+    val lastError: String?,
+) {
+    val localListId: Int?
+        get() = if (payload is AccountMutationPayload.CreateList) {
+            -((id.replace("-", "").take(8).toLongOrNull(16)?.and(0x3fff_ffff) ?: 1L).coerceAtLeast(1).toInt())
+        } else null
+}
+
+data class AccountMutationFlushReport(
+    val delivered: Map<String, MutationResult> = emptyMap(),
+    val failure: String? = null,
+)
+
+interface AccountMutationOutbox {
+    suspend fun enqueue(accountId: Int, payload: AccountMutationPayload, id: String? = null): PendingAccountMutation
+    suspend fun flush(accountId: Int, limit: Int = 100): AccountMutationFlushReport
+    suspend fun pending(accountId: Int, limit: Int = 500): List<PendingAccountMutation>
+    suspend fun cancel(id: String)
+    suspend fun clear(accountId: Int)
+}
 
 interface LibraryRepository {
     fun observeItems(collection: LibraryCollection, mediaType: MediaType?, sort: LibrarySort): Flow<List<LibrarySnapshot>>
