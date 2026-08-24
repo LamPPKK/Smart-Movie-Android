@@ -48,6 +48,11 @@ class ContractConformanceTest {
         assertEquals(EntityKind.entries.toSet(), entities.results.map(CatalogEntity::entityKind).toSet())
         assertEquals(entities.results.size, entities.results.map(CatalogEntity::stableKey).toSet().size)
 
+        val find = decodeV2<ExternalIdFindResult>("find")
+        assertEquals(ExternalIdSource.IMDB, find.source)
+        assertEquals("tt0000010", find.externalId)
+        assertEquals(listOf(EntityKind.MOVIE, EntityKind.PERSON), find.results.map(CatalogEntity::entityKind))
+
         val title = decodeV2<TitleDetailV2>("title-detail")
         assertEquals("Catalog everything.", title.tagline)
         assertEquals("JustWatch", title.watchProviders.single().attribution)

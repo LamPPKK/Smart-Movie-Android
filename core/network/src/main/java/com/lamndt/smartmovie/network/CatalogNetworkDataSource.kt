@@ -11,6 +11,8 @@ import com.lamndt.smartmovie.model.HomeFeed
 import com.lamndt.smartmovie.model.ImageConfiguration
 import com.lamndt.smartmovie.model.EntityKind
 import com.lamndt.smartmovie.model.EpisodeDetail
+import com.lamndt.smartmovie.model.ExternalIdFindResult
+import com.lamndt.smartmovie.model.ExternalIdSource
 import com.lamndt.smartmovie.model.KeywordDetail
 import com.lamndt.smartmovie.model.MediaType
 import com.lamndt.smartmovie.model.PagedResult
@@ -58,6 +60,7 @@ interface CatalogRemoteDataSourceV2 : CatalogRemoteDataSource {
         region: String?,
         includeAdult: Boolean,
     ): PagedResult<CatalogEntity>
+    suspend fun findExternalId(externalId: String, source: ExternalIdSource, language: String): ExternalIdFindResult
     suspend fun deepDetail(mediaType: MediaType, id: Int, language: String, region: String?, includeAdult: Boolean): TitleDetailV2
     suspend fun person(id: Int, language: String): PersonDetail
     suspend fun collection(id: Int, language: String): CollectionDetail
@@ -140,6 +143,12 @@ class CatalogNetworkDataSource(
     ): PagedResult<CatalogEntity> = execute {
         service.searchEntities(it, query, scope.wireValue, page, language, region, includeAdult)
     }
+
+    override suspend fun findExternalId(
+        externalId: String,
+        source: ExternalIdSource,
+        language: String,
+    ): ExternalIdFindResult = execute { service.findExternalId(it, externalId, source.wireValue, language) }
 
     override suspend fun deepDetail(
         mediaType: MediaType,

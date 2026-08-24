@@ -20,6 +20,13 @@ class ContractV2ConformanceTest {
         val stableKeys = page.results.map(CatalogEntity::stableKey)
         assertThat(stableKeys.toSet()).hasSize(stableKeys.size)
 
+        val find = decode<ExternalIdFindResult>("find")
+        assertThat(find.source).isEqualTo(ExternalIdSource.IMDB)
+        assertThat(find.externalId).isEqualTo("tt0000010")
+        assertThat(find.results.map(CatalogEntity::entityKind))
+            .containsExactly(EntityKind.MOVIE, EntityKind.PERSON)
+            .inOrder()
+
         val detail = decode<TitleDetailV2>("title-detail")
         assertThat(detail.summary.libraryKey).isEqualTo("movie:10")
         assertThat(detail.watchProviders.single().attribution).isEqualTo("JustWatch")

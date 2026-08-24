@@ -24,6 +24,7 @@ interface CatalogV2Repository : CatalogRepository {
         region: String?,
         includeAdult: Boolean,
     ): PagedResult<CatalogEntity>
+    suspend fun findExternalId(externalId: String, source: ExternalIdSource, language: String): ExternalIdFindResult
     suspend fun deepDetail(mediaType: MediaType, id: Int, language: String, region: String?, includeAdult: Boolean): TitleDetailV2
     suspend fun person(id: Int, language: String): PersonDetail
     suspend fun collection(id: Int, language: String): CollectionDetail

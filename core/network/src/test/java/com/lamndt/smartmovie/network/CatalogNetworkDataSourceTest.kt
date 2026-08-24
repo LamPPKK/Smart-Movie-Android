@@ -2,6 +2,7 @@ package com.lamndt.smartmovie.network
 
 import com.google.common.truth.Truth.assertThat
 import com.lamndt.smartmovie.model.CatalogException
+import com.lamndt.smartmovie.model.ExternalIdSource
 import com.lamndt.smartmovie.model.SearchScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -44,6 +45,20 @@ class CatalogNetworkDataSourceTest {
         assertThat(request.requestUrl?.queryParameter("scope")).isEqualTo("all")
         assertThat(request.requestUrl?.queryParameter("language")).isEqualTo("vi-VN")
         assertThat(request.getHeader("X-SmartMovie-Client")).isEqualTo("123e4567-e89b-12d3-a456-426614174000")
+    }
+
+    @Test
+    fun findExternalId_sendsSourceAndDecodesMixedEntities() = runTest {
+        server.enqueue(MockResponse().setBody(FIND).setHeader("Content-Type", "application/json"))
+
+        val result = source().findExternalId("tt0133093", ExternalIdSource.IMDB, "vi-VN")
+        val request = server.takeRequest()
+
+        assertThat(result.externalId).isEqualTo("tt0133093")
+        assertThat(result.results).hasSize(2)
+        assertThat(request.requestUrl?.encodedPath).isEqualTo("/v2/find/tt0133093")
+        assertThat(request.requestUrl?.queryParameter("source")).isEqualTo("imdb_id")
+        assertThat(request.requestUrl?.queryParameter("language")).isEqualTo("vi-VN")
     }
 
     @Test
@@ -112,6 +127,7 @@ class CatalogNetworkDataSourceTest {
 
     private companion object {
         const val PAGE = """{"page":2,"total_pages":4,"results":[{"id":42,"media_type":"movie","title":"Dune","original_title":"Dune","overview":"","vote_average":8.4,"genre_ids":[]}]}"""
+        const val FIND = """{"source":"imdb_id","external_id":"tt0133093","results":[{"entity_kind":"movie","id":603,"media_type":"movie","title":"The Matrix","original_title":"The Matrix","overview":"","vote_average":8.2,"genre_ids":[]},{"entity_kind":"person","id":6384,"name":"Keanu Reeves","known_for":[]}]}"""
         const val ERROR = """{"error":{"code":"not_found","message":"Missing","request_id":"request-1"}}"""
     }
 }

@@ -14,6 +14,8 @@ import com.lamndt.smartmovie.multiplatform.model.CatalogEntity
 import com.lamndt.smartmovie.multiplatform.model.CollectionDetail
 import com.lamndt.smartmovie.multiplatform.model.EntityKind
 import com.lamndt.smartmovie.multiplatform.model.EpisodeDetail
+import com.lamndt.smartmovie.multiplatform.model.ExternalIdFindResult
+import com.lamndt.smartmovie.multiplatform.model.ExternalIdSource
 import com.lamndt.smartmovie.multiplatform.model.KeywordDetail
 import com.lamndt.smartmovie.multiplatform.model.OrganizationDetail
 import com.lamndt.smartmovie.multiplatform.model.PersonDetail
@@ -29,6 +31,7 @@ import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.encodeURLPathPart
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -57,6 +60,7 @@ interface CatalogApiV2 : CatalogApi {
         region: String?,
         includeAdult: Boolean,
     ): PagedResult<CatalogEntity>
+    suspend fun findExternalId(externalId: String, source: ExternalIdSource, language: String): ExternalIdFindResult
     suspend fun deepDetail(mediaType: MediaType, id: Int, language: String, region: String?, includeAdult: Boolean): TitleDetailV2
     suspend fun person(id: Int, language: String): PersonDetail
     suspend fun collection(id: Int, language: String): CollectionDetail
@@ -176,6 +180,16 @@ class KtorCatalogApi(
         client.get("$root/v2/search") {
             smartMovieHeaders(); parameter("query", query); parameter("scope", scope.wireValue); parameter("page", page)
             parameter("language", language); region?.let { parameter("region", it) }; parameter("include_adult", includeAdult)
+        }
+    }
+
+    override suspend fun findExternalId(
+        externalId: String,
+        source: ExternalIdSource,
+        language: String,
+    ): ExternalIdFindResult = request {
+        client.get("$root/v2/find/${externalId.encodeURLPathPart()}") {
+            smartMovieHeaders(); parameter("source", source.wireValue); parameter("language", language)
         }
     }
 

@@ -100,8 +100,10 @@ import com.lamndt.smartmovie.multiplatform.data.LibraryCollection
 import com.lamndt.smartmovie.multiplatform.data.LibraryRecord
 import com.lamndt.smartmovie.multiplatform.model.AppLocale
 import com.lamndt.smartmovie.multiplatform.model.CatalogEntity
+import com.lamndt.smartmovie.multiplatform.model.CatalogSearchMode
 import com.lamndt.smartmovie.multiplatform.model.DiscoverSort
 import com.lamndt.smartmovie.multiplatform.model.EntityKind
+import com.lamndt.smartmovie.multiplatform.model.ExternalIdSource
 import com.lamndt.smartmovie.multiplatform.model.HomeFeed
 import com.lamndt.smartmovie.multiplatform.model.ImageUrlFactory
 import com.lamndt.smartmovie.multiplatform.model.MediaType
@@ -634,12 +636,26 @@ private fun SearchScreen(state: SmartMovieState, copy: UiStrings, controller: Ap
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
                 SectionTitle(copy.search)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    items(CatalogSearchMode.entries) { mode ->
+                        FilterChip(
+                            selected = state.searchMode == mode,
+                            onClick = { controller.changeSearchMode(mode) },
+                            label = { Text(if (mode == CatalogSearchMode.CATALOG) copy.catalog else copy.externalId) },
+                        )
+                    }
+                }
                 OutlinedTextField(
                     value = state.searchQuery,
                     onValueChange = controller::updateSearchQuery,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text(copy.searchHint) },
+                    label = {
+                        Text(
+                            if (state.searchMode == CatalogSearchMode.CATALOG) copy.searchHint
+                            else state.externalIdSource.example,
+                        )
+                    },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = CinemaColors.Accent,
@@ -649,20 +665,40 @@ private fun SearchScreen(state: SmartMovieState, copy: UiStrings, controller: Ap
                     ),
                     shape = RoundedCornerShape(17.dp),
                 )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    items(SearchScopeV2.entries) { scope ->
-                        FilterChip(
-                            selected = state.searchScopeV2 == scope,
-                            onClick = { controller.changeSearchScope(scope) },
-                            label = { Text(scopeLabelV2(scope, copy, state.locale)) },
-                        )
+                if (state.searchMode == CatalogSearchMode.CATALOG) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        items(SearchScopeV2.entries) { scope ->
+                            FilterChip(
+                                selected = state.searchScopeV2 == scope,
+                                onClick = { controller.changeSearchScope(scope) },
+                                label = { Text(scopeLabelV2(scope, copy, state.locale)) },
+                            )
+                        }
                     }
+                } else {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        items(ExternalIdSource.entries) { source ->
+                            FilterChip(
+                                selected = state.externalIdSource == source,
+                                onClick = { controller.changeExternalIdSource(source) },
+                                label = { Text(source.displayName) },
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = controller::findExternalId,
+                        enabled = state.searchQuery.isNotBlank() && state.externalIdSearch !is LoadState.Loading,
+                    ) { Text(copy.findMatches) }
                 }
             }
         }
-        when (val result = state.entitySearch) {
+        when (val result = if (state.searchMode == CatalogSearchMode.CATALOG) state.entitySearch else state.externalIdSearch) {
             LoadState.Idle -> item(span = { GridItemSpan(maxLineSpan) }) {
-                MessagePane(copy.searchHint, modifier = Modifier.height(320.dp))
+                MessagePane(
+                    if (state.searchMode == CatalogSearchMode.CATALOG) copy.searchHint else copy.searchByExternalId,
+                    if (state.searchMode == CatalogSearchMode.CATALOG) null else copy.externalIdHint,
+                    modifier = Modifier.height(320.dp),
+                )
             }
             LoadState.Loading -> item(span = { GridItemSpan(maxLineSpan) }) { LoadingPane(Modifier.height(320.dp)) }
             is LoadState.Error -> item(span = { GridItemSpan(maxLineSpan) }) {
@@ -670,12 +706,18 @@ private fun SearchScreen(state: SmartMovieState, copy: UiStrings, controller: Ap
             }
             is LoadState.Content -> {
                 if (result.value.isEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) { MessagePane(copy.noResults, modifier = Modifier.height(320.dp)) }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        MessagePane(
+                            copy.noResults,
+                            if (state.searchMode == CatalogSearchMode.EXTERNAL_ID) copy.tryAnotherExternalId else null,
+                            modifier = Modifier.height(320.dp),
+                        )
+                    }
                 } else {
                     items(result.value, key = CatalogEntity::stableKey) { entity ->
                         CatalogEntityCard(entity, images, copy, state.locale, { controller.openEntity(entity) })
                     }
-                    if (state.searchPage < state.searchTotalPages) {
+                    if (state.searchMode == CatalogSearchMode.CATALOG && state.searchPage < state.searchTotalPages) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             Button(
                                 onClick = controller::loadMoreSearch,

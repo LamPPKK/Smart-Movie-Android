@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="catalog">Danh mục</string>
+    <string name="external_id">ID bên ngoài</string>
+    <string name="find_matches">Tìm kết quả</string>
+    <string name="search_by_external_id">Tìm bằng ID bên ngoài</string>
+    <string name="external_id_hint">Nhập ID từ cơ sở dữ liệu khác và chọn nguồn tương ứng.</string>
+    <string name="try_another_external_id">Hãy thử ID hoặc nguồn khác.</string>
     <string name="home">Trang chủ</string><string name="explore">Khám phá</string><string name="search">Tìm kiếm</string><string name="library">Thư viện</string><string name="about">Giới thiệu &amp; Nguồn</string>
     <string name="movies">Phim điện ảnh</string><string name="tv_series">Phim truyền hình</string><string name="movie_badge">PHIM</string><string name="tv_badge">TV</string><string name="featured_film">PHIM NỔI BẬT</string><string name="featured_series">SERIES NỔI BẬT</string>
     <string name="view_details">Xem chi tiết</string><string name="try_again">Thử lại</string><string name="unable_home">Không thể tải Trang chủ</string><string name="explore_unavailable">Không thể tải Khám phá</string><string name="search_failed">Tìm kiếm thất bại</string><string name="library_unavailable">Không thể tải Thư viện</string><string name="check_connection">Kiểm tra kết nối mạng và thử lại.</string>

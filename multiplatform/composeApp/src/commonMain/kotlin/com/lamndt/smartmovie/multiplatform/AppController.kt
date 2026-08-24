@@ -32,7 +32,9 @@ import com.lamndt.smartmovie.multiplatform.model.CatalogEntity
 import com.lamndt.smartmovie.multiplatform.model.CapabilitiesV2
 import com.lamndt.smartmovie.multiplatform.model.CastMember
 import com.lamndt.smartmovie.multiplatform.model.CollectionDetail
+import com.lamndt.smartmovie.multiplatform.model.CatalogSearchMode
 import com.lamndt.smartmovie.multiplatform.model.EpisodeDetail
+import com.lamndt.smartmovie.multiplatform.model.ExternalIdSource
 import com.lamndt.smartmovie.multiplatform.model.KeywordDetail
 import com.lamndt.smartmovie.multiplatform.model.OrganizationDetail
 import com.lamndt.smartmovie.multiplatform.model.PersonDetail
@@ -99,10 +101,13 @@ data class SmartMovieState(
     val explorePage: Int = 0,
     val exploreTotalPages: Int = 1,
     val searchQuery: String = "",
+    val searchMode: CatalogSearchMode = CatalogSearchMode.CATALOG,
     val searchScope: SearchScope = SearchScope.ALL,
     val searchScopeV2: SearchScopeV2 = SearchScopeV2.ALL,
     val search: LoadState<List<TitleSummary>> = LoadState.Idle,
     val entitySearch: LoadState<List<CatalogEntity>> = LoadState.Idle,
+    val externalIdSource: ExternalIdSource = ExternalIdSource.IMDB,
+    val externalIdSearch: LoadState<List<CatalogEntity>> = LoadState.Idle,
     val searchPage: Int = 0,
     val searchTotalPages: Int = 1,
     val libraryCollection: LibraryCollection = LibraryCollection.FAVORITES,
@@ -202,7 +207,10 @@ class AppController(
         }
         reloadHome()
         reloadGenresAndExplore()
-        if (state.value.searchQuery.isNotBlank()) scheduleSearch(immediate = true)
+        if (state.value.searchQuery.isNotBlank()) {
+            if (state.value.searchMode == CatalogSearchMode.CATALOG) scheduleSearch(immediate = true)
+            else if (state.value.externalIdSearch !is LoadState.Idle) findExternalId()
+        }
     }
 
     fun changeHomeType(mediaType: MediaType) {
@@ -295,8 +303,74 @@ class AppController(
     }
 
     fun updateSearchQuery(query: String) {
-        mutableState.update { it.copy(searchQuery = query) }
-        scheduleSearch(immediate = false)
+        if (state.value.searchMode == CatalogSearchMode.CATALOG) {
+            mutableState.update { it.copy(searchQuery = query) }
+            scheduleSearch(immediate = false)
+        } else {
+            searchJob?.cancel()
+            mutableState.update { it.copy(searchQuery = query, externalIdSearch = LoadState.Idle) }
+        }
+    }
+
+    fun changeSearchMode(mode: CatalogSearchMode) {
+        if (mode == state.value.searchMode) return
+        searchJob?.cancel()
+        mutableState.update {
+            it.copy(
+                searchMode = mode,
+                searchQuery = "",
+                search = LoadState.Idle,
+                entitySearch = LoadState.Idle,
+                externalIdSearch = LoadState.Idle,
+                searchPage = 0,
+                searchTotalPages = 1,
+            )
+        }
+    }
+
+    fun changeExternalIdSource(source: ExternalIdSource) {
+        if (source == state.value.externalIdSource) return
+        searchJob?.cancel()
+        mutableState.update { it.copy(externalIdSource = source, externalIdSearch = LoadState.Idle) }
+    }
+
+    fun findExternalId() {
+        val snapshot = state.value
+        val externalId = snapshot.searchQuery.trim()
+        if (snapshot.searchMode != CatalogSearchMode.EXTERNAL_ID || externalId.isEmpty()) return
+        val catalog = apiV2
+        if (catalog == null) {
+            mutableState.update {
+                it.copy(externalIdSearch = LoadState.Error("External ID search requires the /v2 catalog"))
+            }
+            return
+        }
+        searchJob?.cancel()
+        searchJob = scope.launch {
+            mutableState.update { it.copy(externalIdSearch = LoadState.Loading) }
+            runCatching { catalog.findExternalId(externalId, snapshot.externalIdSource, snapshot.locale.backendTag) }
+                .propagateCancellation()
+                .onSuccess { result ->
+                    val current = state.value
+                    if (current.searchMode == CatalogSearchMode.EXTERNAL_ID &&
+                        current.searchQuery.trim() == externalId &&
+                        current.externalIdSource == snapshot.externalIdSource
+                    ) {
+                        mutableState.update {
+                            it.copy(externalIdSearch = LoadState.Content(result.results.distinctBy(CatalogEntity::stableKey)))
+                        }
+                    }
+                }
+                .onFailure { failure ->
+                    val current = state.value
+                    if (current.searchMode == CatalogSearchMode.EXTERNAL_ID &&
+                        current.searchQuery.trim() == externalId &&
+                        current.externalIdSource == snapshot.externalIdSource
+                    ) {
+                        mutableState.update { it.copy(externalIdSearch = LoadState.Error(failure.message.orEmpty())) }
+                    }
+                }
+        }
     }
 
     fun changeSearchScope(scope: SearchScope) {
@@ -309,10 +383,14 @@ class AppController(
         scheduleSearch(immediate = true)
     }
 
-    fun retrySearch() = scheduleSearch(immediate = true)
+    fun retrySearch() {
+        if (state.value.searchMode == CatalogSearchMode.EXTERNAL_ID) findExternalId()
+        else scheduleSearch(immediate = true)
+    }
 
     fun loadMoreSearch() {
         val snapshot = state.value
+        if (snapshot.searchMode != CatalogSearchMode.CATALOG) return
         val content = (snapshot.search as? LoadState.Content)?.value.orEmpty()
         val entityContent = (snapshot.entitySearch as? LoadState.Content)?.value.orEmpty()
         if (snapshot.searchPage >= snapshot.searchTotalPages || searchJob?.isActive == true) return
@@ -754,6 +832,7 @@ class AppController(
 
     private fun scheduleSearch(immediate: Boolean) {
         searchJob?.cancel()
+        if (state.value.searchMode != CatalogSearchMode.CATALOG) return
         val query = state.value.searchQuery.trim()
         if (query.isEmpty()) {
             mutableState.update { it.copy(search = LoadState.Idle, entitySearch = LoadState.Idle, searchPage = 0) }

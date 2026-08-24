@@ -12,6 +12,8 @@ import com.lamndt.smartmovie.model.ImageConfiguration
 import com.lamndt.smartmovie.model.MediaType
 import com.lamndt.smartmovie.model.EntityKind
 import com.lamndt.smartmovie.model.EpisodeDetail
+import com.lamndt.smartmovie.model.ExternalIdFindResult
+import com.lamndt.smartmovie.model.ExternalIdSource
 import com.lamndt.smartmovie.model.KeywordDetail
 import com.lamndt.smartmovie.model.OrganizationDetail
 import com.lamndt.smartmovie.model.PagedResult
@@ -54,6 +56,8 @@ class DefaultCatalogRepository(private val network: CatalogRemoteDataSource) : C
         region: String?,
         includeAdult: Boolean,
     ): PagedResult<CatalogEntity> = v2().searchEntities(query, scope, page, language, region, includeAdult)
+    override suspend fun findExternalId(externalId: String, source: ExternalIdSource, language: String): ExternalIdFindResult =
+        v2().findExternalId(externalId, source, language)
     override suspend fun deepDetail(mediaType: MediaType, id: Int, language: String, region: String?, includeAdult: Boolean): TitleDetailV2 =
         v2().deepDetail(mediaType, id, language, region, includeAdult)
     override suspend fun person(id: Int, language: String): PersonDetail = v2().person(id, language)

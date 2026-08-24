@@ -25,7 +25,7 @@ Apple and Android keep native UI, lifecycle, and storage while sharing the addit
 ## What you can do
 
 - **Explore the complete catalog** through Home, advanced Discover, trending, pagination, retry, and cancellation.
-- **Search across entities** with discriminated Movie, TV, Person, Collection, Company, and Keyword results.
+- **Search across entities** with discriminated Movie, TV, Person, Collection, Company, and Keyword results, or resolve an IMDb, TheTVDB, Wikidata, Facebook, Instagram, or X/Twitter ID.
 - **Open deep details** for titles, people, collections, organizations, keywords, seasons, and episodes, including credits, media, reviews, related content, providers, and release information.
 - **See where to watch** in a device or chosen region, open only TMDb URLs, and retain required JustWatch attribution.
 - **Keep adult content private by default** behind local confirmation, a six-digit PIN, and five-attempt lockout; Wear/public surfaces never receive it.

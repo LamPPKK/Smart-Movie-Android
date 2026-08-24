@@ -25,6 +25,12 @@ data class UiStrings(
     val tvSeries: String,
     val discover: String,
     val searchHint: String,
+    val catalog: String,
+    val externalId: String,
+    val findMatches: String,
+    val searchByExternalId: String,
+    val externalIdHint: String,
+    val tryAnotherExternalId: String,
     val all: String,
     val favorites: String,
     val watchlist: String,
@@ -58,7 +64,10 @@ data class UiStrings(
 fun strings(locale: AppLocale): UiStrings = when (locale) {
     AppLocale.ENGLISH -> UiStrings(
         "Home", "Explore", "Search", "Library", "Profile", "Movies", "TV Series", "Discover",
-        "Search titles, people, collections, companies and keywords", "All", "Favorites", "Watchlist", "Favorite", "Watch later",
+        "Search titles, people, collections, companies and keywords",
+        "Catalog", "External ID", "Find matches", "Search by external ID",
+        "Enter an ID from another database and choose its source", "Try a different ID or source",
+        "All", "Favorites", "Watchlist", "Favorite", "Watch later",
         "Remove favorite", "Remove from watchlist", "Play trailer", "View details", "Story", "Cast",
         "Similar titles", "Rating", "Year", "Sort", "Popularity", "Top rated", "Release date", "Reset",
         "Try again", "Loading…", "No titles found", "Your library is ready for its first title",
@@ -66,7 +75,10 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
     )
     AppLocale.VIETNAMESE -> UiStrings(
         "Trang chủ", "Khám phá", "Tìm kiếm", "Thư viện", "Hồ sơ", "Phim điện ảnh", "Phim bộ", "Khám phá",
-        "Tìm phim, con người, bộ sưu tập, công ty và từ khóa", "Tất cả", "Yêu thích", "Xem sau", "Yêu thích", "Xem sau",
+        "Tìm phim, con người, bộ sưu tập, công ty và từ khóa",
+        "Danh mục", "ID bên ngoài", "Tìm kết quả", "Tìm bằng ID bên ngoài",
+        "Nhập ID từ cơ sở dữ liệu khác và chọn nguồn tương ứng", "Hãy thử ID hoặc nguồn khác",
+        "Tất cả", "Yêu thích", "Xem sau", "Yêu thích", "Xem sau",
         "Bỏ yêu thích", "Bỏ khỏi xem sau", "Xem trailer", "Xem chi tiết", "Câu chuyện", "Diễn viên",
         "Tựa phim tương tự", "Điểm", "Năm", "Sắp xếp", "Phổ biến", "Đánh giá cao", "Ngày phát hành", "Đặt lại",
         "Thử lại", "Đang tải…", "Không tìm thấy tựa phim", "Thư viện đang chờ tựa phim đầu tiên",
@@ -74,7 +86,10 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
     )
     AppLocale.JAPANESE -> UiStrings(
         "ホーム", "見つける", "検索", "ライブラリ", "プロフィール", "映画", "テレビ", "作品を探す",
-        "作品、人物、コレクション、会社、キーワードを検索", "すべて", "お気に入り", "ウォッチリスト", "お気に入り", "後で見る",
+        "作品、人物、コレクション、会社、キーワードを検索",
+        "カタログ", "外部ID", "一致を検索", "外部IDで検索",
+        "別のデータベースのIDを入力し、ソースを選択してください", "別のIDまたはソースをお試しください",
+        "すべて", "お気に入り", "ウォッチリスト", "お気に入り", "後で見る",
         "お気に入りを解除", "リストから削除", "予告編を再生", "詳細を見る", "ストーリー", "キャスト",
         "関連作品", "評価", "年", "並び替え", "人気順", "高評価", "公開日", "リセット",
         "再試行", "読み込み中…", "作品が見つかりません", "最初の作品をライブラリに追加しましょう",
@@ -82,7 +97,10 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
     )
     AppLocale.KOREAN -> UiStrings(
         "홈", "둘러보기", "검색", "라이브러리", "프로필", "영화", "TV 시리즈", "작품 찾기",
-        "작품, 인물, 컬렉션, 회사 및 키워드 검색", "전체", "즐겨찾기", "관심 목록", "즐겨찾기", "나중에 보기",
+        "작품, 인물, 컬렉션, 회사 및 키워드 검색",
+        "카탈로그", "외부 ID", "일치 항목 찾기", "외부 ID로 검색",
+        "다른 데이터베이스의 ID를 입력하고 출처를 선택하세요", "다른 ID 또는 출처를 시도해 보세요",
+        "전체", "즐겨찾기", "관심 목록", "즐겨찾기", "나중에 보기",
         "즐겨찾기 해제", "관심 목록에서 삭제", "예고편 재생", "상세 보기", "줄거리", "출연진",
         "비슷한 작품", "평점", "연도", "정렬", "인기순", "평점순", "공개일", "초기화",
         "다시 시도", "불러오는 중…", "작품을 찾을 수 없습니다", "첫 작품을 라이브러리에 추가해 보세요",
@@ -90,7 +108,10 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
     )
     AppLocale.CHINESE_SIMPLIFIED -> UiStrings(
         "首页", "探索", "搜索", "片库", "个人资料", "电影", "剧集", "发现作品",
-        "搜索作品、人物、合集、公司和关键词", "全部", "收藏", "想看", "收藏", "稍后观看",
+        "搜索作品、人物、合集、公司和关键词",
+        "目录", "外部 ID", "查找匹配项", "按外部 ID 搜索",
+        "输入其他数据库中的 ID，并选择其来源", "请尝试其他 ID 或来源",
+        "全部", "收藏", "想看", "收藏", "稍后观看",
         "取消收藏", "移出想看", "播放预告", "查看详情", "剧情", "演员",
         "相似作品", "评分", "年份", "排序", "热门", "高分", "上映日期", "重置",
         "重试", "加载中…", "未找到作品", "把第一部作品加入片库吧",
@@ -98,7 +119,10 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
     )
     AppLocale.CHINESE_TRADITIONAL -> UiStrings(
         "首頁", "探索", "搜尋", "片庫", "個人資料", "電影", "影集", "探索作品",
-        "搜尋作品、人物、合輯、公司和關鍵字", "全部", "收藏", "待看清單", "收藏", "稍後觀看",
+        "搜尋作品、人物、合輯、公司和關鍵字",
+        "目錄", "外部 ID", "尋找符合項目", "依外部 ID 搜尋",
+        "輸入其他資料庫中的 ID，並選擇其來源", "請嘗試其他 ID 或來源",
+        "全部", "收藏", "待看清單", "收藏", "稍後觀看",
         "取消收藏", "移出待看", "播放預告", "查看詳情", "故事", "演員",
         "相似作品", "評分", "年份", "排序", "熱門", "高評分", "上映日期", "重設",
         "再試一次", "載入中…", "找不到作品", "將第一部作品加入片庫吧",

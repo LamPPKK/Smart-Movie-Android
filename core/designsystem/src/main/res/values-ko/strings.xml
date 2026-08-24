@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="catalog">카탈로그</string>
+    <string name="external_id">외부 ID</string>
+    <string name="find_matches">일치 항목 찾기</string>
+    <string name="search_by_external_id">외부 ID로 검색</string>
+    <string name="external_id_hint">다른 데이터베이스의 ID를 입력하고 출처를 선택하세요.</string>
+    <string name="try_another_external_id">다른 ID 또는 출처를 시도해 보세요.</string>
     <string name="home">홈</string><string name="explore">탐색</string><string name="search">검색</string><string name="library">라이브러리</string><string name="about">정보 및 크레딧</string><string name="movies">영화</string><string name="tv_series">TV 시리즈</string><string name="movie_badge">영화</string><string name="tv_badge">TV</string><string name="featured_film">추천 영화</string><string name="featured_series">추천 시리즈</string><string name="view_details">상세 보기</string><string name="try_again">다시 시도</string><string name="unable_home">홈을 불러올 수 없습니다</string><string name="explore_unavailable">탐색을 불러올 수 없습니다</string><string name="search_failed">검색에 실패했습니다</string><string name="library_unavailable">라이브러리를 불러올 수 없습니다</string><string name="check_connection">인터넷 연결을 확인하고 다시 시도하세요.</string>
     <string name="filters">필터</string><string name="reset">초기화</string><string name="apply">적용</string><string name="genres">장르</string><string name="minimum_rating">최소 평점</string><string name="release_year">공개 연도</string><string name="any_year">모든 연도</string><string name="sort_by">정렬</string><string name="popularity">인기도</string><string name="rating">평점</string><string name="release_date">공개일</string><string name="grid">그리드</string><string name="list">목록</string><string name="no_results">결과 없음</string><string name="try_another_search">다른 제목을 검색하거나 필터 범위를 넓혀보세요.</string><string name="search_hint">영화 및 TV 시리즈</string><string name="search_scope">검색 범위</string><string name="all">전체</string>
     <string name="collection">컬렉션</string><string name="favorites">즐겨찾기</string><string name="watchlist">보고 싶은 목록</string><string name="content_type">콘텐츠 유형</string><string name="recently_added">최근 추가</string><string name="title_sort">제목</string><string name="no_favorites">즐겨찾기가 없습니다</string><string name="watchlist_empty">보고 싶은 목록이 비어 있습니다</string><string name="add_from_detail">상세 화면에서 콘텐츠를 추가하세요.</string>

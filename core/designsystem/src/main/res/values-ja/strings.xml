@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="catalog">カタログ</string>
+    <string name="external_id">外部ID</string>
+    <string name="find_matches">一致を検索</string>
+    <string name="search_by_external_id">外部IDで検索</string>
+    <string name="external_id_hint">別のデータベースのIDを入力し、ソースを選択してください。</string>
+    <string name="try_another_external_id">別のIDまたはソースをお試しください。</string>
     <string name="home">ホーム</string><string name="explore">見つける</string><string name="search">検索</string><string name="library">ライブラリ</string><string name="about">このアプリについて</string><string name="movies">映画</string><string name="tv_series">テレビシリーズ</string><string name="movie_badge">映画</string><string name="tv_badge">TV</string><string name="featured_film">注目の映画</string><string name="featured_series">注目のシリーズ</string><string name="view_details">詳細を見る</string><string name="try_again">再試行</string><string name="unable_home">ホームを読み込めません</string><string name="explore_unavailable">作品を読み込めません</string><string name="search_failed">検索に失敗しました</string><string name="library_unavailable">ライブラリを読み込めません</string><string name="check_connection">インターネット接続を確認して、もう一度お試しください。</string>
     <string name="filters">フィルター</string><string name="reset">リセット</string><string name="apply">適用</string><string name="genres">ジャンル</string><string name="minimum_rating">最低評価</string><string name="release_year">公開年</string><string name="any_year">すべての年</string><string name="sort_by">並び順</string><string name="popularity">人気度</string><string name="rating">評価</string><string name="release_date">公開日</string><string name="grid">グリッド</string><string name="list">リスト</string><string name="no_results">結果がありません</string><string name="try_another_search">別のタイトルを検索するか、フィルターを広げてください。</string><string name="search_hint">映画とテレビシリーズ</string><string name="search_scope">検索範囲</string><string name="all">すべて</string>
     <string name="collection">コレクション</string><string name="favorites">お気に入り</string><string name="watchlist">ウォッチリスト</string><string name="content_type">コンテンツタイプ</string><string name="recently_added">最近追加</string><string name="title_sort">タイトル</string><string name="no_favorites">お気に入りはまだありません</string><string name="watchlist_empty">ウォッチリストは空です</string><string name="add_from_detail">詳細画面から作品を追加できます。</string>

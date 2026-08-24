@@ -37,6 +37,18 @@ enum class SearchScopeV2(val wireValue: String) {
     ALL("all"), MOVIE("movie"), TV("tv"), PERSON("person"), COLLECTION("collection"), COMPANY("company"), KEYWORD("keyword")
 }
 
+enum class CatalogSearchMode { CATALOG, EXTERNAL_ID }
+
+@Serializable
+enum class ExternalIdSource(val wireValue: String, val displayName: String, val example: String) {
+    @SerialName("imdb_id") IMDB("imdb_id", "IMDb", "tt0133093"),
+    @SerialName("tvdb_id") TVDB("tvdb_id", "TheTVDB", "73739"),
+    @SerialName("wikidata_id") WIKIDATA("wikidata_id", "Wikidata", "Q83495"),
+    @SerialName("facebook_id") FACEBOOK("facebook_id", "Facebook", "TheMatrixMovie"),
+    @SerialName("instagram_id") INSTAGRAM("instagram_id", "Instagram", "thematrixmovie"),
+    @SerialName("twitter_id") TWITTER("twitter_id", "X / Twitter", "TheMatrixMovie"),
+}
+
 @Serializable(with = CatalogEntitySerializer::class)
 sealed interface CatalogEntity {
     val entityKind: EntityKind
@@ -112,6 +124,13 @@ object CatalogEntitySerializer : KSerializer<CatalogEntity> {
         output.encodeJsonElement(JsonObject(mapOf("entity_kind" to JsonPrimitive(value.entityKind.wireValue)) + payload))
     }
 }
+
+@Serializable
+data class ExternalIdFindResult(
+    val source: ExternalIdSource,
+    @SerialName("external_id") val externalId: String,
+    val results: List<CatalogEntity>,
+)
 
 @Serializable
 data class PersonSummary(

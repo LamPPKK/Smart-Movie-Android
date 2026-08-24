@@ -21,6 +21,7 @@ import com.lamndt.smartmovie.model.TitleDetailV2
 import com.lamndt.smartmovie.model.TitleSummary
 import com.lamndt.smartmovie.model.TitleAccountState
 import com.lamndt.smartmovie.model.EpisodeAccountState
+import com.lamndt.smartmovie.model.ExternalIdFindResult
 import com.lamndt.smartmovie.model.UserList
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -104,6 +105,14 @@ internal interface CatalogService {
         @Query("region") region: String?,
         @Query("include_adult") includeAdult: Boolean,
     ): PagedResult<CatalogEntity>
+
+    @GET("v2/find/{externalId}")
+    suspend fun findExternalId(
+        @Header(CLIENT_HEADER) clientId: String,
+        @Path("externalId") externalId: String,
+        @Query("source") source: String,
+        @Query("language") language: String,
+    ): ExternalIdFindResult
 
     @GET("v2/titles/{mediaType}/{id}")
     suspend fun deepDetail(

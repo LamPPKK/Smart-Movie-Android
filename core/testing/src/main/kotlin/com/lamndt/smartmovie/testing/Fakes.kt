@@ -1,19 +1,33 @@
 package com.lamndt.smartmovie.testing
 
 import com.lamndt.smartmovie.model.CatalogRepository
+import com.lamndt.smartmovie.model.CatalogV2Repository
+import com.lamndt.smartmovie.model.CapabilitiesV2
+import com.lamndt.smartmovie.model.CatalogEntity
+import com.lamndt.smartmovie.model.CollectionDetail
 import com.lamndt.smartmovie.model.DiscoverFilter
 import com.lamndt.smartmovie.model.Genre
 import com.lamndt.smartmovie.model.HomeFeed
 import com.lamndt.smartmovie.model.ImageConfiguration
+import com.lamndt.smartmovie.model.EntityKind
+import com.lamndt.smartmovie.model.EpisodeDetail
+import com.lamndt.smartmovie.model.ExternalIdFindResult
+import com.lamndt.smartmovie.model.ExternalIdSource
+import com.lamndt.smartmovie.model.KeywordDetail
 import com.lamndt.smartmovie.model.LibraryCollection
 import com.lamndt.smartmovie.model.LibraryMembership
 import com.lamndt.smartmovie.model.LibraryRepository
 import com.lamndt.smartmovie.model.LibrarySnapshot
 import com.lamndt.smartmovie.model.LibrarySort
 import com.lamndt.smartmovie.model.MediaType
+import com.lamndt.smartmovie.model.OrganizationDetail
 import com.lamndt.smartmovie.model.PagedResult
 import com.lamndt.smartmovie.model.SearchScope
+import com.lamndt.smartmovie.model.SearchScopeV2
+import com.lamndt.smartmovie.model.SeasonDetail
+import com.lamndt.smartmovie.model.PersonDetail
 import com.lamndt.smartmovie.model.TitleDetail
+import com.lamndt.smartmovie.model.TitleDetailV2
 import com.lamndt.smartmovie.model.TitleSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +54,64 @@ class FakeCatalogRepository : CatalogRepository {
     }
     override suspend fun detail(mediaType: MediaType, id: Int, language: String) = detailResult(mediaType, id)
     override suspend fun imageConfiguration() = ImageConfiguration.Fallback
+}
+
+class FakeCatalogV2Repository(
+    private val legacy: FakeCatalogRepository = FakeCatalogRepository(),
+) : CatalogV2Repository, CatalogRepository by legacy {
+    val externalIdCalls = mutableListOf<Triple<String, ExternalIdSource, String>>()
+    var externalIdResult: suspend (String, ExternalIdSource) -> ExternalIdFindResult = { id, source ->
+        ExternalIdFindResult(source, id, emptyList())
+    }
+
+    override suspend fun capabilities(): CapabilitiesV2 = error("Not configured")
+    override suspend fun trending(
+        kind: String,
+        window: String,
+        page: Int,
+        language: String,
+        includeAdult: Boolean,
+    ): PagedResult<CatalogEntity> = error("Not configured")
+
+    override suspend fun searchEntities(
+        query: String,
+        scope: SearchScopeV2,
+        page: Int,
+        language: String,
+        region: String?,
+        includeAdult: Boolean,
+    ): PagedResult<CatalogEntity> {
+        val legacyScope = when (scope) {
+            SearchScopeV2.MOVIE -> SearchScope.MOVIE
+            SearchScopeV2.TV -> SearchScope.TV
+            else -> SearchScope.ALL
+        }
+        val result = legacy.search(query, legacyScope, page, language)
+        return PagedResult(result.page, result.totalPages, result.results.map(CatalogEntity::Title))
+    }
+
+    override suspend fun findExternalId(
+        externalId: String,
+        source: ExternalIdSource,
+        language: String,
+    ): ExternalIdFindResult {
+        externalIdCalls += Triple(externalId, source, language)
+        return externalIdResult(externalId, source)
+    }
+
+    override suspend fun deepDetail(
+        mediaType: MediaType,
+        id: Int,
+        language: String,
+        region: String?,
+        includeAdult: Boolean,
+    ): TitleDetailV2 = error("Not configured")
+    override suspend fun person(id: Int, language: String): PersonDetail = error("Not configured")
+    override suspend fun collection(id: Int, language: String): CollectionDetail = error("Not configured")
+    override suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail = error("Not configured")
+    override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = error("Not configured")
+    override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = error("Not configured")
+    override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = error("Not configured")
 }
 
 class FakeLibraryRepository : LibraryRepository {

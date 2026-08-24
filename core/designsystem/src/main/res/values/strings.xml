@@ -102,6 +102,12 @@
     <string name="open_title_details">Open title details</string>
     <string name="back">Back</string>
     <string name="find_next_story">Find your next story</string>
+    <string name="catalog">Catalog</string>
+    <string name="external_id">External ID</string>
+    <string name="find_matches">Find matches</string>
+    <string name="search_by_external_id">Search by external ID</string>
+    <string name="external_id_hint">Enter an ID from another database and choose its source.</string>
+    <string name="try_another_external_id">Try a different ID or source.</string>
     <string name="cinematic_description">A cinematic place to discover movies and television.</string>
     <string name="data_attribution">Film metadata and artwork are provided by TMDb. SmartMovie is not endorsed or certified by TMDb.</string>
     <string name="version_format">Version %1$s</string>
