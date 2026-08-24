@@ -173,8 +173,10 @@ internal fun SmartMovieContent(
             }
             entry<DetailKey> { key ->
                 CinemaBackground {
+                    val title = key.summary()
+                    val accountRating = rememberTitleAccountRating(appContainer, title)
                     DetailRoute(
-                        title = key.summary(), catalog = catalog, library = library,
+                        title = title, catalog = catalog, library = library,
                         images = images, language = language,
                         onBack = { backStack.removeLastOrNull() },
                         onTitleClick = { backStack.add(it.toDetailKey()) },
@@ -183,6 +185,11 @@ internal fun SmartMovieContent(
                         region = providerRegion?.value ?: locale.country,
                         includeAdult = appContainer?.preferences?.includeAdult == true,
                         onEntityClick = { entity -> backStack.add(entity.toEntityKey()) },
+                        accountRating = accountRating.value,
+                        accountRatingEnabled = accountRating.signedIn,
+                        accountRatingPending = accountRating.pending,
+                        accountRatingError = accountRating.error,
+                        onAccountRatingChange = accountRating.onChange,
                     )
                 }
             }
@@ -196,6 +203,7 @@ internal fun SmartMovieContent(
                         onBack = { backStack.removeLastOrNull() },
                         onTitle = { backStack.add(it.toDetailKey()) },
                         onEntity = { backStack.add(it.toEntityKey()) },
+                        appContainer = appContainer,
                     )
                 }
             }
@@ -262,6 +270,7 @@ internal fun AppRoot(
                     Modifier.weight(if (paneTitle == null) 1f else .42f), appContainer,
                 )
                 paneTitle?.let { title ->
+                    val accountRating = rememberTitleAccountRating(appContainer, title)
                     DetailRoute(
                         title = title,
                         catalog = catalog,
@@ -276,6 +285,11 @@ internal fun AppRoot(
                         region = providerRegion?.value,
                         includeAdult = appContainer?.preferences?.includeAdult == true,
                         onEntityClick = onEntityClick,
+                        accountRating = accountRating.value,
+                        accountRatingEnabled = accountRating.signedIn,
+                        accountRatingPending = accountRating.pending,
+                        accountRatingError = accountRating.error,
+                        onAccountRatingChange = accountRating.onChange,
                     )
                 }
             }

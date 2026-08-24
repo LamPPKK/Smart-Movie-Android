@@ -111,4 +111,8 @@
         <item quantity="one">%d season</item>
         <item quantity="other">%d seasons</item>
     </plurals>
+    <string name="your_rating">Your rating</string>
+    <string name="save_rating">Save rating</string>
+    <string name="remove_rating">Remove rating</string>
+    <string name="rating_pending">Waiting to sync</string>
 </resources>

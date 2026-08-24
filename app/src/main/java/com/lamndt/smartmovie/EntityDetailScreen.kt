@@ -38,6 +38,7 @@ import com.lamndt.smartmovie.designsystem.R
 import com.lamndt.smartmovie.designsystem.RemoteArtwork
 import com.lamndt.smartmovie.designsystem.SectionTitle
 import com.lamndt.smartmovie.designsystem.StateMessage
+import com.lamndt.smartmovie.feature.detail.AccountRatingControl
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CatalogV2Repository
 import com.lamndt.smartmovie.model.CollectionDetail
@@ -70,8 +71,19 @@ internal fun EntityDetailScreen(
     onBack: () -> Unit,
     onTitle: (TitleSummary) -> Unit,
     onEntity: (CatalogEntity) -> Unit,
+    appContainer: AppContainer? = null,
 ) {
     var state by remember(key) { mutableStateOf<EntityDetailState>(EntityDetailState.Loading) }
+    val episodeRating = if (key.kind == "episode") {
+        rememberEpisodeAccountRating(
+            appContainer,
+            requireNotNull(key.seriesId),
+            requireNotNull(key.seasonNumber),
+            requireNotNull(key.episodeNumber),
+        )
+    } else {
+        AccountRatingBinding()
+    }
     LaunchedEffect(key) {
         state = runCatching {
             when (key.kind) {
@@ -99,7 +111,7 @@ internal fun EntityDetailScreen(
             is EntityDetailState.Organization -> TitleCatalog(value.value.description, value.value.titles.results, images, onTitle)
             is EntityDetailState.Keyword -> TitleCatalog("", value.value.titles.results, images, onTitle)
             is EntityDetailState.Season -> SeasonContent(value.value, images, onEntity)
-            is EntityDetailState.Episode -> EpisodeContent(value.value, images)
+            is EntityDetailState.Episode -> EpisodeContent(value.value, images, episodeRating)
         }
     }
 }
@@ -162,11 +174,19 @@ private fun SeasonContent(value: SeasonDetail, images: ImageUrlFactory, onEntity
 }
 
 @Composable
-private fun EpisodeContent(value: EpisodeDetail, images: ImageUrlFactory) {
+private fun EpisodeContent(value: EpisodeDetail, images: ImageUrlFactory, rating: AccountRatingBinding) {
     LazyColumn(contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { RemoteArtwork(images.url(value.stillPath, ImageKind.BACKDROP), value.name, Modifier.fillMaxWidth().aspectRatio(1.77f)) }
         item { Text("S${value.seasonNumber} · E${value.episodeNumber}", color = CinemaColors.Accent, fontWeight = FontWeight.Black) }
         item { Text(value.name, style = MaterialTheme.typography.displayMedium) }
         item { Text(value.overview, color = CinemaColors.Muted) }
+        if (rating.signedIn) item {
+            AccountRatingControl(
+                value = rating.value,
+                pending = rating.pending,
+                error = rating.error,
+                onChange = rating.onChange,
+            )
+        }
     }
 }

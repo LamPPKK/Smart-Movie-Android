@@ -34,12 +34,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,6 +81,7 @@ import com.lamndt.smartmovie.model.TitleDetail
 import com.lamndt.smartmovie.model.TitleDetailV2
 import com.lamndt.smartmovie.model.TitleSummary
 import com.lamndt.smartmovie.model.preferredTrailer
+import java.util.Locale
 
 data class DetailRemoteState(
     val title: TitleSummary,
@@ -98,6 +104,11 @@ fun DetailRoute(
     region: String? = null,
     includeAdult: Boolean = false,
     onEntityClick: (CatalogEntity) -> Unit = {},
+    accountRating: Double? = null,
+    accountRatingEnabled: Boolean = false,
+    accountRatingPending: Boolean = false,
+    accountRatingError: String? = null,
+    onAccountRatingChange: (Double?) -> Unit = {},
     detailViewModel: DetailViewModel = viewModel(
         key = title.libraryKey,
         factory = DetailViewModel.factory(title, catalog, library, language, region, includeAdult),
@@ -114,7 +125,22 @@ fun DetailRoute(
     DisposableEffect(title.libraryKey) {
         onDispose { onRemoteClosed(title.libraryKey) }
     }
-    DetailScreen(state, images, language, onBack, onTitleClick, onEntityClick, detailViewModel::refresh, detailViewModel::toggle, modifier)
+    DetailScreen(
+        state = state,
+        images = images,
+        language = language,
+        onBack = onBack,
+        onTitleClick = onTitleClick,
+        onEntityClick = onEntityClick,
+        onRetry = detailViewModel::refresh,
+        onToggle = detailViewModel::toggle,
+        modifier = modifier,
+        accountRating = accountRating,
+        accountRatingEnabled = accountRatingEnabled,
+        accountRatingPending = accountRatingPending,
+        accountRatingError = accountRatingError,
+        onAccountRatingChange = onAccountRatingChange,
+    )
 }
 
 @Composable
@@ -128,13 +154,64 @@ fun DetailScreen(
     onRetry: () -> Unit,
     onToggle: (LibraryCollection) -> Unit,
     modifier: Modifier = Modifier,
+    accountRating: Double? = null,
+    accountRatingEnabled: Boolean = false,
+    accountRatingPending: Boolean = false,
+    accountRatingError: String? = null,
+    onAccountRatingChange: (Double?) -> Unit = {},
 ) {
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 80.dp)) {
         item { DetailHero(state, images, language, onBack, onToggle) }
+        if (accountRatingEnabled) item {
+            AccountRatingControl(
+                value = accountRating,
+                pending = accountRatingPending,
+                error = accountRatingError,
+                onChange = onAccountRatingChange,
+                modifier = Modifier.padding(horizontal = if (isWindowWidthAtLeast(700)) 48.dp else 20.dp),
+            )
+        }
         when (val detail = state.detail) {
             Loadable.Idle, Loadable.Loading -> item { LoadingMessage(Modifier.height(260.dp)) }
             is Loadable.Failed -> item { StateMessage(stringResource(R.string.details_unavailable), message = detail.message, retry = onRetry) }
             is Loadable.Loaded -> item { DetailBody(detail.value, state.deepDetail, images, onTitleClick, onEntityClick) }
+        }
+    }
+}
+
+@Composable
+fun AccountRatingControl(
+    value: Double?,
+    pending: Boolean,
+    error: String?,
+    onChange: (Double?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var draft by remember(value) { mutableFloatStateOf((value ?: 5.0).toFloat()) }
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = CinemaColors.Surface) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                SectionTitle(stringResource(R.string.your_rating))
+                Text(
+                    String.format(Locale.ROOT, "%.1f / 10", draft),
+                    color = CinemaColors.Accent,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            Slider(
+                value = draft,
+                onValueChange = { draft = (it * 2).toInt() / 2f },
+                valueRange = 0.5f..10f,
+                steps = 18,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { onChange(draft.toDouble()) }) { Text(stringResource(R.string.save_rating)) }
+                if (value != null) TextButton(onClick = { onChange(null) }) {
+                    Text(stringResource(R.string.remove_rating))
+                }
+                if (pending) Text(stringResource(R.string.rating_pending), color = CinemaColors.Muted)
+            }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
     }
 }
