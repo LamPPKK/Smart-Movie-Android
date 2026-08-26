@@ -54,6 +54,7 @@ import com.lamndt.smartmovie.designsystem.CinemaColors
 import com.lamndt.smartmovie.designsystem.PosterCard
 import com.lamndt.smartmovie.designsystem.R
 import com.lamndt.smartmovie.model.AccountMutationPayload
+import com.lamndt.smartmovie.model.CapabilitiesV2
 import com.lamndt.smartmovie.model.CatalogRepository
 import com.lamndt.smartmovie.model.CatalogV2Repository
 import com.lamndt.smartmovie.model.ConfigurationCountry
@@ -65,6 +66,7 @@ import com.lamndt.smartmovie.model.SearchScope
 import com.lamndt.smartmovie.model.TitleSummary
 import com.lamndt.smartmovie.model.UserList
 import com.lamndt.smartmovie.model.UserListItemMutation
+import com.lamndt.smartmovie.model.supportsAccountAuthentication
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -78,6 +80,7 @@ internal fun ProfileScreen(
 ) {
     val state by container.accountSession.state.collectAsState()
     val mutationRevision by container.accountSession.mutationRevision.collectAsState()
+    val capabilities by container.capabilities.collectAsState()
     val region by container.preferences.region.collectAsState()
     val unlocked by container.preferences.adultUnlocked.collectAsState()
     val scope = rememberCoroutineScope()
@@ -111,9 +114,11 @@ internal fun ProfileScreen(
     fun currentAccountId(): Int? =
         (container.accountSession.state.value as? AccountSessionState.SignedIn)?.profile?.id
 
-    LaunchedEffect(language, region) {
+    val accountAuthenticationAvailable = capabilities.supportsAccountAuthentication(isTv)
+
+    LaunchedEffect(language, region, capabilities?.supportsCatalog("advanced_discover")) {
         providerRegions = runCatching {
-            loadProfileProviderRegions(container.catalog, language, region)
+            loadProfileProviderRegions(container.catalog, capabilities, language, region)
         }
             .also { result -> if (result.exceptionOrNull() is CancellationException) throw result.exceptionOrNull()!! }
             .getOrDefault(emptyList())
@@ -211,13 +216,26 @@ internal fun ProfileScreen(
                 when (val value = state) {
                     AccountSessionState.Checking -> CircularProgressIndicator()
                     AccountSessionState.SignedOut -> {
-                        Text(stringResource(R.string.account_sign_in_description), color = CinemaColors.Muted)
+                        Text(
+                            stringResource(
+                                if (accountAuthenticationAvailable) {
+                                    R.string.account_sign_in_description
+                                } else {
+                                    R.string.account_unavailable
+                                },
+                            ),
+                            color = CinemaColors.Muted,
+                        )
                         Button(onClick = {
+                            if (!accountAuthenticationAvailable) return@Button
                             scope.launch {
                                 val attempt = container.accountSession.begin("smartmovie://auth/callback", if (isTv) "tv" else "browser")
                                 if (!isTv && attempt != null) context.startActivity(Intent(Intent.ACTION_VIEW, attempt.authorizationUrl.toUri()))
                             }
-                        }) { Icon(Icons.Default.OpenInBrowser, null); Text(stringResource(R.string.continue_tmdb), Modifier.padding(start = 8.dp)) }
+                        }, enabled = accountAuthenticationAvailable) {
+                            Icon(Icons.Default.OpenInBrowser, null)
+                            Text(stringResource(R.string.continue_tmdb), Modifier.padding(start = 8.dp))
+                        }
                     }
                     is AccountSessionState.Authorizing -> {
                         if (isTv) {
@@ -271,7 +289,10 @@ internal fun ProfileScreen(
                     }
                     is AccountSessionState.Failed -> {
                         Text(value.message, color = MaterialTheme.colorScheme.error)
-                        TextButton(onClick = { container.accountSession.refresh(language) }) { Text(stringResource(R.string.try_again)) }
+                        TextButton(
+                            onClick = { container.accountSession.refresh(language) },
+                            enabled = accountAuthenticationAvailable,
+                        ) { Text(stringResource(R.string.try_again)) }
                     }
                 }
             }
@@ -764,11 +785,12 @@ private val fallbackProviderRegionCodes = listOf(
 
 internal suspend fun loadProfileProviderRegions(
     catalog: CatalogRepository,
+    capabilities: CapabilitiesV2?,
     language: String,
     region: String?,
 ): List<ConfigurationCountry> {
     val v2 = catalog as? CatalogV2Repository ?: return emptyList()
-    if (!v2.capabilities().supportsCatalog("advanced_discover")) return emptyList()
+    if (capabilities?.supportsCatalog("advanced_discover") != true) return emptyList()
     return v2.discoverConfiguration(language, region).watchProviderRegions
 }
 

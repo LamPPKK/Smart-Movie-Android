@@ -116,6 +116,7 @@ import com.lamndt.smartmovie.multiplatform.model.TitleDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleSummary
 import com.lamndt.smartmovie.multiplatform.model.UiStrings
 import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
+import com.lamndt.smartmovie.multiplatform.model.supportsAccountAuthentication
 import com.lamndt.smartmovie.multiplatform.model.preferredTrailer
 import com.lamndt.smartmovie.multiplatform.model.strings
 import com.lamndt.smartmovie.multiplatform.platform.openExternalUrl
@@ -333,8 +334,16 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
                     when (val account = state.account) {
                         AccountState.Checking -> Text(copy.checking, color = CinemaColors.Muted)
                         AccountState.SignedOut -> {
-                            Text(copy.signInDescription, color = CinemaColors.Muted)
-                            Button(onClick = { controller.beginSignIn() }, colors = ButtonDefaults.buttonColors(containerColor = CinemaColors.Accent)) {
+                            val accountAuthenticationAvailable = state.capabilities.supportsAccountAuthentication()
+                            Text(
+                                if (accountAuthenticationAvailable) copy.signInDescription else copy.accountUnavailable,
+                                color = CinemaColors.Muted,
+                            )
+                            Button(
+                                onClick = { controller.beginSignIn() },
+                                enabled = accountAuthenticationAvailable,
+                                colors = ButtonDefaults.buttonColors(containerColor = CinemaColors.Accent),
+                            ) {
                                 Text(copy.signIn)
                             }
                         }
@@ -353,7 +362,10 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
                         }
                         is AccountState.Error -> {
                             Text(account.message, color = CinemaColors.Accent)
-                            Button(onClick = { controller.beginSignIn() }) { Text(copy.retry) }
+                            Button(
+                                onClick = { controller.beginSignIn() },
+                                enabled = state.capabilities.supportsAccountAuthentication(),
+                            ) { Text(copy.retry) }
                         }
                     }
                 }
@@ -1637,6 +1649,7 @@ private data class ProfileCopy(
     val tmdbAccount: String,
     val checking: String,
     val signInDescription: String,
+    val accountUnavailable: String,
     val signIn: String,
     val finishBrowser: String,
     val deviceCode: String,
@@ -1680,6 +1693,7 @@ private data class ProfileCopy(
 private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     AppLocale.ENGLISH -> ProfileCopy(
         "Profile", "TMDb account", "Checking your session…", "Sign in through TMDb in your browser. SmartMovie never sees your password.",
+        "TMDb account is temporarily unavailable.",
         "Sign in with TMDb", "Finish approval in your browser; SmartMovie will reconnect automatically.", "Device code", "Cancel",
         "Sign out · keep local", "Sign out · remove data", "Try again", "Content region", "Two-letter country code", "Device region", "Save",
         "Adult content", "Off by default. Enabling it requires a six-digit PIN stored only on this device.",
@@ -1691,6 +1705,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     )
     AppLocale.VIETNAMESE -> ProfileCopy(
         "Hồ sơ", "Tài khoản TMDb", "Đang kiểm tra phiên…", "Đăng nhập qua TMDb trong trình duyệt. SmartMovie không bao giờ nhận mật khẩu của bạn.",
+        "Tài khoản TMDb tạm thời chưa khả dụng.",
         "Đăng nhập với TMDb", "Hoàn tất phê duyệt trong trình duyệt; SmartMovie sẽ tự kết nối lại.", "Mã thiết bị", "Hủy",
         "Đăng xuất · giữ cục bộ", "Đăng xuất · xóa dữ liệu", "Thử lại", "Khu vực nội dung", "Mã quốc gia hai chữ cái", "Vùng thiết bị", "Lưu",
         "Nội dung 18+", "Mặc định tắt. Cần PIN sáu chữ số chỉ lưu trên thiết bị để bật.",
@@ -1702,6 +1717,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     )
     AppLocale.JAPANESE -> ProfileCopy(
         "プロフィール", "TMDbアカウント", "セッションを確認中…", "ブラウザーでTMDbにログインします。SmartMovieがパスワードを取得することはありません。",
+        "TMDbアカウントは一時的に利用できません。",
         "TMDbでログイン", "ブラウザーで承認を完了すると自動的に再接続します。", "デバイスコード", "キャンセル",
         "ログアウト・端末に保持", "ログアウト・データ削除", "再試行", "コンテンツ地域", "2文字の国コード", "デバイスの地域", "保存",
         "成人向けコンテンツ", "初期設定はオフです。有効化には端末内だけに保存する6桁PINが必要です。",
@@ -1713,6 +1729,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     )
     AppLocale.KOREAN -> ProfileCopy(
         "프로필", "TMDb 계정", "세션 확인 중…", "브라우저에서 TMDb에 로그인합니다. SmartMovie는 비밀번호를 받지 않습니다.",
+        "TMDb 계정을 일시적으로 사용할 수 없습니다.",
         "TMDb로 로그인", "브라우저에서 승인을 완료하면 자동으로 다시 연결됩니다.", "기기 코드", "취소",
         "로그아웃 · 로컬 유지", "로그아웃 · 데이터 삭제", "다시 시도", "콘텐츠 지역", "두 글자 국가 코드", "기기 지역", "저장",
         "성인 콘텐츠", "기본값은 꺼짐입니다. 이 기기에만 저장되는 6자리 PIN이 필요합니다.",
@@ -1724,6 +1741,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     )
     AppLocale.CHINESE_SIMPLIFIED -> ProfileCopy(
         "个人资料", "TMDb 账户", "正在检查会话…", "请在浏览器中登录 TMDb。SmartMovie 不会获取您的密码。",
+        "TMDb 账户暂时不可用。",
         "使用 TMDb 登录", "在浏览器中完成授权后，SmartMovie 会自动重新连接。", "设备代码", "取消",
         "退出 · 保留本地", "退出 · 删除数据", "重试", "内容地区", "两位国家代码", "设备地区", "保存",
         "成人内容", "默认关闭。启用时需要设置仅存储在本设备上的六位 PIN。",
@@ -1735,6 +1753,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     )
     AppLocale.CHINESE_TRADITIONAL -> ProfileCopy(
         "個人資料", "TMDb 帳戶", "正在檢查工作階段…", "請在瀏覽器中登入 TMDb。SmartMovie 不會取得您的密碼。",
+        "TMDb 帳戶暫時無法使用。",
         "使用 TMDb 登入", "在瀏覽器完成授權後，SmartMovie 會自動重新連線。", "裝置代碼", "取消",
         "登出 · 保留本機", "登出 · 刪除資料", "重試", "內容地區", "兩位國家代碼", "裝置地區", "儲存",
         "成人內容", "預設關閉。啟用時需設定只儲存在本裝置的六位 PIN。",

@@ -189,7 +189,7 @@ cd Android.Smart.Movie
 ./gradlew --dependency-verification=strict :app:assembleDebug :wear:assembleDebug
 ```
 
-The native debug build calls `https://staging-catalog.smartmovie.app/`; release calls `https://catalog.smartmovie.app/`. Both support legacy `/v1` and additive `/v2`. `/v2/capabilities` keeps account and Advanced Discover UI disabled until the deployed Worker advertises support; Explore remains available through the basic `/v1` route during rollout or rollback. No TMDb or Cloudflare credential belongs in a client.
+The native debug build calls `https://staging-catalog.smartmovie.app/`; release calls `https://catalog.smartmovie.app/`. Both support legacy `/v1` and additive `/v2`. `/v2/capabilities` keeps account and Advanced Discover UI disabled until the deployed Worker advertises support; phone requires `browser_auth`, Android TV requires `tv_qr_auth`, and missing/false flags prevent profile/auth requests while showing a localized unavailable state. Explore remains available through the basic `/v1` route during rollout or rollback. No TMDb or Cloudflare credential belongs in a client.
 
 ### Run desktop or web
 

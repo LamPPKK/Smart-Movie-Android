@@ -71,6 +71,11 @@ class ContractConformanceTest {
         val configuration = decodeV2<DiscoverConfiguration>("configuration")
         assertEquals("US", configuration.region)
         assertEquals("Netflix", configuration.watchProviders?.movie?.first()?.name)
+        val capabilities = decodeV2<CapabilitiesV2>("capabilities")
+        assertTrue(capabilities.supportsCatalog("advanced_discover"))
+        assertTrue(capabilities.supportsAccount("browser_auth"))
+        assertTrue(capabilities.supportsAccount("tv_qr_auth"))
+        assertTrue(capabilities.supportsAccount("ratings"))
     }
 
     @Test

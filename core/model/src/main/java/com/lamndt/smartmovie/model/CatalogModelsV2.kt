@@ -446,7 +446,11 @@ data class CapabilitiesV2(
     @SerialName("adult_content") val adultContent: AdultContentCapability,
 ) {
     fun supportsCatalog(capability: String): Boolean = catalog[capability] == true
+    fun supportsAccount(capability: String): Boolean = account[capability] == true
 }
+
+fun CapabilitiesV2?.supportsAccountAuthentication(isTv: Boolean): Boolean =
+    this?.supportsAccount(if (isTv) "tv_qr_auth" else "browser_auth") == true
 
 @Serializable
 data class AdultContentCapability(

@@ -8,6 +8,7 @@
     <string name="profile">Profile</string>
     <string name="tmdb_account">TMDb account</string>
     <string name="account_sign_in_description">Sign in on the TMDb website to sync favorites, watchlist, ratings, recommendations, and mixed lists.</string>
+    <string name="account_unavailable">TMDb account is temporarily unavailable.</string>
     <string name="continue_tmdb">Continue on TMDb</string>
     <string name="scan_tmdb_qr">Scan the QR code and approve SmartMovie in your browser.</string>
     <string name="complete_browser">Complete approval in your browser.</string>

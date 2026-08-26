@@ -36,6 +36,9 @@ class MainActivity : ComponentActivity() {
     private fun handleAuthIntent(intent: Intent?) {
         val attempt = intent?.data?.getQueryParameter("auth_attempt") ?: return
         val locale = resources.configuration.locales[0]
-        container.accountSession.handleCallback(attempt, com.lamndt.smartmovie.model.CatalogLocale.from(locale.language, locale.country))
+        container.handleAuthCallback(
+            attempt,
+            com.lamndt.smartmovie.model.CatalogLocale.from(locale.language, locale.country),
+        )
     }
 }

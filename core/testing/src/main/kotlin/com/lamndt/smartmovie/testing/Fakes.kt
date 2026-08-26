@@ -141,11 +141,15 @@ class FakeCatalogV2Repository(
     override suspend fun credit(id: String, language: String): CreditDetail = error("Not configured")
 }
 
-fun capabilities(advancedDiscover: Boolean): CapabilitiesV2 = CapabilitiesV2(
+fun capabilities(
+    advancedDiscover: Boolean,
+    browserAuth: Boolean = false,
+    tvQrAuth: Boolean = browserAuth,
+): CapabilitiesV2 = CapabilitiesV2(
     apiVersion = "v2",
     releaseTrain = "3.0.0",
     catalog = mapOf("advanced_discover" to advancedDiscover),
-    account = emptyMap(),
+    account = mapOf("browser_auth" to browserAuth, "tv_qr_auth" to tvQrAuth),
     supportedLanguages = emptyList(),
     supportedEntityKinds = emptyList(),
     adultContent = AdultContentCapability(

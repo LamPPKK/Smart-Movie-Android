@@ -47,6 +47,7 @@ import com.lamndt.smartmovie.multiplatform.model.SearchScopeV2
 import com.lamndt.smartmovie.multiplatform.model.SeasonDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleDetailV2
 import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
+import com.lamndt.smartmovie.multiplatform.model.supportsAccountAuthentication
 import com.lamndt.smartmovie.multiplatform.platform.KeyValueStore
 import com.lamndt.smartmovie.multiplatform.platform.catalogBaseUrl
 import com.lamndt.smartmovie.multiplatform.platform.createKeyValueStore
@@ -802,6 +803,7 @@ class AppController(
     }
 
     fun beginSignIn(mode: String = authMode()) {
+        if (!state.value.capabilities.supportsAccountAuthentication()) return
         val account = accountApi ?: return
         scope.launch {
             mutableState.update { it.copy(account = AccountState.Checking) }
@@ -1451,6 +1453,10 @@ class AppController(
     }
 
     private suspend fun refreshAccount() {
+        if (!state.value.capabilities.supportsAccountAuthentication()) {
+            mutableState.update { it.copy(account = AccountState.SignedOut) }
+            return
+        }
         val account = accountApi ?: run {
             mutableState.update { it.copy(account = AccountState.SignedOut) }
             return

@@ -13,6 +13,10 @@ class ContractV2ConformanceTest {
     fun everyCanonicalDiscriminatorAndDeepEntityDecodes() {
         val capabilities = decode<CapabilitiesV2>("capabilities")
         assertThat(capabilities.apiVersion).isEqualTo("v2")
+        assertThat(capabilities.supportsCatalog("advanced_discover")).isTrue()
+        assertThat(capabilities.supportsAccount("browser_auth")).isTrue()
+        assertThat(capabilities.supportsAccount("tv_qr_auth")).isTrue()
+        assertThat(capabilities.supportsAccount("ratings")).isTrue()
         assertThat(capabilities.supportedEntityKinds).containsExactlyElementsIn(EntityKind.entries)
         val configuration = decode<DiscoverConfiguration>("configuration")
         assertThat(configuration.region).isEqualTo("US")

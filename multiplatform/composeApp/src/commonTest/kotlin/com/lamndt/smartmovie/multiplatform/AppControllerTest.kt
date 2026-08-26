@@ -32,6 +32,7 @@ import com.lamndt.smartmovie.multiplatform.model.TitleDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleDetailV2
 import com.lamndt.smartmovie.multiplatform.model.TitleSummary
 import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
+import com.lamndt.smartmovie.multiplatform.model.supportsAccountAuthentication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
@@ -174,6 +175,17 @@ class AppControllerTest {
         unavailable.close()
         disabled.close()
         enabled.close()
+    }
+
+    @Test
+    fun accountAuthenticationCapabilitiesFailClosed() {
+        val unavailable: CapabilitiesV2? = null
+        val disabled = capabilities(advancedDiscover = true, browserAuth = false)
+        val enabled = capabilities(advancedDiscover = true, browserAuth = true)
+
+        assertEquals(false, unavailable.supportsAccountAuthentication())
+        assertEquals(false, disabled.supportsAccountAuthentication())
+        assertEquals(true, enabled.supportsAccountAuthentication())
     }
 
     @Test
@@ -330,11 +342,14 @@ private class FakeCatalogApi : CatalogApiV2 {
     }
 }
 
-private fun capabilities(advancedDiscover: Boolean) = CapabilitiesV2(
+private fun capabilities(
+    advancedDiscover: Boolean,
+    browserAuth: Boolean = false,
+) = CapabilitiesV2(
     apiVersion = "v2",
     releaseTrain = "3.0.0",
     catalog = mapOf("advanced_discover" to advancedDiscover),
-    account = emptyMap(),
+    account = mapOf("browser_auth" to browserAuth),
     supportedLanguages = emptyList(),
     supportedEntityKinds = emptyList(),
     adultContent = AdultContentCapability(false, false, true),
