@@ -136,6 +136,7 @@ fun DetailRoute(
         onEntityClick = onEntityClick,
         onCreditClick = onCreditClick,
         region = region,
+        includeAdult = includeAdult,
         onRetry = detailViewModel::refresh,
         onToggle = detailViewModel::toggle,
         modifier = modifier,
@@ -157,6 +158,7 @@ fun DetailScreen(
     onEntityClick: (CatalogEntity) -> Unit = {},
     onCreditClick: (Credit) -> Unit = {},
     region: String? = null,
+    includeAdult: Boolean = false,
     onRetry: () -> Unit,
     onToggle: (LibraryCollection) -> Unit,
     modifier: Modifier = Modifier,
@@ -181,7 +183,17 @@ fun DetailScreen(
             Loadable.Idle, Loadable.Loading -> item { LoadingMessage(Modifier.height(260.dp)) }
             is Loadable.Failed -> item { StateMessage(stringResource(R.string.details_unavailable), message = detail.message, retry = onRetry) }
             is Loadable.Loaded -> item {
-                DetailBody(detail.value, state.deepDetail, images, onTitleClick, onEntityClick, onCreditClick, language, region)
+                DetailBody(
+                    detail.value,
+                    state.deepDetail,
+                    images,
+                    onTitleClick,
+                    onEntityClick,
+                    onCreditClick,
+                    language,
+                    region,
+                    includeAdult,
+                )
             }
         }
     }
@@ -313,6 +325,7 @@ private fun DetailBody(
     onCreditClick: (Credit) -> Unit,
     language: String,
     region: String?,
+    includeAdult: Boolean,
 ) {
     val wide = isWindowWidthAtLeast(700)
     Column(
@@ -424,11 +437,20 @@ private fun DetailBody(
                     Text(stringResource(R.string.justwatch_attribution), style = MaterialTheme.typography.labelMedium, color = CinemaColors.Muted)
                 }
             }
+            CatalogReviewSection(value.reviews.results)
+            CatalogRecommendationSection(
+                values = value.recommendations.results,
+                currentLibraryKey = value.summary.libraryKey,
+                includeAdult = includeAdult,
+                images = images,
+                onTitleClick = onTitleClick,
+            )
         }
-        if (detail.similar.isNotEmpty()) {
+        val similar = presentedEditorialTitles(detail.similar, includeAdult = includeAdult)
+        if (similar.isNotEmpty()) {
             SectionTitle(stringResource(R.string.more_like_this))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                items(detail.similar, key = { it.libraryKey }) { title ->
+                items(similar, key = { it.libraryKey }) { title ->
                     PosterCard(title, images.url(title.posterPath, ImageKind.POSTER), { onTitleClick(title) })
                 }
             }

@@ -115,6 +115,7 @@ import com.lamndt.smartmovie.multiplatform.platform.systemTimeMillis
 import kotlinx.coroutines.delay
 import com.lamndt.smartmovie.multiplatform.model.MediaType
 import com.lamndt.smartmovie.multiplatform.model.PersonSummary
+import com.lamndt.smartmovie.multiplatform.model.Review
 import com.lamndt.smartmovie.multiplatform.model.SearchScope
 import com.lamndt.smartmovie.multiplatform.model.SearchScopeV2
 import com.lamndt.smartmovie.multiplatform.model.TitleDetail
@@ -124,8 +125,10 @@ import com.lamndt.smartmovie.multiplatform.model.UiStrings
 import com.lamndt.smartmovie.multiplatform.model.Video
 import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
 import com.lamndt.smartmovie.multiplatform.model.playableVideos
+import com.lamndt.smartmovie.multiplatform.model.presentedEditorialTitles
 import com.lamndt.smartmovie.multiplatform.model.presentedExternalIds
 import com.lamndt.smartmovie.multiplatform.model.presentedImages
+import com.lamndt.smartmovie.multiplatform.model.presentedReviews
 import com.lamndt.smartmovie.multiplatform.model.supportsAccountAuthentication
 import com.lamndt.smartmovie.multiplatform.model.preferredTrailer
 import com.lamndt.smartmovie.multiplatform.model.strings
@@ -1515,7 +1518,10 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
     val trailer = preferredTrailer(detail.videos, state.locale.backendTag)
     val metadataCopy = titleMetadataCopy(state.locale)
     val mediaCopy = mediaCopy(state.locale)
+    val editorialCopy = editorialCopy(state.locale)
     val region = controller.contentRegion()
+    val includeAdult = state.adultConfigured && state.adultUnlocked && state.adultLockUntil <= systemTimeMillis()
+    val similar = presentedEditorialTitles(detail.similar, includeAdult = includeAdult)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
         item {
@@ -1675,7 +1681,35 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
                 }
             }
         }
-        if (detail.similar.isNotEmpty()) {
+        state.deepDetail?.let { deep ->
+            val reviews = presentedReviews(deep.reviews.results)
+            if (reviews.isNotEmpty()) {
+                item {
+                    CatalogReviewPanel(
+                        values = reviews,
+                        copy = editorialCopy,
+                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 28.dp),
+                    )
+                }
+            }
+            val recommendations = presentedEditorialTitles(
+                deep.recommendations.results,
+                deep.summary.libraryKey,
+                includeAdult,
+            )
+            if (recommendations.isNotEmpty()) {
+                item {
+                    CatalogEditorialTitleShelf(
+                        title = editorialCopy.recommendations,
+                        values = recommendations,
+                        images = images,
+                        copy = copy,
+                        onTitleClick = controller::openDetail,
+                    )
+                }
+            }
+        }
+        if (similar.isNotEmpty()) {
             item {
                 Column(Modifier.padding(top = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     SectionTitle(copy.similar, Modifier.padding(horizontal = 28.dp))
@@ -1683,7 +1717,7 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
                         contentPadding = PaddingValues(horizontal = 28.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        items(detail.similar.distinctBy(TitleSummary::libraryKey), key = { it.libraryKey }) { title ->
+                        items(similar, key = { it.libraryKey }) { title ->
                             PosterCard(title, images, typeLabel(title.mediaType, copy), { controller.openDetail(title) })
                         }
                     }
@@ -1691,6 +1725,77 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
             }
         }
     }
+}
+
+@Composable
+private fun CatalogReviewPanel(
+    values: List<Review>,
+    copy: EditorialCopy,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        SectionTitle(copy.reviews)
+        values.forEach { review ->
+            Surface(shape = CinemaCardShape, color = CinemaColors.Surface) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(
+                                review.author.takeIf(String::isNotBlank) ?: copy.tmdbMember,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            review.createdAt?.let {
+                                Text(it.take(10), color = CinemaColors.Muted, style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                        Spacer(Modifier.weight(1f))
+                        review.rating?.let { RatingBadge(it) }
+                    }
+                    Text(
+                        review.content,
+                        color = CinemaColors.Muted,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CatalogEditorialTitleShelf(
+    title: String,
+    values: List<TitleSummary>,
+    images: ImageUrlFactory,
+    copy: UiStrings,
+    onTitleClick: (TitleSummary) -> Unit,
+) {
+    Column(Modifier.padding(top = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        SectionTitle(title, Modifier.padding(horizontal = 28.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 28.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            items(values, key = TitleSummary::libraryKey) { value ->
+                PosterCard(value, images, typeLabel(value.mediaType, copy), { onTitleClick(value) })
+            }
+        }
+    }
+}
+
+private data class EditorialCopy(
+    val reviews: String,
+    val recommendations: String,
+    val tmdbMember: String,
+)
+
+private fun editorialCopy(locale: AppLocale): EditorialCopy = when (locale) {
+    AppLocale.ENGLISH -> EditorialCopy("Reviews", "Recommendations", "TMDb member")
+    AppLocale.VIETNAMESE -> EditorialCopy("Bài đánh giá", "Đề xuất", "Thành viên TMDb")
+    AppLocale.JAPANESE -> EditorialCopy("レビュー", "おすすめ", "TMDbメンバー")
+    AppLocale.KOREAN -> EditorialCopy("리뷰", "추천", "TMDb 회원")
+    AppLocale.CHINESE_SIMPLIFIED -> EditorialCopy("影评", "推荐", "TMDb 成员")
+    AppLocale.CHINESE_TRADITIONAL -> EditorialCopy("影評", "推薦", "TMDb 會員")
 }
 
 @Composable
@@ -1859,27 +1964,27 @@ private data class TitleMetadataCopy(
 private fun titleMetadataCopy(locale: AppLocale): TitleMetadataCopy = when (locale) {
     AppLocale.ENGLISH -> TitleMetadataCopy(
         "Production", "Release & localization", "Certification", "Release date", "Alternative titles", "Translations",
-        "External identifiers", "Explore TMDb image and video galleries, regional release dates, certifications, localized titles, translations and external identifiers across titles, seasons and episodes.",
+        "External identifiers", "Explore TMDb image and video galleries, member reviews, catalog recommendations, regional release dates, certifications, localized titles, translations and external identifiers across titles, seasons and episodes.",
     )
     AppLocale.VIETNAMESE -> TitleMetadataCopy(
         "Sản xuất", "Phát hành & bản địa hóa", "Phân loại độ tuổi", "Ngày phát hành", "Tên gọi khác", "Bản dịch",
-        "Định danh bên ngoài", "Khám phá thư viện hình ảnh và video TMDb, ngày phát hành và phân loại theo khu vực, tên bản địa hóa, bản dịch và định danh ngoài của phim, mùa và tập.",
+        "Định danh bên ngoài", "Khám phá thư viện hình ảnh và video TMDb, bài đánh giá, đề xuất danh mục, ngày phát hành và phân loại theo khu vực, tên bản địa hóa, bản dịch và định danh ngoài của phim, mùa và tập.",
     )
     AppLocale.JAPANESE -> TitleMetadataCopy(
         "制作", "公開・ローカライズ", "年齢区分", "公開日", "別タイトル", "翻訳", "外部識別子",
-        "作品、シーズン、エピソードのTMDb画像・動画ギャラリー、地域別公開日、年齢区分、ローカライズされたタイトル、翻訳、外部識別子を確認できます。",
+        "作品、シーズン、エピソードのTMDb画像・動画ギャラリー、レビュー、おすすめ、地域別公開日、年齢区分、ローカライズされたタイトル、翻訳、外部識別子を確認できます。",
     )
     AppLocale.KOREAN -> TitleMetadataCopy(
         "제작", "공개 및 현지화", "시청 등급", "공개일", "대체 제목", "번역", "외부 식별자",
-        "작품, 시즌, 에피소드의 TMDb 이미지·동영상 갤러리, 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.",
+        "작품, 시즌, 에피소드의 TMDb 이미지·동영상 갤러리, 리뷰, 추천, 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.",
     )
     AppLocale.CHINESE_SIMPLIFIED -> TitleMetadataCopy(
         "制作", "发行与本地化", "分级", "上映日期", "其他片名", "翻译", "外部标识符",
-        "查看影片、季和剧集的 TMDb 图片与视频画廊、地区发行日期、分级、本地化片名、翻译和外部标识符。",
+        "查看影片、季和剧集的 TMDb 图片与视频画廊、影评、推荐、地区发行日期、分级、本地化片名、翻译和外部标识符。",
     )
     AppLocale.CHINESE_TRADITIONAL -> TitleMetadataCopy(
         "製作", "發行與在地化", "分級", "上映日期", "其他片名", "翻譯", "外部識別碼",
-        "查看影片、季度和集數的 TMDb 圖片與影片藝廊、地區發行日期、分級、在地化片名、翻譯和外部識別碼。",
+        "查看影片、季度和集數的 TMDb 圖片與影片藝廊、影評、推薦、地區發行日期、分級、在地化片名、翻譯和外部識別碼。",
     )
 }
 

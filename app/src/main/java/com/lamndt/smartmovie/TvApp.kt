@@ -81,9 +81,11 @@ import com.lamndt.smartmovie.designsystem.RemoteArtwork
 import com.lamndt.smartmovie.designsystem.SectionTitle
 import com.lamndt.smartmovie.designsystem.StateMessage
 import com.lamndt.smartmovie.feature.detail.CatalogMediaSection
+import com.lamndt.smartmovie.feature.detail.CatalogReviewSection
 import com.lamndt.smartmovie.feature.detail.DetailUiState
 import com.lamndt.smartmovie.feature.detail.DetailViewModel
 import com.lamndt.smartmovie.feature.detail.TitleMetadataSection
+import com.lamndt.smartmovie.feature.detail.presentedEditorialTitles
 import com.lamndt.smartmovie.model.CatalogLocale
 import com.lamndt.smartmovie.model.DiscoverSort
 import com.lamndt.smartmovie.model.HomeFeed
@@ -555,6 +557,7 @@ private fun TvDetailOverlay(
                 container.images,
                 language,
                 region,
+                includeAdult,
                 detailViewModel::toggle,
                 onTitleClick,
             )
@@ -569,11 +572,18 @@ private fun TvDetailContent(
     images: ImageUrlFactory,
     language: String,
     region: String,
+    includeAdult: Boolean,
     onToggle: (LibraryCollection) -> Unit,
     onTitleClick: (TitleSummary) -> Unit,
 ) {
     val context = LocalContext.current
     val trailer = preferredTrailer(detail.videos, language.substringBefore('-'))
+    val recommendations = presentedEditorialTitles(
+        state.deepDetail?.recommendations?.results.orEmpty(),
+        detail.summary.libraryKey,
+        includeAdult,
+    )
+    val similar = presentedEditorialTitles(detail.similar, includeAdult = includeAdult)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(64.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(32.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -616,6 +626,10 @@ private fun TvDetailContent(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            item { CatalogReviewSection(deep.reviews.results, Modifier.fillMaxWidth()) }
+        }
+        if (recommendations.isNotEmpty()) {
+            item { TvShelf(stringResource(R.string.recommendations), recommendations, images, onTitleClick) }
         }
         if (detail.cast.isNotEmpty()) item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -630,6 +644,6 @@ private fun TvDetailContent(
                 }
             }
         }
-        if (detail.similar.isNotEmpty()) item { TvShelf(stringResource(R.string.more_like_this), detail.similar, images, onTitleClick) }
+        if (similar.isNotEmpty()) item { TvShelf(stringResource(R.string.more_like_this), similar, images, onTitleClick) }
     }
 }

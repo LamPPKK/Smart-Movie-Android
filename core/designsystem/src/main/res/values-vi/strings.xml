@@ -75,11 +75,14 @@
     <string name="alternative_titles">Tên gọi khác</string>
     <string name="translations">Bản dịch</string>
     <string name="external_identifiers">Định danh bên ngoài</string>
-    <string name="catalog_metadata_description">Khám phá thư viện hình ảnh và video TMDb, ngày phát hành và phân loại theo khu vực, tên bản địa hóa, bản dịch và định danh ngoài của phim, mùa và tập.</string>
+    <string name="catalog_metadata_description">Khám phá thư viện hình ảnh và video TMDb, bài đánh giá, đề xuất danh mục, ngày phát hành và phân loại theo khu vực, tên bản địa hóa, bản dịch và định danh ngoài của phim, mùa và tập.</string>
     <string name="companion_episode_description">Wear OS hiển thị tựa phim an toàn hoặc đúng tập phim đang mở trên Android và quay lại trang chi tiết đó mà không đăng nhập riêng.</string>
     <string name="details">Chi tiết</string>
     <string name="images">Hình ảnh</string>
     <string name="videos">Video</string>
+    <string name="reviews">Bài đánh giá</string>
+    <string name="recommendations">Đề xuất</string>
+    <string name="tmdb_member">Thành viên TMDb</string>
     <string name="catalog_image">Hình ảnh danh mục TMDb</string>
     <string name="air_date">Ngày phát sóng</string>
     <string name="episodes">Tập phim</string>

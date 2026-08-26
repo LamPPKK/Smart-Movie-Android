@@ -6,10 +6,10 @@ This document defines what “supported” means for every SmartMovie 3.0 target
 
 | Platform | Delivery | Experience | Status |
 | --- | --- | --- | --- |
-| Android phone | Main AAB | Five-destination touch UI, entity/account flows, and full-screen details with Movie/TV/Season/Episode media galleries | Supported, API 26+ |
+| Android phone | Main AAB | Five-destination touch UI, entity/account flows, and full-screen details with catalog reviews, same-media-type recommendations, and Movie/TV/Season/Episode media galleries | Supported, API 26+ |
 | Tablet and foldable | Main AAB | Navigation rail, adaptive grids, and list-detail pane | Supported |
 | ChromeOS | Main AAB | Resizable large-screen UI, keyboard/mouse input, Ctrl/Cmd+1–4 tabs, Ctrl/Cmd+F Search | Supported |
-| Android TV | Main AAB | Dedicated 10-foot UI, Movie/TV media galleries, Leanback launcher, D-pad focus, TV IME | Supported |
+| Android TV | Main AAB | Dedicated 10-foot UI, catalog reviews/recommendations, Movie/TV media galleries, Leanback launcher, D-pad focus, TV IME | Supported |
 | Wear OS | Companion AAB | Safe title/episode context and exact-detail handoff to the paired phone | Supported, non-standalone |
 | Android XR | Main AAB | Large-screen app in Home Space with pointer/keyboard input | Compatible; not immersive/spatial |
 | Android Auto | None | No car surface is declared | Not eligible under the current product scope |
@@ -77,7 +77,7 @@ Accordingly, this release intentionally has no `CarAppService`, automotive descr
 
 ## Desktop and web
 
-The `multiplatform` build contains one shared Compose application for Home, Explore, Search, Library, Profile, deep entity details, deduplicated Movie/TV/Season/Episode image and YouTube-video galleries, TMDb authorization, ratings, and custom lists. It uses immutable `StateFlow`, a Ktor 3 `/v2` client, local PIN state, and account-scoped durable outboxes. Installation identity, library snapshots, and pending mutations remain in Java Preferences or browser `localStorage`; Web session credentials use secure Worker cookies.
+The `multiplatform` build contains one shared Compose application for Home, Explore, Search, Library, Profile, deep entity details, catalog reviews, same-media-type TMDb recommendations, separate similar-title shelves, deduplicated Movie/TV/Season/Episode image and YouTube-video galleries, TMDb authorization, ratings, and custom lists. Related-title shelves fail closed against the local adult gate. It uses immutable `StateFlow`, a Ktor 3 `/v2` client, local PIN state, and account-scoped durable outboxes. Installation identity, library snapshots, and pending mutations remain in Java Preferences or browser `localStorage`; Web session credentials use secure Worker cookies.
 
 Desktop distributions are configured for DMG/PKG, MSI/EXE, and DEB/RPM, while CI also produces portable images on each desktop OS. Web builds include Wasm and JavaScript outputs, a manifest, and a service worker; production must configure CORS, callback allowlist, secure cookies, CSRF, and correct `application/wasm` hosting.
 

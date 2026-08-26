@@ -69,6 +69,10 @@ class ContractConformanceTest {
         assertEquals("/catalog-backdrop.jpg", title.images.backdrops.single().filePath)
         assertEquals("/catalog-poster.jpg", title.images.posters.single().filePath)
         assertEquals(listOf("catalogYT123", "catalogYT456"), title.videos.map(Video::key))
+        assertEquals(listOf("review-catalog-1", "review-catalog-2"), title.reviews.results.map(Review::id))
+        assertEquals(8.5, title.reviews.results.first().rating)
+        assertEquals(listOf("movie:20", "movie:21"), title.recommendations.results.map(TitleSummary::libraryKey))
+        assertEquals(listOf("movie:30"), title.similar.map(TitleSummary::libraryKey))
 
         assertEquals(12, decodeV2<PersonDetail>("person").id)
         assertEquals(13, decodeV2<CollectionDetail>("collection").id)

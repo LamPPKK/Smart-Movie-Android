@@ -71,11 +71,14 @@
     <string name="alternative_titles">別タイトル</string>
     <string name="translations">翻訳</string>
     <string name="external_identifiers">外部識別子</string>
-    <string name="catalog_metadata_description">作品、シーズン、エピソードのTMDb画像・動画ギャラリー、地域別公開日、年齢区分、ローカライズされたタイトル、翻訳、外部識別子を確認できます。</string>
+    <string name="catalog_metadata_description">作品、シーズン、エピソードのTMDb画像・動画ギャラリー、レビュー、おすすめ、地域別公開日、年齢区分、ローカライズされたタイトル、翻訳、外部識別子を確認できます。</string>
     <string name="companion_episode_description">Wear OSはAndroidで開いている安全な作品または正確なエピソードを表示し、個別にログインせず詳細へ戻れます。</string>
     <string name="details">詳細</string>
     <string name="images">画像</string>
     <string name="videos">動画</string>
+    <string name="reviews">レビュー</string>
+    <string name="recommendations">おすすめ</string>
+    <string name="tmdb_member">TMDbメンバー</string>
     <string name="catalog_image">TMDbカタログ画像</string>
     <string name="air_date">放送日</string>
     <string name="episodes">エピソード</string>
