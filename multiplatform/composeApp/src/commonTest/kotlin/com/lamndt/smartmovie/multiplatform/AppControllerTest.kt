@@ -130,6 +130,7 @@ class AppControllerTest {
         advanceUntilIdle()
 
         assertEquals("CA", controller.state.value.exploreFilter.region)
+        assertEquals("CA", controller.state.value.exploreFilter.certificationCountry)
         assertEquals("CA", api.configurationRequests.last().second)
         controller.updateExploreFilter { it.copy(watchProviderIds = setOf(8)) }
 
