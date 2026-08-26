@@ -80,6 +80,7 @@ import com.lamndt.smartmovie.designsystem.RatingBadge
 import com.lamndt.smartmovie.designsystem.RemoteArtwork
 import com.lamndt.smartmovie.designsystem.SectionTitle
 import com.lamndt.smartmovie.designsystem.StateMessage
+import com.lamndt.smartmovie.feature.detail.CatalogMediaSection
 import com.lamndt.smartmovie.feature.detail.DetailUiState
 import com.lamndt.smartmovie.feature.detail.DetailViewModel
 import com.lamndt.smartmovie.feature.detail.TitleMetadataSection
@@ -604,6 +605,16 @@ private fun TvDetailContent(
                         TitleMetadataSection(deep, language, region)
                     }
                 }
+            }
+        }
+        state.deepDetail?.let { deep ->
+            item {
+                CatalogMediaSection(
+                    imageAssets = deep.images.backdrops + deep.images.posters + deep.images.logos,
+                    videos = deep.videos,
+                    images = images,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         if (detail.cast.isNotEmpty()) item {

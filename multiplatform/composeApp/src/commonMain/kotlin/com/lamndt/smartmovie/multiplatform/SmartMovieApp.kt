@@ -109,6 +109,7 @@ import com.lamndt.smartmovie.multiplatform.model.DiscoverSort
 import com.lamndt.smartmovie.multiplatform.model.EntityKind
 import com.lamndt.smartmovie.multiplatform.model.ExternalIdSource
 import com.lamndt.smartmovie.multiplatform.model.HomeFeed
+import com.lamndt.smartmovie.multiplatform.model.ImageAsset
 import com.lamndt.smartmovie.multiplatform.model.ImageUrlFactory
 import com.lamndt.smartmovie.multiplatform.platform.systemTimeMillis
 import kotlinx.coroutines.delay
@@ -120,7 +121,11 @@ import com.lamndt.smartmovie.multiplatform.model.TitleDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleDetailV2
 import com.lamndt.smartmovie.multiplatform.model.TitleSummary
 import com.lamndt.smartmovie.multiplatform.model.UiStrings
+import com.lamndt.smartmovie.multiplatform.model.Video
 import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
+import com.lamndt.smartmovie.multiplatform.model.playableVideos
+import com.lamndt.smartmovie.multiplatform.model.presentedExternalIds
+import com.lamndt.smartmovie.multiplatform.model.presentedImages
 import com.lamndt.smartmovie.multiplatform.model.supportsAccountAuthentication
 import com.lamndt.smartmovie.multiplatform.model.preferredTrailer
 import com.lamndt.smartmovie.multiplatform.model.strings
@@ -1289,6 +1294,7 @@ private fun EntityDetailContent(
     controller: AppController,
 ) {
     val images = remember(state.imageConfiguration) { ImageUrlFactory(state.imageConfiguration) }
+    val mediaCopy = mediaCopy(state.locale)
     val title: String
     val overview: String
     val image: String?
@@ -1364,6 +1370,15 @@ private fun EntityDetailContent(
         }
         if (detail is EntityDetail.Season) item {
             Column(Modifier.padding(horizontal = 28.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                CatalogMetadataPanel(
+                    values = buildList {
+                        detail.value.airDate?.let { add(mediaCopy.airDate to it.take(10)) }
+                        add(mediaCopy.episodes to detail.value.episodeCount.toString())
+                    },
+                    externalIds = detail.value.externalIds,
+                    copy = mediaCopy,
+                )
+                CatalogMediaPanel(detail.value.images, detail.value.videos, images, mediaCopy)
                 CreditShelf(copy.cast, detail.value.credits.cast, images, controller::openCredit)
                 CreditShelf(copy.crew, detail.value.credits.crew, images, controller::openCredit)
             }
@@ -1407,6 +1422,22 @@ private fun EntityDetailContent(
         }
         if (detail is EntityDetail.Episode) item {
             Column(Modifier.padding(horizontal = 28.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CatalogMetadataPanel(
+                    values = buildList {
+                        detail.value.airDate?.let { add(mediaCopy.airDate to it.take(10)) }
+                        detail.value.runtimeMinutes?.let {
+                            add(mediaCopy.runtime to mediaCopy.minutes.replace("%d", it.toString()))
+                        }
+                        detail.value.productionCode?.takeIf(String::isNotBlank)?.let {
+                            add(mediaCopy.productionCode to it)
+                        }
+                        detail.value.voteAverage?.let { add(mediaCopy.rating to "$it / 10") }
+                        add(mediaCopy.votes to detail.value.voteCount.toString())
+                    },
+                    externalIds = detail.value.externalIds,
+                    copy = mediaCopy,
+                )
+                CatalogMediaPanel(detail.value.images, detail.value.videos, images, mediaCopy)
                 CreditShelf(copy.guestStars, detail.value.guestStars, images, controller::openCredit)
                 CreditShelf(copy.crew, detail.value.crew, images, controller::openCredit)
             }
@@ -1483,6 +1514,7 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
     val record = state.library.firstOrNull { it.title.libraryKey == detail.summary.libraryKey }
     val trailer = preferredTrailer(detail.videos, state.locale.backendTag)
     val metadataCopy = titleMetadataCopy(state.locale)
+    val mediaCopy = mediaCopy(state.locale)
     val region = controller.contentRegion()
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
@@ -1579,6 +1611,12 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
                         language = state.locale.backendTag,
                         region = region,
                         copy = metadataCopy,
+                    )
+                    CatalogMediaPanel(
+                        imageAssets = deep.images.backdrops + deep.images.posters + deep.images.logos,
+                        videos = deep.videos,
+                        images = images,
+                        copy = mediaCopy,
                     )
                 }
                 state.deepDetail?.watchProviders?.firstOrNull { it.region.equals(region, ignoreCase = true) }?.let { providers ->
@@ -1691,6 +1729,122 @@ private fun TitleMetadataPanel(detail: TitleDetailV2, language: String, region: 
     }
 }
 
+@Composable
+private fun CatalogMediaPanel(
+    imageAssets: List<ImageAsset>,
+    videos: List<Video>,
+    images: ImageUrlFactory,
+    copy: MediaCopy,
+) {
+    val displayedImages = presentedImages(imageAssets)
+    val displayedVideos = playableVideos(videos)
+    if (displayedImages.isEmpty() && displayedVideos.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        if (displayedImages.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SectionTitle(copy.images)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    items(displayedImages, key = ImageAsset::filePath) { asset ->
+                        val poster = asset.kind.equals("poster", ignoreCase = true)
+                        RemoteArtwork(
+                            url = if (poster) images.poster(asset.filePath, expanded = true) else images.backdrop(asset.filePath),
+                            contentDescription = copy.imageDescription,
+                            modifier = Modifier.width(if (poster) 140.dp else 240.dp)
+                                .height(if (poster) 210.dp else 135.dp)
+                                .clip(CinemaCardShape),
+                            contentScale = if (asset.kind.equals("logo", ignoreCase = true)) ContentScale.Fit else ContentScale.Crop,
+                        )
+                    }
+                }
+            }
+        }
+        if (displayedVideos.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SectionTitle(copy.videos)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(displayedVideos, key = Video::key) { video ->
+                        Surface(shape = RoundedCornerShape(16.dp), color = CinemaColors.Elevated) {
+                            TextButton(
+                                onClick = { openExternalUrl("https://www.youtube.com/watch?v=${video.key}") },
+                                modifier = Modifier.width(240.dp).padding(5.dp),
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = CinemaColors.Accent)
+                                Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                                    Text(video.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text(video.type, color = CinemaColors.Muted, style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CatalogMetadataPanel(
+    values: List<Pair<String, String>>,
+    externalIds: Map<String, String>,
+    copy: MediaCopy,
+) {
+    val identifiers = presentedExternalIds(externalIds)
+    if (values.isEmpty() && identifiers.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle(copy.details)
+        values.forEach { (label, value) ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(label, fontWeight = FontWeight.SemiBold)
+                Text(value, color = CinemaColors.Muted)
+            }
+        }
+        if (identifiers.isNotEmpty()) {
+            Text(copy.externalIdentifiers, fontWeight = FontWeight.SemiBold)
+            identifiers.forEach { (source, value) -> Text("$source: $value", color = CinemaColors.Muted) }
+        }
+    }
+}
+
+private data class MediaCopy(
+    val details: String,
+    val images: String,
+    val videos: String,
+    val imageDescription: String,
+    val airDate: String,
+    val episodes: String,
+    val runtime: String,
+    val productionCode: String,
+    val rating: String,
+    val votes: String,
+    val minutes: String,
+    val externalIdentifiers: String,
+)
+
+private fun mediaCopy(locale: AppLocale): MediaCopy = when (locale) {
+    AppLocale.ENGLISH -> MediaCopy(
+        "Details", "Images", "Videos", "TMDb catalog image", "Air date", "Episodes", "Runtime",
+        "Production code", "Rating", "Votes", "%d min", "External identifiers",
+    )
+    AppLocale.VIETNAMESE -> MediaCopy(
+        "Chi tiết", "Hình ảnh", "Video", "Hình ảnh danh mục TMDb", "Ngày phát sóng", "Tập phim", "Thời lượng",
+        "Mã sản xuất", "Điểm đánh giá", "Lượt đánh giá", "%d phút", "Định danh bên ngoài",
+    )
+    AppLocale.JAPANESE -> MediaCopy(
+        "詳細", "画像", "動画", "TMDbカタログ画像", "放送日", "エピソード", "上映時間", "制作コード", "評価", "投票数", "%d分", "外部識別子",
+    )
+    AppLocale.KOREAN -> MediaCopy(
+        "세부 정보", "이미지", "동영상", "TMDb 카탈로그 이미지", "방영일", "에피소드", "재생 시간", "제작 코드", "평점", "투표 수", "%d분", "외부 식별자",
+    )
+    AppLocale.CHINESE_SIMPLIFIED -> MediaCopy(
+        "详细信息", "图片", "视频", "TMDb 目录图片", "播出日期", "剧集", "时长", "制作代码", "评分", "投票数", "%d 分钟", "外部标识符",
+    )
+    AppLocale.CHINESE_TRADITIONAL -> MediaCopy(
+        "詳細資料", "圖片", "影片", "TMDb 目錄圖片", "播出日期", "集數", "片長", "製作代碼", "評分", "投票數", "%d 分鐘", "外部識別碼",
+    )
+}
+
 private data class TitleMetadataCopy(
     val production: String,
     val releaseAndLocalization: String,
@@ -1705,27 +1859,27 @@ private data class TitleMetadataCopy(
 private fun titleMetadataCopy(locale: AppLocale): TitleMetadataCopy = when (locale) {
     AppLocale.ENGLISH -> TitleMetadataCopy(
         "Production", "Release & localization", "Certification", "Release date", "Alternative titles", "Translations",
-        "External identifiers", "Explore regional release dates, certifications, localized titles, translations and external identifiers from TMDb.",
+        "External identifiers", "Explore TMDb image and video galleries, regional release dates, certifications, localized titles, translations and external identifiers across titles, seasons and episodes.",
     )
     AppLocale.VIETNAMESE -> TitleMetadataCopy(
         "Sản xuất", "Phát hành & bản địa hóa", "Phân loại độ tuổi", "Ngày phát hành", "Tên gọi khác", "Bản dịch",
-        "Định danh bên ngoài", "Khám phá ngày phát hành và phân loại theo khu vực, tên bản địa hóa, bản dịch và định danh ngoài từ TMDb.",
+        "Định danh bên ngoài", "Khám phá thư viện hình ảnh và video TMDb, ngày phát hành và phân loại theo khu vực, tên bản địa hóa, bản dịch và định danh ngoài của phim, mùa và tập.",
     )
     AppLocale.JAPANESE -> TitleMetadataCopy(
         "制作", "公開・ローカライズ", "年齢区分", "公開日", "別タイトル", "翻訳", "外部識別子",
-        "TMDbの地域別公開日、年齢区分、ローカライズされたタイトル、翻訳、外部識別子を確認できます。",
+        "作品、シーズン、エピソードのTMDb画像・動画ギャラリー、地域別公開日、年齢区分、ローカライズされたタイトル、翻訳、外部識別子を確認できます。",
     )
     AppLocale.KOREAN -> TitleMetadataCopy(
         "제작", "공개 및 현지화", "시청 등급", "공개일", "대체 제목", "번역", "외부 식별자",
-        "TMDb의 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.",
+        "작품, 시즌, 에피소드의 TMDb 이미지·동영상 갤러리, 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.",
     )
     AppLocale.CHINESE_SIMPLIFIED -> TitleMetadataCopy(
         "制作", "发行与本地化", "分级", "上映日期", "其他片名", "翻译", "外部标识符",
-        "查看 TMDb 提供的地区发行日期、分级、本地化片名、翻译和外部标识符。",
+        "查看影片、季和剧集的 TMDb 图片与视频画廊、地区发行日期、分级、本地化片名、翻译和外部标识符。",
     )
     AppLocale.CHINESE_TRADITIONAL -> TitleMetadataCopy(
         "製作", "發行與在地化", "分級", "上映日期", "其他片名", "翻譯", "外部識別碼",
-        "查看 TMDb 提供的地區發行日期、分級、在地化片名、翻譯和外部識別碼。",
+        "查看影片、季度和集數的 TMDb 圖片與影片藝廊、地區發行日期、分級、在地化片名、翻譯和外部識別碼。",
     )
 }
 

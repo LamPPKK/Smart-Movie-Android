@@ -71,6 +71,15 @@
     <string name="alternative_titles">대체 제목</string>
     <string name="translations">번역</string>
     <string name="external_identifiers">외부 식별자</string>
-    <string name="catalog_metadata_description">TMDb의 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.</string>
+    <string name="catalog_metadata_description">작품, 시즌, 에피소드의 TMDb 이미지·동영상 갤러리, 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.</string>
     <string name="companion_episode_description">Wear OS는 Android에서 연 안전한 작품이나 정확한 에피소드를 표시하고 별도 로그인 없이 상세 화면으로 돌아갑니다.</string>
+    <string name="details">세부 정보</string>
+    <string name="images">이미지</string>
+    <string name="videos">동영상</string>
+    <string name="catalog_image">TMDb 카탈로그 이미지</string>
+    <string name="air_date">방영일</string>
+    <string name="episodes">에피소드</string>
+    <string name="runtime">재생 시간</string>
+    <string name="production_code">제작 코드</string>
+    <string name="votes">투표 수</string>
 </resources>

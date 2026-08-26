@@ -393,6 +393,11 @@ private fun DetailBody(
                 }
             }
             TitleMetadataSection(value, language, region)
+            CatalogMediaSection(
+                imageAssets = value.images.backdrops + value.images.posters + value.images.logos,
+                videos = value.videos,
+                images = images,
+            )
             if (value.seasons.isNotEmpty()) {
                 SectionTitle(stringResource(R.string.seasons_episodes))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {

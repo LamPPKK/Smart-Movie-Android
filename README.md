@@ -26,7 +26,8 @@ Apple and Android keep native UI, lifecycle, and storage while sharing the addit
 
 - **Explore the complete catalog** through Home, trending, pagination, retry, cancellation, and regional Discover filters for dates, language, country, certification, runtime, votes, providers, monetization, rating, and adult-PIN context.
 - **Search across entities** with discriminated Movie, TV, Person, Collection, Company, and Keyword results, or resolve an IMDb, TheTVDB, Wikidata, Facebook, Instagram, or X/Twitter ID.
-- **Open deep details** for titles, people, collections, organizations, keywords, seasons, episodes, and individual cast/crew credits, including navigable person/title links, role metadata, media, reviews, related content, and providers.
+- **Open deep details** for titles, people, collections, organizations, keywords, seasons, episodes, and individual cast/crew credits, including navigable person/title links, role metadata, reviews, related content, and providers.
+- **Browse complete TMDb media** through deduplicated image galleries and every valid YouTube trailer, teaser, clip, or featurette on Movie/TV, Season, and Episode details; season/episode pages also expose air date, runtime, production code, votes, and external identifiers when supplied.
 - **Understand every regional edition** through production-company/network links, region-matched certification and release date, alternative titles, localized translations, and external identifiers on native Android/TV and KMP desktop/web.
 - **Use TMDb account recommendations** from Profile with separate Movie/TV feeds, retry, pagination, title navigation, deduplication, and local adult-PIN filtering across phone, Android TV, and KMP desktop/web.
 - **Manage mixed custom lists** by loading every list page, editing metadata, paging through Movie/TV contents, searching the catalog, and adding or removing titles with restart-safe optimistic synchronization across native Android/TV and KMP.
@@ -224,7 +225,7 @@ Run the native source gates from the repository root:
 ./scripts/verify-release.sh mobile
 ```
 
-Native tests cover model/contract/network/data/Room migrations, durable account/library outboxes, feature state, remote protocol, and screenshot validation. CI also runs API 35 phone instrumentation and a dedicated Android TV launch/D-pad smoke with Linux KVM enabled.
+Native tests cover model/contract/network/data/Room migrations, durable account/library outboxes, feature state, deterministic media-gallery filtering, non-empty Movie/TV/Season/Episode fixtures, remote protocol, and screenshot validation. CI also runs API 35 phone instrumentation and a dedicated Android TV launch/D-pad smoke with Linux KVM enabled.
 
 Run KMP verification independently with JDK 21:
 

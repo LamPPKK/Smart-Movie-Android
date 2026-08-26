@@ -40,6 +40,8 @@ import com.lamndt.smartmovie.designsystem.RemoteArtwork
 import com.lamndt.smartmovie.designsystem.SectionTitle
 import com.lamndt.smartmovie.designsystem.StateMessage
 import com.lamndt.smartmovie.feature.detail.AccountRatingControl
+import com.lamndt.smartmovie.feature.detail.CatalogMediaSection
+import com.lamndt.smartmovie.feature.detail.CatalogMetadataSection
 import com.lamndt.smartmovie.feature.detail.CreditShelf
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CatalogV2Repository
@@ -53,6 +55,7 @@ import com.lamndt.smartmovie.model.OrganizationDetail
 import com.lamndt.smartmovie.model.PersonDetail
 import com.lamndt.smartmovie.model.SeasonDetail
 import com.lamndt.smartmovie.model.TitleSummary
+import java.util.Locale
 
 private sealed interface EntityDetailState {
     data object Loading : EntityDetailState
@@ -191,7 +194,26 @@ private fun SeasonContent(
     onCredit: (Credit) -> Unit,
 ) {
     LazyColumn(contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        value.posterPath?.let { posterPath ->
+            item {
+                RemoteArtwork(
+                    images.url(posterPath, ImageKind.POSTER),
+                    value.name,
+                    Modifier.width(220.dp).aspectRatio(.68f),
+                )
+            }
+        }
         if (value.overview.isNotBlank()) item { Text(value.overview, color = CinemaColors.Muted) }
+        item {
+            CatalogMetadataSection(
+                values = buildList {
+                    value.airDate?.let { add(stringResource(R.string.air_date) to it.take(10)) }
+                    add(stringResource(R.string.episodes) to value.episodeCount.toString())
+                },
+                externalIds = value.externalIds,
+            )
+        }
+        item { CatalogMediaSection(value.images, value.videos, images) }
         item { CreditShelf(stringResource(R.string.cast), value.credits.cast, images, onCredit) }
         item { CreditShelf(stringResource(R.string.crew), value.credits.crew, images, onCredit) }
         items(value.episodes, key = { it.episodeKey }) { episode ->
@@ -221,6 +243,25 @@ private fun EpisodeContent(
         item { Text("S${value.seasonNumber} · E${value.episodeNumber}", color = CinemaColors.Accent, fontWeight = FontWeight.Black) }
         item { Text(value.name, style = MaterialTheme.typography.displayMedium) }
         item { Text(value.overview, color = CinemaColors.Muted) }
+        item {
+            CatalogMetadataSection(
+                values = buildList {
+                    value.airDate?.let { add(stringResource(R.string.air_date) to it.take(10)) }
+                    value.runtimeMinutes?.let {
+                        add(stringResource(R.string.runtime) to stringResource(R.string.runtime_minutes, it))
+                    }
+                    value.productionCode?.takeIf(String::isNotBlank)?.let {
+                        add(stringResource(R.string.production_code) to it)
+                    }
+                    value.voteAverage?.let {
+                        add(stringResource(R.string.rating) to String.format(Locale.ROOT, "%.1f / 10", it))
+                    }
+                    add(stringResource(R.string.votes) to value.voteCount.toString())
+                },
+                externalIds = value.externalIds,
+            )
+        }
+        item { CatalogMediaSection(value.images, value.videos, images) }
         item { CreditShelf(stringResource(R.string.guest_stars), value.guestStars, images, onCredit) }
         item { CreditShelf(stringResource(R.string.crew), value.crew, images, onCredit) }
         if (rating.signedIn) item {

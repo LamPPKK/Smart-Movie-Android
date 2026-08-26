@@ -80,7 +80,12 @@ fun RatingBadge(rating: Double, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun RemoteArtwork(url: String?, contentDescription: String?, modifier: Modifier = Modifier) {
+fun RemoteArtwork(
+    url: String?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+) {
     Box(modifier = modifier.background(CinemaColors.Elevated), contentAlignment = Alignment.Center) {
         if (url == null) {
             Icon(
@@ -93,7 +98,7 @@ fun RemoteArtwork(url: String?, contentDescription: String?, modifier: Modifier 
             AsyncImage(
                 model = url,
                 contentDescription = contentDescription,
-                contentScale = ContentScale.Crop,
+                contentScale = contentScale,
                 modifier = Modifier.fillMaxSize(),
             )
         }
