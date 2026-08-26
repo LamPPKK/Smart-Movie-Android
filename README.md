@@ -5,7 +5,7 @@
 
 SmartMovie is a cinematic TMDb catalog built natively for Android. It covers movies, television, people, collections, organizations, keywords, seasons, and episodes; adds region-aware availability and trailers; and can optionally synchronize library, ratings, recommendations, and mixed lists through browser-approved TMDb access.
 
-The native app adapts from phones to tablets, foldables, ChromeOS, Android TV, and Android XR Home Space. A Wear OS companion turns the watch into a remote for the title open on the paired phone. An isolated Compose Multiplatform app brings the same product flow to macOS, Windows, Linux, and responsive Web/Wasm.
+The native app adapts from phones to tablets, foldables, ChromeOS, Android TV, and Android XR Home Space. A Wear OS companion mirrors the safe title or exact episode open on the paired phone and hands back to the matching detail. An isolated Compose Multiplatform app brings the same product flow to macOS, Windows, Linux, and responsive Web/Wasm.
 
 > [!NOTE]
 > SmartMovie is a catalog and trailer app. It does not stream movies or episodes, create a separate SmartMovie identity, collect a TMDb password, display advertising, or offer in-app purchases.
@@ -60,7 +60,7 @@ All images below are checked-in deterministic captures. The native Android image
 <table>
   <tr>
     <td width="72%" align="center"><strong>Android TV</strong><br><sub>10-foot layout with high-visibility D-pad focus</sub></td>
-    <td width="28%" align="center"><strong>Wear OS remote</strong><br><sub>Open details, launch trailer, Favorite, and Watchlist</sub></td>
+    <td width="28%" align="center"><strong>Wear OS remote</strong><br><sub>Mirror a safe title/episode; title-only trailer and library controls</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TvHomeGolden_tv_1080p_b8c175df_0.png" alt="SmartMovie Home on Android TV" width="760"></td>
@@ -94,7 +94,7 @@ See the complete [screen gallery](docs/SCREENSHOTS.md) for Home, Explore, Search
 | ChromeOS | Android 8 / API 26+ | Resizable windows, pointer, and Ctrl/Cmd shortcuts | Main Android AAB |
 | Android TV | Android 8 / API 26+ | Dedicated 10-foot UI, D-pad focus, TV search, retained navigation state | Main Android AAB |
 | Android XR | Home Space panel | Resizable adaptive 2D experience; no immersive scene | Main Android AAB |
-| Wear OS | Paired companion | Non-standalone remote over the Play services Data Layer | Wear companion AAB |
+| Wear OS | Paired companion | Safe title/episode context and phone handoff over the Play services Data Layer | Wear companion AAB |
 | Desktop | macOS 13+, Windows 10+, Ubuntu 20.04-compatible Linux | Shared Compose app with local library and native installers | DMG/PKG, MSI/EXE, DEB/RPM |
 | Web | Modern JS/Wasm browser | Responsive Compose app with browser-local library; beta | Static JS/Wasm distribution |
 
@@ -259,7 +259,7 @@ The backend repository's canonical [TMDb coverage matrix](https://github.com/Lam
 - Native Android stores only the opaque SmartMovie session in Keystore-backed storage; Web uses secure cookie auth.
 - Favorite, Watchlist, rating, and custom-list mutations update optimistically and remain in account-scoped durable outboxes until the Worker acknowledges the same idempotency key.
 - The adult PIN and lockout state remain local per device and are excluded from backup/account transport.
-- Wear OS commands and current-title state travel only through the paired-device Data Layer.
+- Wear OS commands and safe title/episode state travel only through the paired-device Data Layer; trailer and library mutations remain title-only.
 - KMP caches/outboxes remain in Java Preferences on desktop and `localStorage` on web.
 - There is no separate SmartMovie identity, analytics SDK, advertising SDK, or in-app purchase flow.
 

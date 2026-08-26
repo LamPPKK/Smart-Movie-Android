@@ -52,6 +52,7 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
 import coil3.compose.AsyncImage
 import com.lamndt.smartmovie.remote.WatchCommand
+import com.lamndt.smartmovie.remote.WatchContextKind
 import com.lamndt.smartmovie.remote.WatchTitleContext
 
 private val Background = Color(0xFF050508)
@@ -145,33 +146,37 @@ internal fun WearRemoteScreen(
                             onClick = { onCommand(WatchCommand.OPEN_DETAILS) },
                         )
                     }
-                    item {
-                        RemoteButton(
-                            text = stringResource(R.string.play_trailer),
-                            enabled = state.controlsEnabled && title.trailerAvailable,
-                            icon = { Icon(Icons.Default.PlayArrow, null) },
-                            onClick = { onCommand(WatchCommand.PLAY_TRAILER) },
-                        )
+                    if (title.contextKind == WatchContextKind.TITLE) {
+                        item {
+                            RemoteButton(
+                                text = stringResource(R.string.play_trailer),
+                                enabled = state.controlsEnabled && title.trailerAvailable,
+                                icon = { Icon(Icons.Default.PlayArrow, null) },
+                                onClick = { onCommand(WatchCommand.PLAY_TRAILER) },
+                            )
+                        }
                     }
-                    item {
-                        RemoteButton(
-                            text = stringResource(if (title.favorite) R.string.remove_favorite else R.string.favorite),
-                            enabled = state.controlsEnabled,
-                            icon = {
-                                Icon(if (title.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null)
-                            },
-                            onClick = { onCommand(WatchCommand.TOGGLE_FAVORITE) },
-                        )
-                    }
-                    item {
-                        RemoteButton(
-                            text = stringResource(if (title.watchlist) R.string.remove_watchlist else R.string.watchlist),
-                            enabled = state.controlsEnabled,
-                            icon = {
-                                Icon(if (title.watchlist) Icons.Default.Bookmark else Icons.Default.BookmarkBorder, null)
-                            },
-                            onClick = { onCommand(WatchCommand.TOGGLE_WATCHLIST) },
-                        )
+                    if (title.libraryActionsAvailable) {
+                        item {
+                            RemoteButton(
+                                text = stringResource(if (title.favorite) R.string.remove_favorite else R.string.favorite),
+                                enabled = state.controlsEnabled,
+                                icon = {
+                                    Icon(if (title.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null)
+                                },
+                                onClick = { onCommand(WatchCommand.TOGGLE_FAVORITE) },
+                            )
+                        }
+                        item {
+                            RemoteButton(
+                                text = stringResource(if (title.watchlist) R.string.remove_watchlist else R.string.watchlist),
+                                enabled = state.controlsEnabled,
+                                icon = {
+                                    Icon(if (title.watchlist) Icons.Default.Bookmark else Icons.Default.BookmarkBorder, null)
+                                },
+                                onClick = { onCommand(WatchCommand.TOGGLE_WATCHLIST) },
+                            )
+                        }
                     }
                     item { Spacer(Modifier.height(18.dp)) }
                 }
@@ -250,10 +255,29 @@ private fun TitleMetadata(title: WatchTitleContext) {
             Text("★ %.1f".format(title.rating), color = Gold, fontWeight = FontWeight.Bold)
             Text(
                 listOfNotNull(
-                    stringResource(if (title.mediaType == "tv") R.string.tv_series else R.string.movie),
+                    stringResource(
+                        when {
+                            title.contextKind == WatchContextKind.EPISODE -> R.string.episode
+                            title.mediaType == "tv" -> R.string.tv_series
+                            else -> R.string.movie
+                        },
+                    ),
                     title.year,
                 ).joinToString(" • "),
                 color = Muted,
+            )
+        }
+        if (title.contextKind == WatchContextKind.EPISODE) {
+            Text(
+                listOfNotNull(
+                    title.seriesTitle,
+                    title.seasonNumber?.let { "S$it" },
+                    title.episodeNumber?.let { "E$it" },
+                ).joinToString(" • "),
+                color = Muted,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

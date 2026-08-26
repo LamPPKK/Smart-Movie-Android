@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lamndt.smartmovie.remote.WatchCommand
 import com.lamndt.smartmovie.remote.WatchCommandRequest
+import com.lamndt.smartmovie.remote.WatchContextKind
 import com.lamndt.smartmovie.remote.WatchTitleContext
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -50,11 +51,24 @@ internal class WearRemoteViewModel(
     fun send(command: WatchCommand) {
         val title = mutableState.value.context ?: return
         if (!mutableState.value.controlsEnabled) return
+        if (
+            command == WatchCommand.PLAY_TRAILER &&
+            title.contextKind != WatchContextKind.TITLE
+        ) return
+        if (
+            command in setOf(WatchCommand.TOGGLE_FAVORITE, WatchCommand.TOGGLE_WATCHLIST) &&
+            !title.libraryActionsAvailable
+        ) return
         viewModelScope.launch {
             mutableState.update { it.copy(isSending = true, commandFailed = false) }
             try {
                 val response = gateway.send(
-                    WatchCommandRequest(UUID.randomUUID().toString(), title.libraryKey, command),
+                    WatchCommandRequest(
+                        requestId = UUID.randomUUID().toString(),
+                        libraryKey = title.libraryKey,
+                        command = command,
+                        contextKey = title.contextKey,
+                    ),
                 )
                 mutableState.update {
                     it.copy(

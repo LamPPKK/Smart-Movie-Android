@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="remote">リモコン</string>
-    <string name="open_phone_title">スマートフォンで作品を開く</string>
-    <string name="open_phone_description">ペア設定したスマートフォンで開いている詳細画面を操作します。</string>
+    <string name="open_phone_title">スマートフォンで作品またはエピソードを開く</string>
+    <string name="open_phone_description">ペア設定したスマートフォンで開いている安全な作品または正確なエピソードを表示します。</string>
     <string name="phone_inactive">スマートフォンでSmartMovieを開いてください。</string>
     <string name="phone_disconnected">スマートフォンに接続できません</string>
     <string name="open_details">詳細を開く</string>
@@ -13,6 +13,7 @@
     <string name="remove_watchlist">ウォッチリストから削除</string>
     <string name="movie">映画</string>
     <string name="tv_series">テレビシリーズ</string>
+    <string name="episode">エピソード</string>
     <string name="sending">送信中…</string>
     <string name="command_failed">スマートフォンを操作できません。</string>
     <string name="artwork_description">%1$sの画像</string>

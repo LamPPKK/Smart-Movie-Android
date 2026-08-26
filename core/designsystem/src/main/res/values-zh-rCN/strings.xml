@@ -72,4 +72,5 @@
     <string name="translations">翻译</string>
     <string name="external_identifiers">外部标识符</string>
     <string name="catalog_metadata_description">查看 TMDb 提供的地区发行日期、分级、本地化片名、翻译和外部标识符。</string>
+    <string name="companion_episode_description">Wear OS 会显示 Android 上打开的安全影视条目或准确剧集，并可在无需单独登录的情况下返回详情。</string>
 </resources>

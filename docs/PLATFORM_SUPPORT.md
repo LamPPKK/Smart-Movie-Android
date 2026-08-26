@@ -10,7 +10,7 @@ This document defines what “supported” means for every SmartMovie 3.0 target
 | Tablet and foldable | Main AAB | Navigation rail, adaptive grids, and list-detail pane | Supported |
 | ChromeOS | Main AAB | Resizable large-screen UI, keyboard/mouse input, Ctrl/Cmd+1–4 tabs, Ctrl/Cmd+F Search | Supported |
 | Android TV | Main AAB | Dedicated 10-foot UI, Leanback launcher, D-pad focus, TV IME | Supported |
-| Wear OS | Companion AAB | Remote for the title detail currently open on the paired phone | Supported, non-standalone |
+| Wear OS | Companion AAB | Safe title/episode context and exact-detail handoff to the paired phone | Supported, non-standalone |
 | Android XR | Main AAB | Large-screen app in Home Space with pointer/keyboard input | Compatible; not immersive/spatial |
 | Android Auto | None | No car surface is declared | Not eligible under the current product scope |
 | iPhone and iPad | Native SwiftUI app in the `SmartMovie` repository | Apple-native catalog and private CloudKit library | Owned and released from the Apple repository |
@@ -42,9 +42,9 @@ Leanback and touchscreen are both optional in the main manifest so one main AAB 
 
 ## Wear OS remote
 
-The `wear` module is a non-standalone companion application. It uses application ID `com.lamndt.smartmovie` (or the matching `.debug` suffix), the same version, and the same signing configuration as the main application. Both AABs belong in the same Play listing, as required by [Wear OS app packaging](https://developer.android.com/training/wearables/packaging).
+The `wear` module is a non-standalone companion application. It mirrors only the safe title or exact episode currently open on the paired phone; episode handoff preserves series, season, and episode identity, while trailer and Favorite/Watchlist actions remain title-only. It uses application ID `com.lamndt.smartmovie` (or the matching `.debug` suffix), the same version, and the same signing configuration as the main application. Both AABs belong in the same Play listing, as required by [Wear OS app packaging](https://developer.android.com/training/wearables/packaging).
 
-The phone advertises a SmartMovie-specific capability and publishes the currently visible detail context as a persistent Data Item. The watch targets only reachable nodes with that capability and sends transient commands through the Message API. This matches the intended split in the [Wear OS Data Layer](https://developer.android.com/training/wearables/data/overview): synchronized state for the current title and messages for remote-control actions.
+The phone advertises a SmartMovie-specific capability and publishes the currently visible title/episode detail context as a persistent Data Item. The watch targets only reachable nodes with that capability and sends transient commands through the Message API. Context identity is additive and backward compatible: title commands retain `libraryKey`, while episode commands add an exact `contextKey`. This matches the intended split in the [Wear OS Data Layer](https://developer.android.com/training/wearables/data/overview): synchronized state for the current detail and messages for remote-control actions.
 
 The remote mirrors only non-adult context:
 
@@ -59,7 +59,7 @@ It can request:
 - toggle Favorite;
 - toggle Watchlist.
 
-Commands are accepted only while the paired phone is connected, SmartMovie is in the foreground, and the watch's `libraryKey` matches the phone's active detail. This prevents a stale watch screen from mutating another title. Toggle responses update the watch immediately, while Room remains the source of truth on the phone.
+Commands are accepted only while the paired phone is connected, SmartMovie is in the foreground, and the watch's exact `contextKey` matches the phone's active detail. A missing `contextKey` falls back to `libraryKey` only for legacy watch requests. This prevents a stale watch screen from opening another episode or mutating another title. Toggle responses update the watch immediately, while Room remains the source of truth on the phone.
 
 The watch app has no catalog API client, account, adult content, database, or independent browsing mode. Its manifest therefore declares `com.google.android.wearable.standalone=false`.
 

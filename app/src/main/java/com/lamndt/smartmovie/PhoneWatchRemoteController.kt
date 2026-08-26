@@ -5,6 +5,7 @@ import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
+import com.lamndt.smartmovie.model.EpisodeDetail
 import com.lamndt.smartmovie.model.LibraryCollection
 import com.lamndt.smartmovie.model.LibraryMembership
 import com.lamndt.smartmovie.model.LibraryRepository
@@ -12,6 +13,7 @@ import com.lamndt.smartmovie.model.TitleSummary
 import com.lamndt.smartmovie.remote.WatchCommand
 import com.lamndt.smartmovie.remote.WatchCommandRequest
 import com.lamndt.smartmovie.remote.WatchCommandResponse
+import com.lamndt.smartmovie.remote.WatchContextKind
 import com.lamndt.smartmovie.remote.WatchRemoteCodec
 import com.lamndt.smartmovie.remote.WatchRemotePaths
 import com.lamndt.smartmovie.remote.WatchRemoteState
@@ -27,6 +29,7 @@ import kotlinx.coroutines.tasks.await
 
 sealed interface PhoneRemoteAction {
     data class OpenDetails(val title: TitleSummary) : PhoneRemoteAction
+    data class OpenEpisode(val series: TitleSummary, val episode: EpisodeDetail) : PhoneRemoteAction
     data class PlayTrailer(val youtubeKey: String) : PhoneRemoteAction
 }
 
@@ -74,8 +77,32 @@ class PhoneWatchRemoteController(
         publishState()
     }
 
-    fun clear(libraryKey: String) {
-        if (activeDetail?.title?.libraryKey == libraryKey) {
+    fun publishEpisode(
+        series: TitleSummary,
+        episode: EpisodeDetail,
+        artworkUrl: String?,
+    ) {
+        val context = WatchTitleContext(
+            libraryKey = series.libraryKey,
+            contextKey = episode.remoteContextKey,
+            contextKind = WatchContextKind.EPISODE,
+            title = episode.name,
+            mediaType = "episode",
+            seriesTitle = series.displayTitle,
+            seasonNumber = episode.seasonNumber,
+            episodeNumber = episode.episodeNumber,
+            year = episode.airDate?.take(4),
+            artworkUrl = artworkUrl,
+            rating = episode.voteAverage ?: 0.0,
+            trailerAvailable = false,
+            libraryActionsAvailable = false,
+        )
+        activeDetail = ActiveDetail(series, trailerKey = null, context, episode)
+        publishState()
+    }
+
+    fun clear(contextKey: String) {
+        if (activeDetail?.context?.contextKey == contextKey) {
             activeDetail = null
             publishState()
         }
@@ -97,18 +124,28 @@ class PhoneWatchRemoteController(
     }
 
     private suspend fun handle(request: WatchCommandRequest): WatchCommandResponse {
-        val current = activeDetail
+        val current = activeDetail ?: return request.rejected("Open this title on your phone")
         if (!phoneActive) return request.rejected("Open SmartMovie on your phone")
-        if (current == null || current.title.libraryKey != request.libraryKey) {
+        val requestedKey = request.contextKey ?: request.libraryKey
+        val matchesCurrent =
+            current.context.contextKey == requestedKey ||
+                (request.contextKey == null && current.title.libraryKey == request.libraryKey)
+        if (!matchesCurrent) {
             return request.rejected("Open this title on your phone")
         }
 
         return when (request.command) {
             WatchCommand.OPEN_DETAILS -> {
-                mutableActions.emit(PhoneRemoteAction.OpenDetails(current.title))
+                val episode = current.episode
+                if (episode == null) {
+                    mutableActions.emit(PhoneRemoteAction.OpenDetails(current.title))
+                } else {
+                    mutableActions.emit(PhoneRemoteAction.OpenEpisode(current.title, episode))
+                }
                 request.accepted(current.context)
             }
             WatchCommand.PLAY_TRAILER -> {
+                if (current.episode != null) return request.rejected("Trailer unavailable")
                 val key = current.trailerKey ?: return request.rejected("Trailer unavailable")
                 mutableActions.emit(PhoneRemoteAction.PlayTrailer(key))
                 request.accepted(current.context)
@@ -123,6 +160,7 @@ class PhoneWatchRemoteController(
         request: WatchCommandRequest,
         collection: LibraryCollection,
     ): WatchCommandResponse {
+        if (!current.context.libraryActionsAvailable) return request.rejected("Library actions unavailable")
         library.toggle(current.title, collection)
         val updatedContext = when (collection) {
             LibraryCollection.FAVORITES -> current.context.copy(favorite = !current.context.favorite)
@@ -152,8 +190,12 @@ class PhoneWatchRemoteController(
         val title: TitleSummary,
         val trailerKey: String?,
         val context: WatchTitleContext,
+        val episode: EpisodeDetail? = null,
     )
 }
+
+val EpisodeDetail.remoteContextKey: String
+    get() = "episode:$seriesId:$seasonNumber:$episodeNumber"
 
 private fun WatchCommandRequest.accepted(context: WatchTitleContext) = WatchCommandResponse(
     requestId = requestId,

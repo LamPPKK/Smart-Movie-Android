@@ -2,8 +2,8 @@
 <resources>
     <string name="app_name" translatable="false">SmartMovie</string>
     <string name="remote">Remote</string>
-    <string name="open_phone_title">Open a title on your phone</string>
-    <string name="open_phone_description">SmartMovie Remote controls the detail screen currently open on your paired phone.</string>
+    <string name="open_phone_title">Open a title or episode on your phone</string>
+    <string name="open_phone_description">SmartMovie Remote mirrors the safe title or exact episode currently open on your paired phone.</string>
     <string name="phone_inactive">Open SmartMovie on your phone to use the remote.</string>
     <string name="phone_disconnected">Paired phone unavailable</string>
     <string name="open_details">Open details</string>
@@ -14,6 +14,7 @@
     <string name="remove_watchlist">Remove from watchlist</string>
     <string name="movie">Movie</string>
     <string name="tv_series">TV series</string>
+    <string name="episode">Episode</string>
     <string name="sending">Sending…</string>
     <string name="command_failed">Could not control the phone.</string>
     <string name="artwork_description">Artwork for %1$s</string>

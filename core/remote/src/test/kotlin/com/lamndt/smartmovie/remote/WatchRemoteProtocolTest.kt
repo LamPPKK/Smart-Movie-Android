@@ -48,4 +48,38 @@ class WatchRemoteProtocolTest {
 
         assertThat(WatchRemoteCodec.decodeState(payload)).isEqualTo(WatchRemoteState())
     }
+
+    @Test
+    fun episodeStatePreservesExactRouteAndDisablesTitleOnlyActions() {
+        val episode = WatchTitleContext(
+            libraryKey = "tv:1399",
+            contextKey = "episode:1399:1:1",
+            contextKind = WatchContextKind.EPISODE,
+            title = "Winter Is Coming",
+            mediaType = "episode",
+            seriesTitle = "Game of Thrones",
+            seasonNumber = 1,
+            episodeNumber = 1,
+            year = "2011",
+            rating = 8.5,
+            libraryActionsAvailable = false,
+        )
+
+        val decoded = WatchRemoteCodec.decodeState(WatchRemoteCodec.encodeState(WatchRemoteState(episode)))
+
+        assertThat(decoded.context).isEqualTo(episode)
+        assertThat(decoded.context?.libraryActionsAvailable).isFalse()
+    }
+
+    @Test
+    fun olderTitlePayloadDefaultsToTitleContext() {
+        val payload = """{"context":{"libraryKey":"movie:550","title":"Fight Club","mediaType":"movie"}}"""
+            .encodeToByteArray()
+
+        val decoded = WatchRemoteCodec.decodeState(payload).context
+
+        assertThat(decoded?.contextKey).isEqualTo("movie:550")
+        assertThat(decoded?.contextKind).isEqualTo(WatchContextKind.TITLE)
+        assertThat(decoded?.libraryActionsAvailable).isTrue()
+    }
 }

@@ -72,4 +72,5 @@
     <string name="translations">번역</string>
     <string name="external_identifiers">외부 식별자</string>
     <string name="catalog_metadata_description">TMDb의 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.</string>
+    <string name="companion_episode_description">Wear OS는 Android에서 연 안전한 작품이나 정확한 에피소드를 표시하고 별도 로그인 없이 상세 화면으로 돌아갑니다.</string>
 </resources>

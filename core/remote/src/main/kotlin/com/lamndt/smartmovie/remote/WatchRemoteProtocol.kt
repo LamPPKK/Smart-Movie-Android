@@ -1,5 +1,6 @@
 package com.lamndt.smartmovie.remote
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -12,14 +13,26 @@ object WatchRemotePaths {
 }
 
 @Serializable
+enum class WatchContextKind {
+    @SerialName("title") TITLE,
+    @SerialName("episode") EPISODE,
+}
+
+@Serializable
 data class WatchTitleContext(
     val libraryKey: String,
+    val contextKey: String = libraryKey,
+    val contextKind: WatchContextKind = WatchContextKind.TITLE,
     val title: String,
     val mediaType: String,
+    val seriesTitle: String? = null,
+    val seasonNumber: Int? = null,
+    val episodeNumber: Int? = null,
     val year: String? = null,
     val artworkUrl: String? = null,
     val rating: Double = 0.0,
     val trailerAvailable: Boolean = false,
+    val libraryActionsAvailable: Boolean = true,
     val favorite: Boolean = false,
     val watchlist: Boolean = false,
 )
@@ -43,6 +56,7 @@ data class WatchCommandRequest(
     val requestId: String,
     val libraryKey: String,
     val command: WatchCommand,
+    val contextKey: String? = null,
 )
 
 @Serializable

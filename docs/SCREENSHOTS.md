@@ -59,7 +59,7 @@ The 10-foot layout has dedicated TV navigation, high-visibility focus treatment,
 
 ### Wear OS remote
 
-The watch companion mirrors the active title on the paired phone and exposes remote actions for opening details, launching the trailer, and updating Favorite or Watchlist.
+The watch companion mirrors the safe title or exact episode open on the paired phone. A title exposes detail, trailer, Favorite, and Watchlist actions; an episode exposes only an exact series/season/episode handoff.
 
 <p align="center">
   <img src="../wear/src/screenshotTestDebug/reference/com/lamndt/smartmovie/wear/WearRemoteGoldenPreviewKt/WearRemoteGolden_wear_round_remote_a6040ff4_0.png" alt="SmartMovie Wear OS remote golden screenshot" width="320">

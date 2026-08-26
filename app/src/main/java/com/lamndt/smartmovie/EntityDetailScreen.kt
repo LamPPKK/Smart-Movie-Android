@@ -20,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,6 +76,7 @@ internal fun EntityDetailScreen(
     onEntity: (CatalogEntity) -> Unit,
     onCredit: (Credit) -> Unit,
     appContainer: AppContainer? = null,
+    watchRemote: PhoneWatchRemoteController? = null,
 ) {
     var state by remember(key) { mutableStateOf<EntityDetailState>(EntityDetailState.Loading) }
     val episodeRating = if (key.kind == "episode") {
@@ -100,6 +102,23 @@ internal fun EntityDetailScreen(
                 else -> error("Unsupported catalog entity")
             }
         }.getOrElse { EntityDetailState.Failed(it.message.orEmpty()) }
+    }
+    val activeEpisode = (state as? EntityDetailState.Episode)?.value
+    LaunchedEffect(activeEpisode, key.series, watchRemote) {
+        val episode = activeEpisode ?: return@LaunchedEffect
+        val series = key.series?.takeUnless { it.adult } ?: return@LaunchedEffect
+        watchRemote?.publishEpisode(
+            series = series,
+            episode = episode,
+            artworkUrl = images.url(episode.stillPath, ImageKind.BACKDROP),
+        )
+    }
+    DisposableEffect(key) {
+        onDispose {
+            if (key.kind == "episode") {
+                watchRemote?.clear("episode:${key.seriesId}:${key.seasonNumber}:${key.episodeNumber}")
+            }
+        }
     }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {

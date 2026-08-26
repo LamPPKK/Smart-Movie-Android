@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="remote">Điều khiển</string>
-    <string name="open_phone_title">Mở một phim trên điện thoại</string>
-    <string name="open_phone_description">SmartMovie điều khiển màn hình chi tiết đang mở trên điện thoại đã ghép đôi.</string>
+    <string name="open_phone_title">Mở phim hoặc tập phim trên điện thoại</string>
+    <string name="open_phone_description">SmartMovie hiển thị tựa phim an toàn hoặc đúng tập phim đang mở trên điện thoại đã ghép đôi.</string>
     <string name="phone_inactive">Hãy mở SmartMovie trên điện thoại để dùng điều khiển.</string>
     <string name="phone_disconnected">Không kết nối được điện thoại</string>
     <string name="open_details">Mở chi tiết</string>
@@ -13,6 +13,7 @@
     <string name="remove_watchlist">Bỏ khỏi danh sách xem</string>
     <string name="movie">Phim</string>
     <string name="tv_series">Phim bộ</string>
+    <string name="episode">Tập phim</string>
     <string name="sending">Đang gửi…</string>
     <string name="command_failed">Không thể điều khiển điện thoại.</string>
     <string name="artwork_description">Ảnh của %1$s</string>

@@ -83,7 +83,7 @@ private enum class AppTab(val label: Int, val icon: ImageVector) {
 private data object RootKey : NavKey
 
 @Serializable
-private data class DetailKey(
+internal data class DetailKey(
     val id: Int,
     val type: String,
     val title: String,
@@ -93,6 +93,7 @@ private data class DetailKey(
     val backdropPath: String?,
     val releaseDate: String?,
     val rating: Double,
+    val adult: Boolean = true,
 ) : NavKey {
     fun summary() = TitleSummary(
         id = id,
@@ -104,6 +105,7 @@ private data class DetailKey(
         backdropPath = backdropPath,
         releaseDate = releaseDate,
         voteAverage = rating,
+        adult = adult,
     )
 }
 
@@ -115,6 +117,7 @@ internal data class EntityKey(
     val seriesId: Int? = null,
     val seasonNumber: Int? = null,
     val episodeNumber: Int? = null,
+    val series: TitleSummary? = null,
 ) : NavKey
 
 @Serializable
@@ -160,6 +163,11 @@ internal fun SmartMovieContent(
                     val current = backStack.lastOrNull() as? DetailKey
                     if (current?.id != key.id || current.type != key.type) backStack.add(key)
                 }
+                is PhoneRemoteAction.OpenEpisode -> {
+                    val key = action.episode.toEntityKey(action.series)
+                    val current = backStack.lastOrNull() as? EntityKey
+                    if (current != key) backStack.add(key)
+                }
                 is PhoneRemoteAction.PlayTrailer -> launchYoutube(context, action.youtubeKey)
             }
         }
@@ -172,9 +180,9 @@ internal fun SmartMovieContent(
                 AppRoot(
                     catalog, library, images, versionName, language,
                     onTitleClick = { title -> backStack.add(title.toDetailKey()) },
-                    onEntityClick = { entity ->
+                    onEntityClick = { entity, series ->
                         if (entity is CatalogEntity.Title) backStack.add(entity.value.toDetailKey())
-                        else backStack.add(entity.toEntityKey())
+                        else backStack.add(entity.toEntityKey(series))
                     },
                     onCreditClick = { credit -> credit.creditId?.let { backStack.add(CreditKey(it, credit.title.orEmpty())) } },
                     watchRemote = watchRemote,
@@ -194,7 +202,7 @@ internal fun SmartMovieContent(
                         onRemoteClosed = { watchRemote?.clear(it) },
                         region = effectiveRegion,
                         includeAdult = includeAdult,
-                        onEntityClick = { entity -> backStack.add(entity.toEntityKey()) },
+                        onEntityClick = { entity -> backStack.add(entity.toEntityKey(title)) },
                         onCreditClick = { credit -> credit.creditId?.let { backStack.add(CreditKey(it, credit.title.orEmpty())) } },
                         accountRating = accountRating.value,
                         accountRatingEnabled = accountRating.signedIn,
@@ -213,9 +221,10 @@ internal fun SmartMovieContent(
                         language = language,
                         onBack = { backStack.removeLastOrNull() },
                         onTitle = { backStack.add(it.toDetailKey()) },
-                        onEntity = { backStack.add(it.toEntityKey()) },
+                        onEntity = { backStack.add(it.toEntityKey(key.series)) },
                         onCredit = { credit -> credit.creditId?.let { backStack.add(CreditKey(it, credit.title.orEmpty())) } },
                         appContainer = appContainer,
+                        watchRemote = watchRemote,
                     )
                 }
             }
@@ -245,7 +254,7 @@ internal fun AppRoot(
     versionName: String,
     language: String,
     onTitleClick: (TitleSummary) -> Unit,
-    onEntityClick: (CatalogEntity) -> Unit = {},
+    onEntityClick: (CatalogEntity, TitleSummary?) -> Unit = { _, _ -> },
     onCreditClick: (Credit) -> Unit = {},
     watchRemote: PhoneWatchRemoteController? = null,
     appContainer: AppContainer? = null,
@@ -299,7 +308,8 @@ internal fun AppRoot(
                     }
                 }
                 TabContent(
-                    tab, catalog, library, images, language, { paneTitle = it }, onEntityClick,
+                    tab, catalog, library, images, language, { paneTitle = it },
+                    { entity -> onEntityClick(entity, null) },
                     Modifier.weight(if (paneTitle == null) 1f else .42f), appContainer,
                     effectiveRegion, includeAdult,
                 )
@@ -318,7 +328,7 @@ internal fun AppRoot(
                         onRemoteClosed = { watchRemote?.clear(it) },
                         region = effectiveRegion,
                         includeAdult = includeAdult,
-                        onEntityClick = onEntityClick,
+                        onEntityClick = { entity -> onEntityClick(entity, title) },
                         onCreditClick = onCreditClick,
                         accountRating = accountRating.value,
                         accountRatingEnabled = accountRating.signedIn,
@@ -344,7 +354,8 @@ internal fun AppRoot(
             ) { padding ->
                 Box(Modifier.padding(bottom = padding.calculateBottomPadding())) {
                     TabContent(
-                        tab, catalog, library, images, language, onTitleClick, onEntityClick,
+                        tab, catalog, library, images, language, onTitleClick,
+                        { entity -> onEntityClick(entity, null) },
                         appContainer = appContainer, region = effectiveRegion, includeAdult = includeAdult,
                     )
                     IconButton(onClick = { showAbout = true }, Modifier.padding(top = 42.dp, end = 8.dp).align(androidx.compose.ui.Alignment.TopEnd)) {
@@ -389,18 +400,41 @@ private fun TabContent(
 }
 
 private fun TitleSummary.toDetailKey() = DetailKey(
-    id, mediaType.wireValue, title, originalTitle, overview, posterPath, backdropPath, releaseDate, voteAverage,
+    id = id,
+    type = mediaType.wireValue,
+    title = title,
+    originalTitle = originalTitle,
+    overview = overview,
+    posterPath = posterPath,
+    backdropPath = backdropPath,
+    releaseDate = releaseDate,
+    rating = voteAverage,
+    adult = adult,
 )
 
-private fun CatalogEntity.toEntityKey(): EntityKey = when (this) {
+private fun CatalogEntity.toEntityKey(series: TitleSummary? = null): EntityKey = when (this) {
     is CatalogEntity.Person -> EntityKey("person", value.id, value.name)
     is CatalogEntity.Collection -> EntityKey("collection", value.id, value.name)
     is CatalogEntity.Organization -> EntityKey(value.entityKind.wireValue, value.id, value.name)
     is CatalogEntity.Keyword -> EntityKey("keyword", value.id, value.name)
-    is CatalogEntity.Season -> EntityKey("season", value.id, value.name, value.seriesId, value.seasonNumber)
-    is CatalogEntity.Episode -> EntityKey("episode", value.id, value.name, value.seriesId, value.seasonNumber, value.episodeNumber)
+    is CatalogEntity.Season -> EntityKey(
+        "season", value.id, value.name, value.seriesId, value.seasonNumber, series = series,
+    )
+    is CatalogEntity.Episode -> EntityKey(
+        "episode", value.id, value.name, value.seriesId, value.seasonNumber, value.episodeNumber, series,
+    )
     is CatalogEntity.Title -> error("Title entities use DetailKey")
 }
+
+private fun com.lamndt.smartmovie.model.EpisodeDetail.toEntityKey(series: TitleSummary) = EntityKey(
+    kind = "episode",
+    id = id,
+    name = name,
+    seriesId = seriesId,
+    seasonNumber = seasonNumber,
+    episodeNumber = episodeNumber,
+    series = series,
+)
 
 private fun KeyEvent.shortcutTab(): AppTab? {
     if (type != KeyEventType.KeyDown || (!isCtrlPressed && !isMetaPressed)) return null
