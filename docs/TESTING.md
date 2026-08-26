@@ -66,7 +66,7 @@ The TV smoke lane requires an API 36 Android TV x86_64 image. It installs the ma
 
 The 17 August 2026 local device run was not executed because the only configured API 34 AVD was incomplete: its SDK directory was approximately 35 MB and did not contain `system.img`. No physical device was connected. This is a local SDK blocker rather than an application failure; the API 35 phone and API 36 TV jobs remain required in GitHub Actions before release.
 
-The latest local KMP gate passed desktop tests and non-incremental compile, JavaScript development distribution, optimized Wasm distribution, and a portable macOS application image with strict dependency verification. CI must reproduce portable images on macOS, Windows, and Linux.
+The latest local KMP gate passed desktop tests and non-incremental compile, JavaScript development distribution, optimized Wasm distribution, and a portable macOS application image with strict dependency verification. The macOS ARM packaging path was also simulated with `os.arch=aarch64`; its Compose Desktop POM and Skiko runtime JAR/POM checksums were matched byte-for-byte against the SHA-256 values published by Maven Central before the distributable completed. CI must reproduce portable images on macOS, Windows, and Linux.
 
 ## Release interpretation
 
