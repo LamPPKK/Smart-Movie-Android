@@ -1,7 +1,7 @@
-# SmartMovie 3.0 — Android, Wear OS, desktop and web
+# Smart Movie Android 3.0 — Android, Wear OS, desktop and web
 
-[![Android CI](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/android-ci.yml)
-[![Compose Multiplatform CI](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/multiplatform-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Android.Smart.Movie/actions/workflows/multiplatform-ci.yml)
+[![Android CI](https://github.com/LamPPKK/Smart-Movie-Android/actions/workflows/android-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Smart-Movie-Android/actions/workflows/android-ci.yml)
+[![Compose Multiplatform CI](https://github.com/LamPPKK/Smart-Movie-Android/actions/workflows/multiplatform-ci.yml/badge.svg?branch=main)](https://github.com/LamPPKK/Smart-Movie-Android/actions/workflows/multiplatform-ci.yml)
 
 SmartMovie is a cinematic TMDb catalog built natively for Android. It covers movies, television, people, collections, organizations, keywords, seasons, and episodes; adds region-aware availability and trailers; and can optionally synchronize library, ratings, recommendations, and mixed lists through browser-approved TMDb access.
 
@@ -17,8 +17,8 @@ The native app adapts from phones to tablets, foldables, ChromeOS, Android TV, a
 
 | Repository | Owns | Mobile release role |
 | --- | --- | --- |
-| **[Android.Smart.Movie](https://github.com/LamPPKK/Android.Smart.Movie)** (this repository) | Native Android and Wear OS apps, Compose Multiplatform desktop/web app, checksummed contract snapshot | Google Play source of truth |
-| **[SmartMovie](https://github.com/LamPPKK/SmartMovie)** | Native SwiftUI Apple apps, `SmartMovieKit`, Cloudflare Worker, canonical OpenAPI 3.1 contract and fixtures | App Store source of truth and backend owner |
+| **[Smart Movie Android](https://github.com/LamPPKK/Smart-Movie-Android)** (this repository) | Native Android and Wear OS apps, Compose Multiplatform desktop/web app, checksummed contract snapshot | Google Play source of truth |
+| **[Smart Movie iOS](https://github.com/LamPPKK/Smart-Movie-iOS)** | Native SwiftUI Apple apps, `SmartMovieKit`, Cloudflare Worker, canonical OpenAPI 3.1 contract and fixtures | App Store source of truth and backend owner |
 
 Apple and Android keep native UI, lifecycle, and storage while sharing the additive `/v2` Worker contract, six locales, semantic release train, normalized errors, and decoder fixtures. `/v1` remains available for 2.0 clients. TMDb is the post-login account source of truth; each client remains local-first through a durable, account-scoped outbox.
 
@@ -152,7 +152,7 @@ The native UI uses unidirectional data flow with immutable `UiState`, `StateFlow
 ## Repository layout
 
 ```text
-Android.Smart.Movie/
+Smart-Movie-Android/
 ├── app/                 # Native Android phone/tablet/TV/XR application
 ├── wear/                # Wear OS companion application
 ├── core/                # Model, network, database, data, remote, design system
@@ -184,8 +184,8 @@ Run the read-only environment check before Gradle:
 Clone and build the native apps:
 
 ```sh
-git clone https://github.com/LamPPKK/Android.Smart.Movie.git
-cd Android.Smart.Movie
+git clone https://github.com/LamPPKK/Smart-Movie-Android.git
+cd Smart-Movie-Android
 ./gradlew --dependency-verification=strict :app:assembleDebug :wear:assembleDebug
 ```
 
@@ -249,7 +249,7 @@ The manifest records the contract version, upstream commit, OpenAPI SHA-256, and
 
 Run `./scripts/verify-release.sh mobile`, `./scripts/verify-release.sh kmp`, or omit the scope to check the full repository. A store candidate also requires a real 40-character upstream commit in the manifest; the local bootstrap marker is development-only.
 
-The backend repository's canonical [TMDb coverage matrix](https://github.com/LamPPKK/SmartMovie/blob/main/docs/TMDB_COVERAGE.md) distinguishes user-facing, backend-only, intentionally excluded, and still-blocking endpoint groups. A green contract checksum alone does not mean every product surface is complete.
+The backend repository's canonical [TMDb coverage matrix](https://github.com/LamPPKK/Smart-Movie-iOS/blob/main/docs/TMDB_COVERAGE.md) distinguishes user-facing, backend-only, intentionally excluded, and still-blocking endpoint groups. A green contract checksum alone does not mean every product surface is complete.
 
 ## Privacy and security
 

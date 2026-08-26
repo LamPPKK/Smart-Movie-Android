@@ -2,7 +2,7 @@
 
 > Historical incident note: the failure below describes GitHub Actions run `32047761144`. The current checkout contains the dependency metadata repair and, on 25 August 2026, passed strict desktop tests/compile, JS distribution, optimized Wasm distribution, and `createDistributable` locally on macOS. The next CI run on the committed branch remains the authoritative cross-OS confirmation.
 
-Status captured on 18 August 2026 after GitHub Actions run [32047761144](https://github.com/LamPPKK/Android.Smart.Movie/actions/runs/32047761144).
+Status captured on 18 August 2026 after GitHub Actions run [32047761144](https://github.com/LamPPKK/Smart-Movie-Android/actions/runs/32047761144).
 
 ## Confirmed state
 
@@ -42,4 +42,4 @@ The remediation used platform-specific dependency metadata and checksum verifica
 
 ## Separate external blocker
 
-The Apple repository's contract-sync workflow requires the repository secret `ANDROID_CONTRACT_SYNC_TOKEN`. The Android snapshot already pins canonical commit `e92cda7049eacc351bb3eedf6d30dcd95e0817d6`, but future automated contract updates will remain red until a least-privilege token with Contents and Pull requests access to `LamPPKK/Android.Smart.Movie` is configured.
+The Apple repository's contract-sync workflow requires the repository secret `ANDROID_CONTRACT_SYNC_TOKEN`. The Android snapshot already pins canonical commit `e92cda7049eacc351bb3eedf6d30dcd95e0817d6`, but future automated contract updates will remain red until a least-privilege token with Contents and Pull requests access to `LamPPKK/Smart-Movie-Android` is configured.

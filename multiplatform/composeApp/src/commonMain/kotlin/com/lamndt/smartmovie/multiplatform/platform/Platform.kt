@@ -6,6 +6,7 @@ import kotlin.time.Clock
 interface KeyValueStore {
     fun getString(key: String): String?
     fun putString(key: String, value: String)
+    fun remove(key: String)
 }
 
 interface SessionCredentialStore {

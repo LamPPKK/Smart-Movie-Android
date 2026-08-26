@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -58,7 +59,9 @@ fun SearchRoute(
     modifier: Modifier = Modifier,
     onEntityClick: (CatalogEntity) -> Unit = { entity -> if (entity is CatalogEntity.Title) onTitleClick(entity.value) },
     searchViewModel: SearchViewModel = viewModel(factory = SearchViewModel.factory(catalog, language)),
+    includeAdult: Boolean = false,
 ) {
+    LaunchedEffect(includeAdult) { searchViewModel.setIncludeAdult(includeAdult) }
     val state by searchViewModel.state.collectAsStateWithLifecycle()
     val results = searchViewModel.entityResults.collectAsLazyPagingItems()
     val wide = isWindowWidthAtLeast(600)

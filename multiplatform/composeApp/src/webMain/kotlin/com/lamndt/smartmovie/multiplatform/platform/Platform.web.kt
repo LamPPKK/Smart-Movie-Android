@@ -15,6 +15,10 @@ private class BrowserKeyValueStore : KeyValueStore {
     override fun putString(key: String, value: String) {
         runCatching { window.localStorage.setItem(key, value) }
     }
+
+    override fun remove(key: String) {
+        runCatching { window.localStorage.removeItem(key) }
+    }
 }
 
 actual fun createKeyValueStore(): KeyValueStore = BrowserKeyValueStore()

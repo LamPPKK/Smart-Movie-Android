@@ -164,6 +164,7 @@ class AppController(
     accountFactory: ((String) -> AccountApi)? = null,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val deviceRegion: String = systemRegion(),
+    private val nowMillis: () -> Long = ::systemTimeMillis,
 ) {
     private val library = PersistentLibrary(store)
     private val accountOutbox = PersistentAccountMutationOutbox(store)
@@ -504,7 +505,8 @@ class AppController(
                         current.externalIdSource == snapshot.externalIdSource
                     ) {
                         mutableState.update {
-                            it.copy(externalIdSearch = LoadState.Content(result.results.distinctBy(CatalogEntity::stableKey)))
+                            val visible = if (includeAdult(it)) result.results else result.results.withoutAdultTitles()
+                            it.copy(externalIdSearch = LoadState.Content(visible.distinctBy(CatalogEntity::stableKey)))
                         }
                     }
                 }
@@ -538,8 +540,6 @@ class AppController(
     fun loadMoreSearch() {
         val snapshot = state.value
         if (snapshot.searchMode != CatalogSearchMode.CATALOG) return
-        val content = (snapshot.search as? LoadState.Content)?.value.orEmpty()
-        val entityContent = (snapshot.entitySearch as? LoadState.Content)?.value.orEmpty()
         if (snapshot.searchPage >= snapshot.searchTotalPages || searchJob?.isActive == true) return
         searchJob = scope.launch {
             if (apiV2 != null) {
@@ -552,11 +552,24 @@ class AppController(
                         snapshot.regionOverride,
                         includeAdult(snapshot),
                     )
-                }.propagateCancellation().onSuccess { page -> mutableState.update {
-                    val titles = page.results.mapNotNull { entity -> (entity as? CatalogEntity.Title)?.value }
-                    it.copy(
-                        search = LoadState.Content((content + titles).distinctBy(TitleSummary::libraryKey)),
-                        entitySearch = LoadState.Content((entityContent + page.results).distinctBy(CatalogEntity::stableKey)),
+                }.propagateCancellation().onSuccess { page -> mutableState.update { current ->
+                    if (current.searchQuery != snapshot.searchQuery || current.searchScopeV2 != snapshot.searchScopeV2) {
+                        return@update current
+                    }
+                    val includeAdult = includeAdult(current)
+                    val existingEntities = (current.entitySearch as? LoadState.Content)?.value.orEmpty()
+                    val entities = (existingEntities + page.results)
+                        .distinctBy(CatalogEntity::stableKey)
+                        .let { results -> if (includeAdult) results else results.withoutAdultTitles() }
+                    val existingTitles = (current.search as? LoadState.Content)?.value.orEmpty()
+                    val titles = (existingTitles + page.results.mapNotNull { entity ->
+                        (entity as? CatalogEntity.Title)?.value
+                    })
+                        .distinctBy(TitleSummary::libraryKey)
+                        .filter { includeAdult || !it.adult }
+                    current.copy(
+                        search = LoadState.Content(titles),
+                        entitySearch = LoadState.Content(entities),
                         searchPage = page.page,
                         searchTotalPages = page.totalPages,
                     )
@@ -569,10 +582,22 @@ class AppController(
                         snapshot.searchPage + 1,
                         snapshot.locale.backendTag,
                     )
-                }.propagateCancellation().onSuccess { page -> mutableState.update {
-                    it.copy(
-                        search = LoadState.Content((content + page.results).distinctBy(TitleSummary::libraryKey)),
-                        entitySearch = LoadState.Content((entityContent + page.results.map(CatalogEntity::Title)).distinctBy(CatalogEntity::stableKey)),
+                }.propagateCancellation().onSuccess { page -> mutableState.update { current ->
+                    if (current.searchQuery != snapshot.searchQuery || current.searchScope != snapshot.searchScope) {
+                        return@update current
+                    }
+                    val includeAdult = includeAdult(current)
+                    val currentTitles = (current.search as? LoadState.Content)?.value.orEmpty()
+                    val results = (currentTitles + page.results)
+                        .distinctBy(TitleSummary::libraryKey)
+                        .filter { includeAdult || !it.adult }
+                    val currentEntities = (current.entitySearch as? LoadState.Content)?.value.orEmpty()
+                    val entities = (currentEntities + page.results.map(CatalogEntity::Title))
+                        .distinctBy(CatalogEntity::stableKey)
+                        .let { values -> if (includeAdult) values else values.withoutAdultTitles() }
+                    current.copy(
+                        search = LoadState.Content(results),
+                        entitySearch = LoadState.Content(entities),
                         searchPage = page.page,
                         searchTotalPages = page.totalPages,
                     )
@@ -606,9 +631,23 @@ class AppController(
             }
                 .propagateCancellation()
                 .onSuccess { deep ->
-                    if (deep != null) mutableState.update { it.copy(detail = LoadState.Content(deep.toLegacy()), deepDetail = deep) }
+                    if (deep != null) mutableState.update { current ->
+                        if (current.detailSelection?.libraryKey != title.libraryKey || (!includeAdult(current) && deep.adult)) {
+                            return@update current.copy(
+                                detail = LoadState.Idle,
+                                deepDetail = null,
+                                detailSelection = null,
+                                detailRating = AccountRatingState(),
+                            )
+                        }
+                        current.copy(detail = LoadState.Content(deep.toLegacy()), deepDetail = deep)
+                    }
                     else runCatching { api.detail(title.mediaType, title.id, snapshot.locale.backendTag) }
-                        .onSuccess { detail -> mutableState.update { it.copy(detail = LoadState.Content(detail)) } }
+                        .onSuccess { detail -> mutableState.update { current ->
+                            if (current.detailSelection?.libraryKey != title.libraryKey || (!includeAdult(current) && title.adult)) {
+                                current
+                            } else current.copy(detail = LoadState.Content(detail))
+                        } }
                         .onFailure { failure -> mutableState.update { it.copy(detail = LoadState.Error(failure.message.orEmpty())) } }
                 }
                 .onFailure { failure -> mutableState.update { it.copy(detail = LoadState.Error(failure.message.orEmpty())) } }
@@ -747,8 +786,8 @@ class AppController(
         reloadExploreConfiguration()
     }
 
-    fun configureAdultPin(pin: String): Boolean {
-        if (!pin.matches(Regex("[0-9]{6}"))) return false
+    fun configureAdultPin(pin: String, confirmation: String, ageConfirmed: Boolean): Boolean {
+        if (!isValidAdultConfiguration(pin, confirmation, ageConfirmed)) return false
         val salt = createInstallationId()
         store.putString(ADULT_SALT_KEY, salt)
         store.putString(ADULT_DIGEST_KEY, pinDigest(salt, pin))
@@ -762,7 +801,7 @@ class AppController(
 
     fun unlockAdult(pin: String): Boolean {
         val snapshot = state.value
-        if (snapshot.adultLockUntil > systemTimeMillis()) return false
+        if (snapshot.adultLockUntil > nowMillis()) return false
         val salt = store.getString(ADULT_SALT_KEY) ?: return false
         val digest = store.getString(ADULT_DIGEST_KEY) ?: return false
         if (pinDigest(salt, pin) == digest) {
@@ -774,15 +813,21 @@ class AppController(
             return true
         }
         val failures = snapshot.adultFailures + 1
-        val lockUntil = if (failures >= MAX_ADULT_FAILURES) systemTimeMillis() + ADULT_LOCK_MILLIS else 0
-        store.putString(ADULT_FAILURES_KEY, failures.toString())
+        val lockUntil = if (failures >= MAX_ADULT_FAILURES) nowMillis() + ADULT_LOCK_MILLIS else 0
+        val persistedFailures = if (lockUntil > 0) 0 else failures
+        store.putString(ADULT_FAILURES_KEY, persistedFailures.toString())
         store.putString(ADULT_LOCK_UNTIL_KEY, lockUntil.toString())
-        mutableState.update { it.copy(adultFailures = failures, adultLockUntil = lockUntil, adultUnlocked = false) }
+        mutableState.update {
+            it.copy(adultFailures = persistedFailures, adultLockUntil = lockUntil, adultUnlocked = false)
+        }
         return false
     }
 
     fun lockAdult() {
+        searchJob?.cancel()
+        detailJob?.cancel()
         recommendationsJob?.cancel()
+        accountListJob?.cancel()
         accountListSearchJob?.cancel()
         mutableState.update { snapshot ->
             val visible = (snapshot.accountRecommendations as? LoadState.Content)?.value
@@ -791,8 +836,23 @@ class AppController(
                 ?.let { value -> value.copy(results = value.results.filterNot(TitleSummary::adult)) }
             val search = (snapshot.accountListSearch as? LoadState.Content)?.value
                 ?.filterNot(TitleSummary::adult)
+            val catalogSearch = (snapshot.search as? LoadState.Content)?.value
+                ?.filterNot(TitleSummary::adult)
+            val entitySearch = (snapshot.entitySearch as? LoadState.Content)?.value
+                ?.withoutAdultTitles()
+            val externalSearch = (snapshot.externalIdSearch as? LoadState.Content)?.value
+                ?.withoutAdultTitles()
+            val adultDetail = snapshot.detailSelection?.adult == true || snapshot.deepDetail?.adult == true
             snapshot.copy(
                 adultUnlocked = false,
+                search = catalogSearch?.let { LoadState.Content(it) } ?: snapshot.search,
+                entitySearch = entitySearch?.let { LoadState.Content(it) } ?: snapshot.entitySearch,
+                externalIdSearch = externalSearch?.let { LoadState.Content(it) } ?: snapshot.externalIdSearch,
+                searchTotalPages = if (catalogSearch != null) snapshot.searchPage.coerceAtLeast(1) else snapshot.searchTotalPages,
+                detail = if (adultDetail) LoadState.Idle else snapshot.detail,
+                deepDetail = if (adultDetail) null else snapshot.deepDetail,
+                detailSelection = if (adultDetail) null else snapshot.detailSelection,
+                detailRating = if (adultDetail) AccountRatingState() else snapshot.detailRating,
                 accountRecommendations = visible?.let { LoadState.Content(it) } ?: snapshot.accountRecommendations,
                 accountListDetail = list?.let { LoadState.Content(it) } ?: snapshot.accountListDetail,
                 accountListSearch = search?.let { LoadState.Content(it) } ?: LoadState.Idle,
@@ -800,6 +860,14 @@ class AppController(
             )
         }
         syncExploreContext(reload = true)
+    }
+
+    fun disableAdult() {
+        listOf(ADULT_SALT_KEY, ADULT_DIGEST_KEY, ADULT_FAILURES_KEY, ADULT_LOCK_UNTIL_KEY).forEach(store::remove)
+        lockAdult()
+        mutableState.update {
+            it.copy(adultConfigured = false, adultUnlocked = false, adultFailures = 0, adultLockUntil = 0)
+        }
     }
 
     fun beginSignIn(mode: String = authMode()) {
@@ -1428,18 +1496,26 @@ class AppController(
             }
                 .propagateCancellation()
                 .onSuccess { entityPage ->
-                    if (entityPage != null) mutableState.update {
-                        it.copy(
-                            search = LoadState.Content(entityPage.results.mapNotNull { value -> (value as? CatalogEntity.Title)?.value }.distinctBy(TitleSummary::libraryKey)),
-                            entitySearch = LoadState.Content(entityPage.results.distinctBy(CatalogEntity::stableKey)),
+                    if (entityPage != null) mutableState.update { current ->
+                        if (current.searchMode != CatalogSearchMode.CATALOG || current.searchQuery.trim() != query) {
+                            return@update current
+                        }
+                        val entities = if (includeAdult(current)) entityPage.results else entityPage.results.withoutAdultTitles()
+                        current.copy(
+                            search = LoadState.Content(entities.mapNotNull { value -> (value as? CatalogEntity.Title)?.value }.distinctBy(TitleSummary::libraryKey)),
+                            entitySearch = LoadState.Content(entities.distinctBy(CatalogEntity::stableKey)),
                             searchPage = entityPage.page,
                             searchTotalPages = entityPage.totalPages,
                         )
                     } else runCatching { api.search(query, snapshot.searchScope, 1, snapshot.locale.backendTag) }
-                        .onSuccess { page -> mutableState.update {
-                            it.copy(
-                                search = LoadState.Content(page.results.distinctBy(TitleSummary::libraryKey)),
-                                entitySearch = LoadState.Content(page.results.map(CatalogEntity::Title)),
+                        .onSuccess { page -> mutableState.update { current ->
+                            if (current.searchMode != CatalogSearchMode.CATALOG || current.searchQuery.trim() != query) {
+                                return@update current
+                            }
+                            val results = if (includeAdult(current)) page.results else page.results.filterNot(TitleSummary::adult)
+                            current.copy(
+                                search = LoadState.Content(results.distinctBy(TitleSummary::libraryKey)),
+                                entitySearch = LoadState.Content(results.map(CatalogEntity::Title)),
                                 searchPage = page.page,
                                 searchTotalPages = page.totalPages,
                             )
@@ -1537,7 +1613,7 @@ class AppController(
     }
 
     private fun includeAdult(snapshot: SmartMovieState): Boolean = snapshot.adultConfigured &&
-        snapshot.adultUnlocked && snapshot.adultLockUntil <= systemTimeMillis()
+        snapshot.adultUnlocked && snapshot.adultLockUntil <= nowMillis()
 
     private fun effectiveRegion(snapshot: SmartMovieState): String = snapshot.regionOverride
         ?: deviceRegion.uppercase().takeIf { it.length == 2 }
@@ -1567,6 +1643,13 @@ class AppController(
         const val MAX_AUTH_POLLS = 120
         const val MAX_LIBRARY_SYNC_PAGES = 50
     }
+}
+
+internal fun isValidAdultConfiguration(pin: String, confirmation: String, ageConfirmed: Boolean): Boolean =
+    ageConfirmed && pin == confirmation && pin.matches(Regex("[0-9]{6}"))
+
+private fun List<CatalogEntity>.withoutAdultTitles(): List<CatalogEntity> = filter { entity ->
+    (entity as? CatalogEntity.Title)?.value?.adult != true
 }
 
 private fun DiscoverFilter.normalized(): DiscoverFilter {
@@ -1645,13 +1728,14 @@ internal fun mergeAccountRecommendations(
     existing: List<TitleSummary>,
     page: PagedResult<TitleSummary>,
     includeAdult: Boolean,
-): List<TitleSummary> = (existing + page.results.filter { includeAdult || !it.adult })
+): List<TitleSummary> = (existing + page.results)
+    .filter { includeAdult || !it.adult }
     .distinctBy(TitleSummary::libraryKey)
 
 internal fun mergeAccountListPage(existing: UserList?, page: UserList, includeAdult: Boolean): UserList {
-    val visible = page.results.filter { includeAdult || !it.adult }
     val pageNumber = page.page ?: 1
-    val results = ((if (pageNumber > 1) existing?.results.orEmpty() else emptyList()) + visible)
+    val results = ((if (pageNumber > 1) existing?.results.orEmpty() else emptyList()) + page.results)
+        .filter { includeAdult || !it.adult }
         .distinctBy(TitleSummary::libraryKey)
     return page.copy(page = pageNumber, totalPages = page.totalPages ?: pageNumber, results = results)
 }

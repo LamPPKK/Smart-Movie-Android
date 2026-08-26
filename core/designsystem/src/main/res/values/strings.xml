@@ -17,7 +17,9 @@
     <string name="provider_region">Provider region</string>
     <string name="device_region">Device</string>
     <string name="adult_content">Adult content</string>
-    <string name="adult_content_description">Off by default. The six-digit PIN stays on this device. Adult titles are excluded from Wear remote and public previews.</string>
+    <string name="adult_content_description">Off by default. Confirm you are at least 18 and create a six-digit PIN stored only on this device. Adult titles are excluded from Wear remote and public previews.</string>
+    <string name="adult_age_confirmation">I confirm that I am at least 18 years old.</string>
+    <string name="adult_age_required">Confirm that you are at least 18 years old.</string>
     <string name="six_digit_pin">Six-digit PIN</string>
     <string name="confirm_pin">Confirm PIN</string>
     <string name="pin_invalid">Enter the same six-digit PIN twice.</string>
@@ -169,4 +171,5 @@
     <string name="rent">Rent</string>
     <string name="buy">Buy</string>
     <string name="filter_value_hint">Any</string>
+    <string name="source_repositories">Source repositories</string>
 </resources>

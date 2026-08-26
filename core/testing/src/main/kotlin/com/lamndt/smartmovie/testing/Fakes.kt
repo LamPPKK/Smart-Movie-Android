@@ -77,6 +77,7 @@ class FakeCatalogV2Repository(
     val legacy: FakeCatalogRepository = FakeCatalogRepository(),
 ) : CatalogV2Repository, CatalogRepository by legacy {
     val externalIdCalls = mutableListOf<Triple<String, ExternalIdSource, String>>()
+    val entitySearchAdultFlags = mutableListOf<Boolean>()
     var externalIdResult: suspend (String, ExternalIdSource) -> ExternalIdFindResult = { id, source ->
         ExternalIdFindResult(source, id, emptyList())
     }
@@ -107,6 +108,7 @@ class FakeCatalogV2Repository(
         region: String?,
         includeAdult: Boolean,
     ): PagedResult<CatalogEntity> {
+        entitySearchAdultFlags += includeAdult
         val legacyScope = when (scope) {
             SearchScopeV2.MOVIE -> SearchScope.MOVIE
             SearchScopeV2.TV -> SearchScope.TV

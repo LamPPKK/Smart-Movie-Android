@@ -116,4 +116,22 @@ class SearchViewModelTest {
         assertThat(viewModel.state.value.externalResults).hasSize(2)
         assertThat(viewModel.state.value.query).isEqualTo(" Q83495 ")
     }
+
+    @Test
+    fun adultVisibilityIsForwardedToEntitySearch() = runTest(dispatcher) {
+        val catalog = FakeCatalogV2Repository().apply {
+            legacy.searchResult = { query, _, page ->
+                PagedResult(page, page, listOf(TitleSummary(1, MediaType.MOVIE, query, query, "")))
+            }
+        }
+        val viewModel = SearchViewModel(catalog, "en-US")
+        viewModel.setIncludeAdult(true)
+        viewModel.setQuery("restricted")
+        val snapshot = async { viewModel.entityResults.asSnapshot() }
+        advanceTimeBy(350)
+        advanceUntilIdle()
+
+        assertThat(catalog.entitySearchAdultFlags).containsExactly(true)
+        assertThat(snapshot.await()).isNotEmpty()
+    }
 }

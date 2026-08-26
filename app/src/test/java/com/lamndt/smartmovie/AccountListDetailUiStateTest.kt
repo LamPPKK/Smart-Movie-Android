@@ -19,7 +19,7 @@ class AccountListDetailUiStateTest {
         )
 
         val result = mergeAccountListPage(
-            existing = first,
+            existing = first.copy(results = first.results + adult),
             page = UserList(7, "Mixed", page = 2, totalPages = 2, results = listOf(movie, series)),
             includeAdult = false,
         )

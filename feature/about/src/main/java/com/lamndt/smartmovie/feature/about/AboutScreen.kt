@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -24,6 +26,7 @@ import com.lamndt.smartmovie.designsystem.R
 
 @Composable
 fun AboutScreen(versionName: String, modifier: Modifier = Modifier) {
+    val uriHandler = LocalUriHandler.current
     Column(
         modifier = modifier.fillMaxSize().padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -37,6 +40,13 @@ fun AboutScreen(versionName: String, modifier: Modifier = Modifier) {
             Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(stringResource(R.string.about), style = MaterialTheme.typography.titleLarge)
                 Text(stringResource(R.string.data_attribution), color = CinemaColors.Muted, style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.source_repositories), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { uriHandler.openUri("https://github.com/LamPPKK/Smart-Movie-iOS") }) {
+                    Text("Smart Movie iOS")
+                }
+                TextButton(onClick = { uriHandler.openUri("https://github.com/LamPPKK/Smart-Movie-Android") }) {
+                    Text("Smart Movie Android")
+                }
                 Text(stringResource(R.string.version_format, versionName), color = CinemaColors.Muted, style = MaterialTheme.typography.labelMedium)
             }
         }

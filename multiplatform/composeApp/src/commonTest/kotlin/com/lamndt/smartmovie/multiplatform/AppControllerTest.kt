@@ -31,6 +31,7 @@ import com.lamndt.smartmovie.multiplatform.model.SeasonDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleDetailV2
 import com.lamndt.smartmovie.multiplatform.model.TitleSummary
+import com.lamndt.smartmovie.multiplatform.model.UserList
 import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
 import com.lamndt.smartmovie.multiplatform.model.supportsAccountAuthentication
 import kotlinx.coroutines.CoroutineScope
@@ -42,10 +43,122 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppControllerTest {
+    @Test
+    fun adultConfigurationRequiresAgeConfirmationAndSixDigits() = runTest {
+        val api = FakeCatalogApi()
+        val controller = AppController(
+            MemoryStore(),
+            apiFactory = { api },
+            scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler)),
+        )
+        advanceUntilIdle()
+
+        assertFalse(controller.configureAdultPin("123456", "123456", ageConfirmed = false))
+        assertFalse(controller.state.value.adultConfigured)
+        assertFalse(controller.configureAdultPin("12345", "12345", ageConfirmed = true))
+        assertFalse(controller.configureAdultPin("123456", "654321", ageConfirmed = true))
+        assertTrue(controller.configureAdultPin("123456", "123456", ageConfirmed = true))
+        assertTrue(controller.state.value.adultConfigured)
+        assertTrue(controller.state.value.adultUnlocked)
+        controller.close()
+    }
+
+    @Test
+    fun fiveFailedAdultUnlocksResetAttemptsAndLockForFiveMinutes() = runTest {
+        val api = FakeCatalogApi()
+        var currentTime = 1_800_000_000_000L
+        val controller = AppController(
+            MemoryStore(),
+            apiFactory = { api },
+            scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler)),
+            nowMillis = { currentTime },
+        )
+        advanceUntilIdle()
+        assertTrue(controller.configureAdultPin("123456", "123456", ageConfirmed = true))
+        controller.lockAdult()
+
+        repeat(4) {
+            assertFalse(controller.unlockAdult("000000"))
+            assertEquals(it + 1, controller.state.value.adultFailures)
+            assertEquals(0, controller.state.value.adultLockUntil)
+        }
+        assertFalse(controller.unlockAdult("000000"))
+        assertEquals(0, controller.state.value.adultFailures)
+        assertEquals(currentTime + 5 * 60 * 1_000L, controller.state.value.adultLockUntil)
+        assertFalse(controller.unlockAdult("123456"))
+
+        currentTime += 5 * 60 * 1_000L + 1
+        assertTrue(controller.unlockAdult("123456"))
+        assertTrue(controller.state.value.adultUnlocked)
+        controller.close()
+    }
+
+    @Test
+    fun disablingAdultContentRemovesThePinConfiguration() = runTest {
+        val controller = AppController(
+            MemoryStore(),
+            apiFactory = { FakeCatalogApi() },
+            scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler)),
+        )
+        advanceUntilIdle()
+        assertTrue(controller.configureAdultPin("123456", "123456", ageConfirmed = true))
+
+        controller.disableAdult()
+
+        assertFalse(controller.state.value.adultConfigured)
+        assertFalse(controller.state.value.adultUnlocked)
+        assertFalse(controller.unlockAdult("123456"))
+        controller.close()
+    }
+
+    @Test
+    fun lockingAdultContentPurgesCachedSearchResults() = runTest {
+        val api = FakeCatalogApi().apply { searchAdult = true }
+        val controller = AppController(
+            MemoryStore(),
+            apiFactory = { api },
+            scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler)),
+        )
+        advanceUntilIdle()
+        assertTrue(controller.configureAdultPin("123456", "123456", ageConfirmed = true))
+        controller.updateSearchQuery("restricted")
+        advanceUntilIdle()
+        assertTrue(assertIs<LoadState.Content<List<TitleSummary>>>(controller.state.value.search).value.single().adult)
+
+        controller.lockAdult()
+
+        assertTrue(assertIs<LoadState.Content<List<TitleSummary>>>(controller.state.value.search).value.isEmpty())
+        assertTrue(assertIs<LoadState.Content<List<CatalogEntity>>>(controller.state.value.entitySearch).value.isEmpty())
+        controller.close()
+    }
+
+    @Test
+    fun lockedAccountPaginationRefiltersPreviouslyVisibleAdultTitles() {
+        val adult = titleSummary(2, adult = true)
+        val safe = titleSummary(1)
+        val next = titleSummary(3)
+
+        val recommendations = mergeAccountRecommendations(
+            existing = listOf(safe, adult),
+            page = PagedResult(page = 2, totalPages = 2, results = listOf(next)),
+            includeAdult = false,
+        )
+        val list = mergeAccountListPage(
+            existing = UserList(id = 7, name = "Mixed", page = 1, totalPages = 2, results = listOf(safe, adult)),
+            page = UserList(id = 7, name = "Mixed", page = 2, totalPages = 2, results = listOf(next)),
+            includeAdult = false,
+        )
+
+        assertEquals(listOf("movie:1", "movie:3"), recommendations.map(TitleSummary::libraryKey))
+        assertEquals(listOf("movie:1", "movie:3"), list.results.map(TitleSummary::libraryKey))
+    }
+
     @Test
     fun searchDebouncesAndCancelsThePreviousQuery() = runTest {
         val api = FakeCatalogApi()
@@ -240,6 +353,7 @@ private class FakeCatalogApi : CatalogApiV2 {
     val creditCalls = mutableListOf<Pair<String, String>>()
     val configurationRequests = mutableListOf<Pair<String, String?>>()
     var capabilitiesResult: suspend () -> CapabilitiesV2 = { capabilities(true) }
+    var searchAdult = false
 
     override suspend fun home(mediaType: MediaType, language: String) = HomeFeed(mediaType)
     override suspend fun genres(mediaType: MediaType, language: String): List<Genre> = emptyList()
@@ -295,7 +409,7 @@ private class FakeCatalogApi : CatalogApiV2 {
         return PagedResult(
             page,
             1,
-            listOf(CatalogEntity.Title(TitleSummary(1, MediaType.MOVIE, query, query, "Result"))),
+            listOf(CatalogEntity.Title(TitleSummary(1, MediaType.MOVIE, query, query, "Result", adult = searchAdult))),
         )
     }
 
@@ -353,4 +467,13 @@ private fun capabilities(
     supportedLanguages = emptyList(),
     supportedEntityKinds = emptyList(),
     adultContent = AdultContentCapability(false, false, true),
+)
+
+private fun titleSummary(id: Int, adult: Boolean = false) = TitleSummary(
+    id = id,
+    mediaType = MediaType.MOVIE,
+    title = "Title $id",
+    originalTitle = "Title $id",
+    overview = "",
+    adult = adult,
 )

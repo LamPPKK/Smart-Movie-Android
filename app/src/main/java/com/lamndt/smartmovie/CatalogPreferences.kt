@@ -1,7 +1,6 @@
 package com.lamndt.smartmovie
 
 import android.content.Context
-import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -9,7 +8,10 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Locale
 
-class CatalogPreferences(context: Context) {
+class CatalogPreferences(
+    context: Context,
+    private val nowMillis: () -> Long = System::currentTimeMillis,
+) {
     private val preferences = context.getSharedPreferences("catalog_preferences", Context.MODE_PRIVATE)
     private val mutableRegion = MutableStateFlow(preferences.getString(REGION, null))
     val region: StateFlow<String?> = mutableRegion.asStateFlow()
@@ -19,7 +21,7 @@ class CatalogPreferences(context: Context) {
     val adultConfigured: Boolean get() = preferences.contains(PIN_DIGEST)
     val includeAdult: Boolean get() = adultConfigured && mutableAdultUnlocked.value && !isLocked
     val failedAttempts: Int get() = preferences.getInt(FAILURES, 0)
-    val isLocked: Boolean get() = preferences.getLong(LOCK_UNTIL, 0L) > SystemClock.elapsedRealtime()
+    val isLocked: Boolean get() = preferences.getLong(LOCK_UNTIL, 0L) > nowMillis()
 
     fun setRegion(value: String?) {
         val normalized = value?.uppercase(Locale.ROOT)?.takeIf { it.matches(Regex("[A-Z]{2}")) }
@@ -27,8 +29,8 @@ class CatalogPreferences(context: Context) {
         mutableRegion.value = normalized
     }
 
-    fun configureAdult(pin: String, confirmation: String): Boolean {
-        if (pin != confirmation || !pin.matches(Regex("[0-9]{6}"))) return false
+    fun configureAdult(pin: String, confirmation: String, ageConfirmed: Boolean): Boolean {
+        if (!AdultPinPolicy.canConfigure(pin, confirmation, ageConfirmed)) return false
         val salt = ByteArray(24).also(SecureRandom()::nextBytes).toHex()
         preferences.edit()
             .putString(PIN_SALT, salt)
@@ -45,14 +47,15 @@ class CatalogPreferences(context: Context) {
         val salt = preferences.getString(PIN_SALT, null)
         val expected = preferences.getString(PIN_DIGEST, null)
         if (pin.matches(Regex("[0-9]{6}")) && salt != null && digest(salt, pin) == expected) {
-            preferences.edit().putInt(FAILURES, 0).apply()
+            preferences.edit().putInt(FAILURES, 0).remove(LOCK_UNTIL).apply()
             mutableAdultUnlocked.value = true
             return true
         }
-        val failures = failedAttempts + 1
-        if (failures >= 5) {
-            preferences.edit().putInt(FAILURES, 0).putLong(LOCK_UNTIL, SystemClock.elapsedRealtime() + 5 * 60_000L).apply()
-        } else preferences.edit().putInt(FAILURES, failures).apply()
+        val failure = AdultPinPolicy.recordFailure(failedAttempts, nowMillis())
+        preferences.edit()
+            .putInt(FAILURES, failure.failedAttempts)
+            .putLong(LOCK_UNTIL, failure.lockUntil)
+            .apply()
         return false
     }
 
@@ -73,6 +76,19 @@ class CatalogPreferences(context: Context) {
         const val PIN_SALT = "adult_pin_salt"
         const val PIN_DIGEST = "adult_pin_digest"
         const val FAILURES = "adult_pin_failures"
-        const val LOCK_UNTIL = "adult_pin_lock_until_elapsed"
+        const val LOCK_UNTIL = "adult_pin_lock_until_epoch"
     }
 }
+
+internal object AdultPinPolicy {
+    fun canConfigure(pin: String, confirmation: String, ageConfirmed: Boolean): Boolean =
+        ageConfirmed && pin == confirmation && pin.matches(Regex("[0-9]{6}"))
+
+    fun recordFailure(currentFailures: Int, nowMillis: Long): AdultFailureState {
+        val failures = currentFailures + 1
+        return if (failures >= 5) AdultFailureState(0, nowMillis + 5 * 60_000L)
+        else AdultFailureState(failures, 0)
+    }
+}
+
+internal data class AdultFailureState(val failedAttempts: Int, val lockUntil: Long)

@@ -86,10 +86,12 @@ internal fun ProfileScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val pinInvalidMessage = stringResource(R.string.pin_invalid)
+    val adultAgeRequiredMessage = stringResource(R.string.adult_age_required)
     val pinLockedMessage = stringResource(R.string.pin_locked)
     val pinIncorrectMessage = stringResource(R.string.pin_incorrect)
     var pin by remember { mutableStateOf("") }
     var confirmation by remember { mutableStateOf("") }
+    var adultAgeConfirmed by remember { mutableStateOf(false) }
     var pinMessage by remember { mutableStateOf<String?>(null) }
     var showLogout by remember { mutableStateOf(false) }
     var lists by remember { mutableStateOf<List<UserList>>(emptyList()) }
@@ -107,6 +109,7 @@ internal fun ProfileScreen(
     var recommendationType by remember { mutableStateOf(MediaType.MOVIE) }
     var recommendations by remember { mutableStateOf(AccountRecommendationsUiState()) }
     var recommendationReload by remember { mutableStateOf(0) }
+    var recommendationRequestRevision by remember { mutableStateOf(0) }
     var accountUiOwnerId by remember { mutableStateOf<Int?>(null) }
     var providerRegions by remember { mutableStateOf<List<ConfigurationCountry>>(emptyList()) }
     val signedInProfile = (state as? AccountSessionState.SignedIn)?.profile
@@ -143,6 +146,8 @@ internal fun ProfileScreen(
     }
 
     LaunchedEffect(signedInProfile?.id, recommendationType, language, includeAdult, recommendationReload) {
+        recommendationRequestRevision += 1
+        val requestedRevision = recommendationRequestRevision
         if (signedInProfile == null) {
             recommendations = AccountRecommendationsUiState()
         } else {
@@ -153,9 +158,10 @@ internal fun ProfileScreen(
             }.also { result ->
                 if (result.exceptionOrNull() is CancellationException) throw result.exceptionOrNull()!!
             }
-            if (currentAccountId() == requestedAccountId) {
+            if (currentAccountId() == requestedAccountId && recommendationRequestRevision == requestedRevision) {
+                val currentIncludeAdult = container.preferences.includeAdult
                 recommendations = result.fold(
-                    onSuccess = { page -> recommendationsFromPage(emptyList(), page, includeAdult) },
+                    onSuccess = { page -> recommendationsFromPage(emptyList(), page, currentIncludeAdult) },
                     onFailure = { error -> recommendations.copy(loading = false, error = error.message.orEmpty()) },
                 )
             }
@@ -335,15 +341,22 @@ internal fun ProfileScreen(
                                 val requestedPage = recommendations.page + 1
                                 val requestedType = recommendationType
                                 val requestedAccountId = signedInProfile?.id ?: return@launch
+                                val requestedRevision = recommendationRequestRevision
                                 recommendations = recommendations.copy(loading = true, error = null)
                                 val result = runCatching {
                                     container.account.recommendations(requestedType, requestedPage, language)
                                 }.also { value ->
                                     if (value.exceptionOrNull() is CancellationException) throw value.exceptionOrNull()!!
                                 }
-                                if (currentAccountId() == requestedAccountId && recommendationType == requestedType) {
+                                if (currentAccountId() == requestedAccountId &&
+                                    recommendationType == requestedType &&
+                                    recommendationRequestRevision == requestedRevision
+                                ) {
+                                    val currentIncludeAdult = container.preferences.includeAdult
                                     recommendations = result.fold(
-                                        onSuccess = { page -> recommendationsFromPage(recommendations.items, page, includeAdult) },
+                                        onSuccess = { page ->
+                                            recommendationsFromPage(recommendations.items, page, currentIncludeAdult)
+                                        },
                                         onFailure = { error -> recommendations.copy(loading = false, error = error.message.orEmpty()) },
                                     )
                                 }
@@ -733,19 +746,36 @@ internal fun ProfileScreen(
                 Text(stringResource(R.string.adult_content_description), color = CinemaColors.Muted)
                 when {
                     !container.preferences.adultConfigured -> {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Switch(
+                                checked = adultAgeConfirmed,
+                                onCheckedChange = { adultAgeConfirmed = it; pinMessage = null },
+                            )
+                            Text(stringResource(R.string.adult_age_confirmation), modifier = Modifier.weight(1f))
+                        }
                         PinField(pin, { pin = it }, stringResource(R.string.six_digit_pin))
                         PinField(confirmation, { confirmation = it }, stringResource(R.string.confirm_pin))
                         Button(onClick = {
-                            val ok = container.preferences.configureAdult(pin, confirmation)
-                            pinMessage = if (ok) null else pinInvalidMessage
-                            if (ok) { pin = ""; confirmation = "" }
+                            val ok = container.preferences.configureAdult(pin, confirmation, adultAgeConfirmed)
+                            pinMessage = if (ok) null else if (!adultAgeConfirmed) adultAgeRequiredMessage else pinInvalidMessage
+                            if (ok) {
+                                pin = ""
+                                confirmation = ""
+                                adultAgeConfirmed = false
+                            }
                         }) { Text(stringResource(R.string.enable_adult)) }
                     }
                     unlocked -> {
                         Text(stringResource(R.string.adult_unlocked), color = CinemaColors.Success)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = container.preferences::lockAdult) { Text(stringResource(R.string.lock)) }
-                            TextButton(onClick = container.preferences::disableAdult) { Text(stringResource(R.string.disable)) }
+                            TextButton(onClick = {
+                                container.preferences.disableAdult()
+                                adultAgeConfirmed = false
+                            }) { Text(stringResource(R.string.disable)) }
                         }
                     }
                     else -> {
@@ -807,7 +837,9 @@ internal fun recommendationsFromPage(
     page: PagedResult<TitleSummary>,
     includeAdult: Boolean,
 ): AccountRecommendationsUiState = AccountRecommendationsUiState(
-    items = (existing + page.results.filter { includeAdult || !it.adult }).distinctBy(TitleSummary::libraryKey),
+    items = (existing + page.results)
+        .filter { includeAdult || !it.adult }
+        .distinctBy(TitleSummary::libraryKey),
     page = page.page,
     totalPages = page.totalPages,
 )
@@ -886,9 +918,9 @@ internal data class AccountListDetailUiState(
 )
 
 internal fun mergeAccountListPage(existing: UserList?, page: UserList, includeAdult: Boolean): UserList {
-    val visible = page.results.filter { includeAdult || !it.adult }
     val pageNumber = page.page ?: 1
-    val results = ((if (pageNumber > 1) existing?.results.orEmpty() else emptyList()) + visible)
+    val results = ((if (pageNumber > 1) existing?.results.orEmpty() else emptyList()) + page.results)
+        .filter { includeAdult || !it.adult }
         .distinctBy(TitleSummary::libraryKey)
     return page.copy(
         page = pageNumber,

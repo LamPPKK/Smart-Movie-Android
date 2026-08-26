@@ -16,6 +16,11 @@ private class DesktopKeyValueStore : KeyValueStore {
         preferences.put(key, value)
         preferences.flush()
     }
+
+    override fun remove(key: String) {
+        preferences.remove(key)
+        preferences.flush()
+    }
 }
 
 actual fun createKeyValueStore(): KeyValueStore = DesktopKeyValueStore()

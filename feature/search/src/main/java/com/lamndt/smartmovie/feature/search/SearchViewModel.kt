@@ -44,7 +44,7 @@ data class SearchUiState(
     val externalSubmitted: Boolean = false,
 )
 private data class SearchRequest(val query: String, val scope: SearchScope)
-private data class EntitySearchRequest(val query: String, val scope: SearchScopeV2)
+private data class EntitySearchRequest(val query: String, val scope: SearchScopeV2, val includeAdult: Boolean)
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
@@ -54,7 +54,7 @@ class SearchViewModel(
     private val mutableState = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = mutableState.asStateFlow()
     private val request = MutableStateFlow(SearchRequest("", SearchScope.ALL))
-    private val entityRequest = MutableStateFlow(EntitySearchRequest("", SearchScopeV2.ALL))
+    private val entityRequest = MutableStateFlow(EntitySearchRequest("", SearchScopeV2.ALL, false))
     private var externalJob: Job? = null
 
     val results: Flow<PagingData<TitleSummary>> = request
@@ -74,7 +74,7 @@ class SearchViewModel(
         .flatMapLatest { current ->
             if (current.query.isBlank()) flowOf(PagingData.empty())
             else Pager(PagingConfig(pageSize = 20, prefetchDistance = 6, enablePlaceholders = false)) {
-                EntitySearchPagingSource(catalog, current.query.trim(), current.scope, language, null, false)
+                EntitySearchPagingSource(catalog, current.query.trim(), current.scope, language, null, current.includeAdult)
             }.flow
         }
         .cachedIn(viewModelScope)
@@ -84,7 +84,7 @@ class SearchViewModel(
         if (current.mode == CatalogSearchMode.CATALOG) {
             mutableState.update { it.copy(query = query) }
             request.value = SearchRequest(query, current.scope)
-            entityRequest.value = EntitySearchRequest(query, current.entityScope)
+            entityRequest.value = EntitySearchRequest(query, current.entityScope, entityRequest.value.includeAdult)
         } else {
             externalJob?.cancel()
             mutableState.update {
@@ -110,7 +110,7 @@ class SearchViewModel(
             externalIdSource = current.externalIdSource,
         )
         request.value = SearchRequest("", current.scope)
-        entityRequest.value = EntitySearchRequest("", current.entityScope)
+        entityRequest.value = EntitySearchRequest("", current.entityScope, entityRequest.value.includeAdult)
     }
 
     fun setExternalIdSource(source: ExternalIdSource) {
@@ -138,8 +138,16 @@ class SearchViewModel(
                 val result = (catalog as? CatalogV2Repository)?.findExternalId(externalId, source, language)
                     ?: error("External ID search requires the /v2 catalog")
                 val current = mutableState.value
+                val includeAdult = entityRequest.value.includeAdult
                 if (current.mode == CatalogSearchMode.EXTERNAL_ID && current.query.trim() == externalId && current.externalIdSource == source) {
-                    mutableState.update { it.copy(externalResults = result.results, externalLoading = false) }
+                    mutableState.update {
+                        it.copy(
+                            externalResults = result.results.filter { entity ->
+                                includeAdult || (entity as? CatalogEntity.Title)?.value?.adult != true
+                            },
+                            externalLoading = false,
+                        )
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -154,7 +162,27 @@ class SearchViewModel(
 
     fun setEntityScope(scope: SearchScopeV2) {
         mutableState.update { it.copy(entityScope = scope) }
-        entityRequest.value = EntitySearchRequest(mutableState.value.query, scope)
+        entityRequest.value = EntitySearchRequest(mutableState.value.query, scope, entityRequest.value.includeAdult)
+    }
+
+    fun setIncludeAdult(includeAdult: Boolean) {
+        if (entityRequest.value.includeAdult == includeAdult) return
+        externalJob?.cancel()
+        if (!includeAdult) {
+            mutableState.update { state ->
+                state.copy(
+                    externalResults = state.externalResults.filter { entity ->
+                        (entity as? CatalogEntity.Title)?.value?.adult != true
+                    },
+                    externalLoading = false,
+                )
+            }
+        }
+        entityRequest.value = EntitySearchRequest(
+            mutableState.value.query,
+            mutableState.value.entityScope,
+            includeAdult,
+        )
     }
 
     fun setScope(scope: SearchScope) {

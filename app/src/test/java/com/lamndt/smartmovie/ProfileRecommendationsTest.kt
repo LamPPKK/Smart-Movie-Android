@@ -38,6 +38,17 @@ class ProfileRecommendationsTest {
         assertThat(result.items.single().adult).isTrue()
     }
 
+    @Test
+    fun lockingBeforePaginationCompletesPurgesPreviouslyVisibleAdultTitles() {
+        val result = recommendationsFromPage(
+            existing = listOf(title(1), title(2, adult = true)),
+            page = PagedResult(page = 2, totalPages = 2, results = listOf(title(3))),
+            includeAdult = false,
+        )
+
+        assertThat(result.items.map(TitleSummary::libraryKey)).containsExactly("movie:1", "movie:3").inOrder()
+    }
+
     private fun title(id: Int, adult: Boolean = false) = TitleSummary(
         id = id,
         mediaType = MediaType.MOVIE,

@@ -78,6 +78,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -94,6 +95,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -108,6 +110,8 @@ import com.lamndt.smartmovie.multiplatform.model.EntityKind
 import com.lamndt.smartmovie.multiplatform.model.ExternalIdSource
 import com.lamndt.smartmovie.multiplatform.model.HomeFeed
 import com.lamndt.smartmovie.multiplatform.model.ImageUrlFactory
+import com.lamndt.smartmovie.multiplatform.platform.systemTimeMillis
+import kotlinx.coroutines.delay
 import com.lamndt.smartmovie.multiplatform.model.MediaType
 import com.lamndt.smartmovie.multiplatform.model.PersonSummary
 import com.lamndt.smartmovie.multiplatform.model.SearchScope
@@ -319,8 +323,20 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
     val images = remember(state.imageConfiguration) { ImageUrlFactory(state.imageConfiguration) }
     var region by remember(state.regionOverride) { mutableStateOf(state.regionOverride.orEmpty()) }
     var pin by remember { mutableStateOf("") }
+    var pinConfirmation by remember { mutableStateOf("") }
+    var adultAgeConfirmed by remember { mutableStateOf(false) }
+    var adultMessage by remember { mutableStateOf<String?>(null) }
+    var adultNow by remember(state.adultLockUntil) { mutableStateOf(systemTimeMillis()) }
     var listName by remember { mutableStateOf("") }
     var listDescription by remember { mutableStateOf("") }
+    LaunchedEffect(state.adultLockUntil) {
+        adultNow = systemTimeMillis()
+        val remaining = state.adultLockUntil - adultNow
+        if (remaining > 0) {
+            delay(remaining)
+            adultNow = systemTimeMillis()
+        }
+    }
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 28.dp, vertical = 18.dp),
@@ -491,27 +507,86 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
                 Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(copy.adultContent, style = MaterialTheme.typography.titleLarge)
                     Text(copy.adultDescription, color = CinemaColors.Muted)
-                    if (state.adultLockUntil > com.lamndt.smartmovie.multiplatform.platform.systemTimeMillis()) {
+                    if (state.adultLockUntil > adultNow) {
                         Text(copy.locked, color = CinemaColors.Accent)
                     } else {
+                        if (!state.adultConfigured) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Switch(
+                                    checked = adultAgeConfirmed,
+                                    onCheckedChange = { adultAgeConfirmed = it; adultMessage = null },
+                                )
+                                Text(copy.adultAgeConfirmation, modifier = Modifier.weight(1f))
+                            }
+                        }
                         OutlinedTextField(
                             value = pin,
                             onValueChange = { value -> pin = value.filter(Char::isDigit).take(6) },
                             label = { Text(copy.pin) },
                             singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
                         )
+                        if (!state.adultConfigured) {
+                            OutlinedTextField(
+                                value = pinConfirmation,
+                                onValueChange = { value -> pinConfirmation = value.filter(Char::isDigit).take(6) },
+                                label = { Text(copy.confirmPin) },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                            )
+                        }
                         Button(
                             onClick = {
-                                if (state.adultConfigured) controller.unlockAdult(pin) else controller.configureAdultPin(pin)
+                                val succeeded = if (state.adultConfigured) {
+                                    controller.unlockAdult(pin)
+                                } else {
+                                    controller.configureAdultPin(pin, pinConfirmation, adultAgeConfirmed)
+                                }
+                                adultMessage = when {
+                                    succeeded -> null
+                                    !state.adultConfigured && !adultAgeConfirmed -> copy.adultAgeRequired
+                                    else -> copy.pinInvalid
+                                }
+                                if (succeeded) adultAgeConfirmed = false
                                 pin = ""
+                                pinConfirmation = ""
                             },
                         ) { Text(if (state.adultConfigured) copy.unlock else copy.enable) }
-                        if (state.adultUnlocked) Button(onClick = controller::lockAdult) { Text(copy.lock) }
+                        if (state.adultUnlocked) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Button(onClick = controller::lockAdult) { Text(copy.lock) }
+                                Button(onClick = {
+                                    controller.disableAdult()
+                                    adultAgeConfirmed = false
+                                    pin = ""
+                                    pinConfirmation = ""
+                                    adultMessage = null
+                                }) { Text(copy.disable) }
+                            }
+                        }
+                        adultMessage?.let { Text(it, color = CinemaColors.Accent) }
                     }
                 }
             }
         }
         item { Text(copy.attribution, color = CinemaColors.Muted, style = MaterialTheme.typography.bodySmall) }
+        item {
+            Surface(shape = RoundedCornerShape(22.dp), color = CinemaColors.Elevated) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(copy.sourceRepositories, style = MaterialTheme.typography.titleLarge)
+                    TextButton(onClick = { openExternalUrl("https://github.com/LamPPKK/Smart-Movie-iOS") }) {
+                        Text("Smart Movie iOS")
+                    }
+                    TextButton(onClick = { openExternalUrl("https://github.com/LamPPKK/Smart-Movie-Android") }) {
+                        Text("Smart Movie Android")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1663,11 +1738,16 @@ private data class ProfileCopy(
     val save: String,
     val adultContent: String,
     val adultDescription: String,
+    val adultAgeConfirmation: String,
+    val adultAgeRequired: String,
     val locked: String,
     val pin: String,
+    val confirmPin: String,
+    val pinInvalid: String,
     val unlock: String,
     val enable: String,
     val lock: String,
+    val disable: String,
     val attribution: String,
     val customLists: String,
     val listName: String,
@@ -1688,6 +1768,7 @@ private data class ProfileCopy(
     val addTitles: String,
     val searchTitles: String,
     val addTitle: String,
+    val sourceRepositories: String,
 )
 
 private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
@@ -1696,71 +1777,83 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
         "TMDb account is temporarily unavailable.",
         "Sign in with TMDb", "Finish approval in your browser; SmartMovie will reconnect automatically.", "Device code", "Cancel",
         "Sign out · keep local", "Sign out · remove data", "Try again", "Content region", "Two-letter country code", "Device region", "Save",
-        "Adult content", "Off by default. Enabling it requires a six-digit PIN stored only on this device.",
-        "Too many attempts. Try again in five minutes.", "Six-digit PIN", "Unlock", "Enable", "Lock",
+        "Adult content", "Off by default. Confirm you are at least 18 and create a six-digit PIN stored only on this device.",
+        "I confirm that I am at least 18 years old.", "Confirm that you are at least 18 years old.",
+        "Too many attempts. Try again in five minutes.", "Six-digit PIN", "Confirm PIN", "Enter the same valid six-digit PIN twice or try again.",
+        "Unlock", "Enable", "Lock", "Disable",
         "Movie data and images: TMDb. Availability data: JustWatch via TMDb.", "Custom lists", "List name", "Description", "Create list", "Delete",
         "Account recommendations", "No account recommendations yet.",
         "Open", "Close list", "List details", "Waiting for this list to sync before editing.", "Public list", "Save changes",
-        "Titles in this list", "This list has no titles yet.", "Remove", "Add movies and TV series", "Search titles", "Add",
+        "Titles in this list", "This list has no titles yet.", "Remove", "Add movies and TV series", "Search titles", "Add", "Source repositories",
     )
     AppLocale.VIETNAMESE -> ProfileCopy(
         "Hồ sơ", "Tài khoản TMDb", "Đang kiểm tra phiên…", "Đăng nhập qua TMDb trong trình duyệt. SmartMovie không bao giờ nhận mật khẩu của bạn.",
         "Tài khoản TMDb tạm thời chưa khả dụng.",
         "Đăng nhập với TMDb", "Hoàn tất phê duyệt trong trình duyệt; SmartMovie sẽ tự kết nối lại.", "Mã thiết bị", "Hủy",
         "Đăng xuất · giữ cục bộ", "Đăng xuất · xóa dữ liệu", "Thử lại", "Khu vực nội dung", "Mã quốc gia hai chữ cái", "Vùng thiết bị", "Lưu",
-        "Nội dung 18+", "Mặc định tắt. Cần PIN sáu chữ số chỉ lưu trên thiết bị để bật.",
-        "Sai quá nhiều lần. Hãy thử lại sau năm phút.", "PIN sáu chữ số", "Mở khóa", "Bật", "Khóa",
+        "Nội dung 18+", "Mặc định tắt. Xác nhận bạn đủ 18 tuổi và tạo PIN sáu chữ số chỉ lưu trên thiết bị này.",
+        "Tôi xác nhận mình đã đủ 18 tuổi.", "Hãy xác nhận bạn đã đủ 18 tuổi.",
+        "Sai quá nhiều lần. Hãy thử lại sau năm phút.", "PIN sáu chữ số", "Xác nhận PIN", "Hãy nhập cùng một PIN sáu chữ số hợp lệ hai lần hoặc thử lại.",
+        "Mở khóa", "Bật", "Khóa", "Tắt",
         "Dữ liệu và hình ảnh phim: TMDb. Dữ liệu nơi xem: JustWatch qua TMDb.", "Danh sách tùy chỉnh", "Tên danh sách", "Mô tả", "Tạo danh sách", "Xóa",
         "Đề xuất cho tài khoản", "Chưa có đề xuất cho tài khoản.",
         "Mở", "Đóng danh sách", "Chi tiết danh sách", "Đang chờ đồng bộ danh sách trước khi chỉnh sửa.", "Danh sách công khai", "Lưu thay đổi",
-        "Nội dung trong danh sách", "Danh sách này chưa có nội dung.", "Gỡ", "Thêm phim và chương trình truyền hình", "Tìm phim hoặc chương trình", "Thêm",
+        "Nội dung trong danh sách", "Danh sách này chưa có nội dung.", "Gỡ", "Thêm phim và chương trình truyền hình", "Tìm phim hoặc chương trình", "Thêm", "Kho mã nguồn",
     )
     AppLocale.JAPANESE -> ProfileCopy(
         "プロフィール", "TMDbアカウント", "セッションを確認中…", "ブラウザーでTMDbにログインします。SmartMovieがパスワードを取得することはありません。",
         "TMDbアカウントは一時的に利用できません。",
         "TMDbでログイン", "ブラウザーで承認を完了すると自動的に再接続します。", "デバイスコード", "キャンセル",
         "ログアウト・端末に保持", "ログアウト・データ削除", "再試行", "コンテンツ地域", "2文字の国コード", "デバイスの地域", "保存",
-        "成人向けコンテンツ", "初期設定はオフです。有効化には端末内だけに保存する6桁PINが必要です。",
-        "試行回数を超えました。5分後に再試行してください。", "6桁PIN", "ロック解除", "有効にする", "ロック",
+        "成人向けコンテンツ", "初期設定はオフです。18歳以上であることを確認し、端末内だけに保存する6桁PINを作成してください。",
+        "18歳以上であることを確認します。", "18歳以上であることを確認してください。",
+        "試行回数を超えました。5分後に再試行してください。", "6桁PIN", "PINを確認", "同じ有効な6桁PINを2回入力するか、もう一度お試しください。",
+        "ロック解除", "有効にする", "ロック", "無効化",
         "映画データと画像: TMDb。配信情報: TMDb経由のJustWatch。", "カスタムリスト", "リスト名", "説明", "リストを作成", "削除",
         "アカウントへのおすすめ", "おすすめはまだありません。",
         "開く", "リストを閉じる", "リストの詳細", "編集する前にリストの同期を待っています。", "公開リスト", "変更を保存",
-        "リスト内の作品", "このリストにはまだ作品がありません。", "削除", "映画とTVシリーズを追加", "作品を検索", "追加",
+        "リスト内の作品", "このリストにはまだ作品がありません。", "削除", "映画とTVシリーズを追加", "作品を検索", "追加", "ソースリポジトリ",
     )
     AppLocale.KOREAN -> ProfileCopy(
         "프로필", "TMDb 계정", "세션 확인 중…", "브라우저에서 TMDb에 로그인합니다. SmartMovie는 비밀번호를 받지 않습니다.",
         "TMDb 계정을 일시적으로 사용할 수 없습니다.",
         "TMDb로 로그인", "브라우저에서 승인을 완료하면 자동으로 다시 연결됩니다.", "기기 코드", "취소",
         "로그아웃 · 로컬 유지", "로그아웃 · 데이터 삭제", "다시 시도", "콘텐츠 지역", "두 글자 국가 코드", "기기 지역", "저장",
-        "성인 콘텐츠", "기본값은 꺼짐입니다. 이 기기에만 저장되는 6자리 PIN이 필요합니다.",
-        "시도 횟수를 초과했습니다. 5분 후 다시 시도하세요.", "6자리 PIN", "잠금 해제", "사용", "잠금",
+        "성인 콘텐츠", "기본값은 꺼짐입니다. 만 18세 이상임을 확인하고 이 기기에만 저장되는 6자리 PIN을 만드세요.",
+        "만 18세 이상임을 확인합니다.", "만 18세 이상임을 확인하세요.",
+        "시도 횟수를 초과했습니다. 5분 후 다시 시도하세요.", "6자리 PIN", "PIN 확인", "같은 올바른 6자리 PIN을 두 번 입력하거나 다시 시도하세요.",
+        "잠금 해제", "사용", "잠금", "사용 안 함",
         "영화 데이터 및 이미지: TMDb. 시청 가능 정보: TMDb를 통한 JustWatch.", "사용자 목록", "목록 이름", "설명", "목록 만들기", "삭제",
         "계정 추천", "아직 계정 추천이 없습니다.",
         "열기", "목록 닫기", "목록 세부 정보", "편집하기 전에 목록 동기화를 기다리는 중입니다.", "공개 목록", "변경 사항 저장",
-        "목록의 콘텐츠", "이 목록에는 아직 콘텐츠가 없습니다.", "제거", "영화 및 TV 시리즈 추가", "콘텐츠 검색", "추가",
+        "목록의 콘텐츠", "이 목록에는 아직 콘텐츠가 없습니다.", "제거", "영화 및 TV 시리즈 추가", "콘텐츠 검색", "추가", "소스 저장소",
     )
     AppLocale.CHINESE_SIMPLIFIED -> ProfileCopy(
         "个人资料", "TMDb 账户", "正在检查会话…", "请在浏览器中登录 TMDb。SmartMovie 不会获取您的密码。",
         "TMDb 账户暂时不可用。",
         "使用 TMDb 登录", "在浏览器中完成授权后，SmartMovie 会自动重新连接。", "设备代码", "取消",
         "退出 · 保留本地", "退出 · 删除数据", "重试", "内容地区", "两位国家代码", "设备地区", "保存",
-        "成人内容", "默认关闭。启用时需要设置仅存储在本设备上的六位 PIN。",
-        "尝试次数过多，请五分钟后重试。", "六位 PIN", "解锁", "启用", "锁定",
+        "成人内容", "默认关闭。请确认您已年满18岁，并设置仅存储在本设备上的六位 PIN。",
+        "我确认自己已年满18岁。", "请确认您已年满18岁。",
+        "尝试次数过多，请五分钟后重试。", "六位 PIN", "确认 PIN", "请两次输入相同且有效的六位 PIN，或重试。",
+        "解锁", "启用", "锁定", "停用",
         "电影数据和图片：TMDb。可观看信息：通过 TMDb 提供的 JustWatch。", "自定义列表", "列表名称", "说明", "创建列表", "删除",
         "账户推荐", "暂无账户推荐。",
         "打开", "关闭列表", "列表详情", "正在等待列表同步后再编辑。", "公开列表", "保存更改",
-        "列表中的内容", "此列表中还没有内容。", "移除", "添加电影和电视剧", "搜索内容", "添加",
+        "列表中的内容", "此列表中还没有内容。", "移除", "添加电影和电视剧", "搜索内容", "添加", "源代码仓库",
     )
     AppLocale.CHINESE_TRADITIONAL -> ProfileCopy(
         "個人資料", "TMDb 帳戶", "正在檢查工作階段…", "請在瀏覽器中登入 TMDb。SmartMovie 不會取得您的密碼。",
         "TMDb 帳戶暫時無法使用。",
         "使用 TMDb 登入", "在瀏覽器完成授權後，SmartMovie 會自動重新連線。", "裝置代碼", "取消",
         "登出 · 保留本機", "登出 · 刪除資料", "重試", "內容地區", "兩位國家代碼", "裝置地區", "儲存",
-        "成人內容", "預設關閉。啟用時需設定只儲存在本裝置的六位 PIN。",
-        "嘗試次數過多，請五分鐘後再試。", "六位 PIN", "解鎖", "啟用", "鎖定",
+        "成人內容", "預設關閉。請確認您已年滿18歲，並設定只儲存在本裝置的六位 PIN。",
+        "我確認自己已年滿18歲。", "請確認您已年滿18歲。",
+        "嘗試次數過多，請五分鐘後再試。", "六位 PIN", "確認 PIN", "請輸入兩次相同且有效的六位 PIN，或重試。",
+        "解鎖", "啟用", "鎖定", "停用",
         "電影資料與圖片：TMDb。可觀看資訊：由 TMDb 提供的 JustWatch。", "自訂清單", "清單名稱", "說明", "建立清單", "刪除",
         "帳戶推薦", "目前沒有帳戶推薦。",
         "開啟", "關閉清單", "清單詳情", "正在等待清單同步後再編輯。", "公開清單", "儲存變更",
-        "清單中的內容", "此清單中還沒有內容。", "移除", "加入電影與電視影集", "搜尋內容", "加入",
+        "清單中的內容", "此清單中還沒有內容。", "移除", "加入電影與電視影集", "搜尋內容", "加入", "原始碼儲存庫",
     )
 }
