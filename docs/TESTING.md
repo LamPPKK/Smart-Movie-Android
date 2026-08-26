@@ -52,7 +52,7 @@ To force a fresh test execution rather than accept Gradle's `UP-TO-DATE` result:
   validateDebugScreenshotTest
 ```
 
-The latest focused Account Recommendations gate passed native app/model tests, main debug APK assembly, KMP desktop tests/compile, and contract snapshot verification. It covers Movie/TV selection, pagination, `libraryKey` deduplication, adult-PIN filtering, and canonical fixture decoding. The most recent full 3.0 feature gate also passed lint, screenshot validation, and Wear debug assembly. CI device jobs remain authoritative for emulator input/launch behavior.
+The 26 August 2026 Advanced Discover gate passed native model/network/data/feature tests, lint, screenshot validation, main/Wear debug APK assembly, KMP desktop tests/compile, JavaScript distribution, optimized Wasm distribution, and contract snapshot verification. It covers fail-closed capability handling for missing/false/true states, `/v1` basic fallback routing, capability-gated Profile provider-region loading, complete Movie/TV date/language/country/certification/runtime/vote/provider/monetization queries, device-or-override region, local adult-PIN context, deterministic encoding, filter normalization, stale-provider clearing, regional provider configuration, and canonical fixture decoding. CI device jobs remain authoritative for emulator input/launch behavior.
 
 ## Emulator verification
 

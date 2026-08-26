@@ -45,4 +45,26 @@
     <string name="add_titles">Thêm phim và chương trình truyền hình</string>
     <string name="search_titles">Tìm phim hoặc chương trình</string>
     <string name="add_title">Thêm</string>
+    <string name="release_date_range">Khoảng ngày phát hành</string>
+    <string name="date_from">Từ ngày (YYYY-MM-DD)</string>
+    <string name="date_through">Đến ngày (YYYY-MM-DD)</string>
+    <string name="original_language">Ngôn ngữ gốc (ISO)</string>
+    <string name="origin_country">Quốc gia sản xuất (ISO)</string>
+    <string name="certification">Phân loại độ tuổi</string>
+    <string name="minimum">Tối thiểu</string>
+    <string name="maximum">Tối đa</string>
+    <string name="runtime_and_votes">Thời lượng và lượt đánh giá</string>
+    <string name="minimum_runtime">Số phút tối thiểu</string>
+    <string name="maximum_runtime">Số phút tối đa</string>
+    <string name="minimum_vote_count">Lượt đánh giá tối thiểu</string>
+    <string name="watch_providers">Nhà cung cấp nội dung</string>
+    <string name="discover_provider_region">Khu vực: %1$s</string>
+    <string name="providers_unavailable">Không có nhà cung cấp cho khu vực này.</string>
+    <string name="availability">Hình thức xem</string>
+    <string name="streaming">Thuê bao</string>
+    <string name="free">Miễn phí</string>
+    <string name="with_ads">Có quảng cáo</string>
+    <string name="rent">Thuê</string>
+    <string name="buy">Mua</string>
+    <string name="filter_value_hint">Bất kỳ</string>
 </resources>

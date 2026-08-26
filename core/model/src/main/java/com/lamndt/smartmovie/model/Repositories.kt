@@ -8,6 +8,12 @@ interface CatalogRepository {
     suspend fun home(mediaType: MediaType, language: String): HomeFeed
     suspend fun genres(mediaType: MediaType, language: String): List<Genre>
     suspend fun discover(mediaType: MediaType, filter: DiscoverFilter, page: Int, language: String): PagedResult<TitleSummary>
+    suspend fun discoverBasic(
+        mediaType: MediaType,
+        filter: DiscoverFilter,
+        page: Int,
+        language: String,
+    ): PagedResult<TitleSummary> = discover(mediaType, filter, page, language)
     suspend fun search(query: String, scope: SearchScope, page: Int, language: String): PagedResult<TitleSummary>
     suspend fun detail(mediaType: MediaType, id: Int, language: String): TitleDetail
     suspend fun imageConfiguration(): ImageConfiguration
@@ -15,6 +21,7 @@ interface CatalogRepository {
 
 interface CatalogV2Repository : CatalogRepository {
     suspend fun capabilities(): CapabilitiesV2
+    suspend fun discoverConfiguration(language: String, region: String?): DiscoverConfiguration
     suspend fun trending(kind: String, window: String, page: Int, language: String, includeAdult: Boolean): PagedResult<CatalogEntity>
     suspend fun searchEntities(
         query: String,

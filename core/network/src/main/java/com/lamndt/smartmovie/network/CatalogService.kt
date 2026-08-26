@@ -8,6 +8,7 @@ import com.lamndt.smartmovie.model.CapabilitiesV2
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CollectionDetail
 import com.lamndt.smartmovie.model.CreditDetail
+import com.lamndt.smartmovie.model.DiscoverConfiguration
 import com.lamndt.smartmovie.model.EpisodeDetail
 import com.lamndt.smartmovie.model.HomeFeed
 import com.lamndt.smartmovie.model.ImageConfiguration
@@ -35,6 +36,7 @@ import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Query
+import retrofit2.http.QueryMap
 
 internal interface CatalogService {
     @GET("v1/home")
@@ -51,16 +53,18 @@ internal interface CatalogService {
         @Query("language") language: String,
     ): GenreEnvelope
 
-    @GET("v1/discover/{mediaType}")
+    @GET("v2/discover/{mediaType}")
     suspend fun discover(
         @Header(CLIENT_HEADER) clientId: String,
         @Path("mediaType") mediaType: String,
-        @Query("page") page: Int,
-        @Query("language") language: String,
-        @Query("sort_by") sortBy: String,
-        @Query("vote_average_gte") minimumRating: String,
-        @Query("genre_ids") genreIds: String?,
-        @Query("year") year: Int?,
+        @QueryMap query: Map<String, String>,
+    ): PagedResult<TitleSummary>
+
+    @GET("v1/discover/{mediaType}")
+    suspend fun discoverBasic(
+        @Header(CLIENT_HEADER) clientId: String,
+        @Path("mediaType") mediaType: String,
+        @QueryMap query: Map<String, String>,
     ): PagedResult<TitleSummary>
 
     @GET("v1/search")
@@ -85,6 +89,13 @@ internal interface CatalogService {
 
     @GET("v2/capabilities")
     suspend fun capabilities(@Header(CLIENT_HEADER) clientId: String): CapabilitiesV2
+
+    @GET("v2/configuration")
+    suspend fun discoverConfiguration(
+        @Header(CLIENT_HEADER) clientId: String,
+        @Query("language") language: String,
+        @Query("region") region: String?,
+    ): DiscoverConfiguration
 
     @GET("v2/trending/{kind}/{window}")
     suspend fun trending(

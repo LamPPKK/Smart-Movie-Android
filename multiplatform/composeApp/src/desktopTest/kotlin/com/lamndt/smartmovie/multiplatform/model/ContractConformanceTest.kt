@@ -68,6 +68,9 @@ class ContractConformanceTest {
         assertEquals("movie:603", credit.titleSummary?.libraryKey)
         val recommendations = decodeV2<PagedResult<TitleSummary>>("account-recommendations")
         assertEquals(listOf("movie:438631", "movie:999001"), recommendations.results.map(TitleSummary::libraryKey))
+        val configuration = decodeV2<DiscoverConfiguration>("configuration")
+        assertEquals("US", configuration.region)
+        assertEquals("Netflix", configuration.watchProviders?.movie?.first()?.name)
     }
 
     @Test

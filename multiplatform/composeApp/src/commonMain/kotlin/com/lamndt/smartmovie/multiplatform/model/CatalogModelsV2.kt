@@ -234,6 +234,49 @@ data class ImageGroup(
 )
 
 @Serializable
+data class WatchProviderOption(
+    val id: Int,
+    val name: String,
+    @SerialName("logo_path") val logoPath: String? = null,
+    @SerialName("display_priority") val displayPriority: Int = 0,
+)
+
+@Serializable
+data class ConfigurationCountry(
+    @SerialName("iso_3166_1") val code: String,
+    @SerialName("english_name") val englishName: String,
+    @SerialName("native_name") val nativeName: String? = null,
+) {
+    val displayName: String get() = nativeName?.takeIf(String::isNotBlank) ?: englishName
+}
+
+@Serializable
+data class ConfigurationLanguage(
+    @SerialName("iso_639_1") val code: String,
+    @SerialName("english_name") val englishName: String,
+    val name: String? = null,
+) {
+    val displayName: String get() = name?.takeIf(String::isNotBlank) ?: englishName
+}
+
+@Serializable
+data class WatchProviderOptions(
+    val movie: List<WatchProviderOption> = emptyList(),
+    val tv: List<WatchProviderOption> = emptyList(),
+) {
+    fun values(mediaType: MediaType): List<WatchProviderOption> = if (mediaType == MediaType.MOVIE) movie else tv
+}
+
+@Serializable
+data class DiscoverConfiguration(
+    val countries: List<ConfigurationCountry> = emptyList(),
+    val languages: List<ConfigurationLanguage> = emptyList(),
+    @SerialName("watch_provider_regions") val watchProviderRegions: List<ConfigurationCountry> = emptyList(),
+    val region: String? = null,
+    @SerialName("watch_providers") val watchProviders: WatchProviderOptions? = null,
+)
+
+@Serializable
 data class ProviderOffer(
     @SerialName("provider_id") val providerId: Int,
     @SerialName("provider_name") val providerName: String,
@@ -401,7 +444,9 @@ data class CapabilitiesV2(
     @SerialName("supported_languages") val supportedLanguages: List<String>,
     @SerialName("supported_entity_kinds") val supportedEntityKinds: List<EntityKind>,
     @SerialName("adult_content") val adultContent: AdultContentCapability,
-)
+) {
+    fun supportsCatalog(capability: String): Boolean = catalog[capability] == true
+}
 
 @Serializable
 data class AdultContentCapability(

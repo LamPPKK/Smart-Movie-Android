@@ -3,9 +3,11 @@ package com.lamndt.smartmovie.testing
 import com.lamndt.smartmovie.model.CatalogRepository
 import com.lamndt.smartmovie.model.CatalogV2Repository
 import com.lamndt.smartmovie.model.CapabilitiesV2
+import com.lamndt.smartmovie.model.AdultContentCapability
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CollectionDetail
 import com.lamndt.smartmovie.model.CreditDetail
+import com.lamndt.smartmovie.model.DiscoverConfiguration
 import com.lamndt.smartmovie.model.DiscoverFilter
 import com.lamndt.smartmovie.model.Genre
 import com.lamndt.smartmovie.model.HomeFeed
@@ -36,6 +38,8 @@ import kotlinx.coroutines.flow.map
 
 class FakeCatalogRepository : CatalogRepository {
     val homeCalls = mutableListOf<MediaType>()
+    val discoverCalls = mutableListOf<Triple<MediaType, DiscoverFilter, Int>>()
+    val basicDiscoverCalls = mutableListOf<Triple<MediaType, DiscoverFilter, Int>>()
     val searchCalls = mutableListOf<String>()
     var homeResult: suspend (MediaType) -> HomeFeed = { HomeFeed(it) }
     var genresResult: suspend (MediaType) -> List<Genre> = { emptyList() }
@@ -48,7 +52,19 @@ class FakeCatalogRepository : CatalogRepository {
         return homeResult(mediaType)
     }
     override suspend fun genres(mediaType: MediaType, language: String) = genresResult(mediaType)
-    override suspend fun discover(mediaType: MediaType, filter: DiscoverFilter, page: Int, language: String) = discoverResult(mediaType, filter, page)
+    override suspend fun discover(mediaType: MediaType, filter: DiscoverFilter, page: Int, language: String): PagedResult<TitleSummary> {
+        discoverCalls += Triple(mediaType, filter, page)
+        return discoverResult(mediaType, filter, page)
+    }
+    override suspend fun discoverBasic(
+        mediaType: MediaType,
+        filter: DiscoverFilter,
+        page: Int,
+        language: String,
+    ): PagedResult<TitleSummary> {
+        basicDiscoverCalls += Triple(mediaType, filter, page)
+        return discoverResult(mediaType, filter, page)
+    }
     override suspend fun search(query: String, scope: SearchScope, page: Int, language: String): PagedResult<TitleSummary> {
         searchCalls += query
         return searchResult(query, scope, page)
@@ -58,14 +74,23 @@ class FakeCatalogRepository : CatalogRepository {
 }
 
 class FakeCatalogV2Repository(
-    private val legacy: FakeCatalogRepository = FakeCatalogRepository(),
+    val legacy: FakeCatalogRepository = FakeCatalogRepository(),
 ) : CatalogV2Repository, CatalogRepository by legacy {
     val externalIdCalls = mutableListOf<Triple<String, ExternalIdSource, String>>()
     var externalIdResult: suspend (String, ExternalIdSource) -> ExternalIdFindResult = { id, source ->
         ExternalIdFindResult(source, id, emptyList())
     }
+    var configurationResult: suspend (String, String?) -> DiscoverConfiguration = { _, region ->
+        DiscoverConfiguration(region = region)
+    }
+    val configurationCalls = mutableListOf<Pair<String, String?>>()
+    var capabilitiesResult: suspend () -> CapabilitiesV2 = { capabilities(advancedDiscover = true) }
 
-    override suspend fun capabilities(): CapabilitiesV2 = error("Not configured")
+    override suspend fun capabilities(): CapabilitiesV2 = capabilitiesResult()
+    override suspend fun discoverConfiguration(language: String, region: String?): DiscoverConfiguration {
+        configurationCalls += language to region
+        return configurationResult(language, region)
+    }
     override suspend fun trending(
         kind: String,
         window: String,
@@ -115,6 +140,20 @@ class FakeCatalogV2Repository(
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = error("Not configured")
     override suspend fun credit(id: String, language: String): CreditDetail = error("Not configured")
 }
+
+fun capabilities(advancedDiscover: Boolean): CapabilitiesV2 = CapabilitiesV2(
+    apiVersion = "v2",
+    releaseTrain = "3.0.0",
+    catalog = mapOf("advanced_discover" to advancedDiscover),
+    account = emptyMap(),
+    supportedLanguages = emptyList(),
+    supportedEntityKinds = emptyList(),
+    adultContent = AdultContentCapability(
+        supported = false,
+        defaultEnabled = false,
+        localPinRequired = true,
+    ),
+)
 
 class FakeLibraryRepository : LibraryRepository {
     private val snapshots = MutableStateFlow<List<LibrarySnapshot>>(emptyList())

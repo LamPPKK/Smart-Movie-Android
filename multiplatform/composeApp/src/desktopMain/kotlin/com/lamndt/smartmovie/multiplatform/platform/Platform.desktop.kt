@@ -108,6 +108,11 @@ actual fun platformName(): String {
     }
 }
 
+actual fun systemRegion(): String = Locale.getDefault().country
+    .uppercase(Locale.ROOT)
+    .takeIf { it.length == 2 }
+    ?: "US"
+
 actual fun catalogBaseUrl(): String =
     System.getenv("SMARTMOVIE_CATALOG_BASE_URL")?.takeIf { it.startsWith("http") }
         ?: "https://catalog.smartmovie.app/"

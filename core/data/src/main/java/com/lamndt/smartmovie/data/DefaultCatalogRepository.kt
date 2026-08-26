@@ -7,6 +7,7 @@ import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CollectionDetail
 import com.lamndt.smartmovie.model.CreditDetail
 import com.lamndt.smartmovie.model.DiscoverFilter
+import com.lamndt.smartmovie.model.DiscoverConfiguration
 import com.lamndt.smartmovie.model.Genre
 import com.lamndt.smartmovie.model.HomeFeed
 import com.lamndt.smartmovie.model.ImageConfiguration
@@ -35,6 +36,12 @@ class DefaultCatalogRepository(private val network: CatalogRemoteDataSource) : C
     override suspend fun genres(mediaType: MediaType, language: String): List<Genre> = network.genres(mediaType, language)
     override suspend fun discover(mediaType: MediaType, filter: DiscoverFilter, page: Int, language: String): PagedResult<TitleSummary> =
         network.discover(mediaType, filter, page, language)
+    override suspend fun discoverBasic(
+        mediaType: MediaType,
+        filter: DiscoverFilter,
+        page: Int,
+        language: String,
+    ): PagedResult<TitleSummary> = network.discoverBasic(mediaType, filter, page, language)
     override suspend fun search(query: String, scope: SearchScope, page: Int, language: String): PagedResult<TitleSummary> =
         network.search(query, scope, page, language)
     override suspend fun detail(mediaType: MediaType, id: Int, language: String): TitleDetail = network.detail(mediaType, id, language)
@@ -47,6 +54,8 @@ class DefaultCatalogRepository(private val network: CatalogRemoteDataSource) : C
     }
 
     override suspend fun capabilities(): CapabilitiesV2 = v2().capabilities()
+    override suspend fun discoverConfiguration(language: String, region: String?): DiscoverConfiguration =
+        v2().discoverConfiguration(language, region)
     override suspend fun trending(kind: String, window: String, page: Int, language: String, includeAdult: Boolean): PagedResult<CatalogEntity> =
         v2().trending(kind, window, page, language, includeAdult)
     override suspend fun searchEntities(

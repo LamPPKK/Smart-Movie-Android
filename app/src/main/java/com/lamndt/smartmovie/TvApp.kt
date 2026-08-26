@@ -43,6 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +59,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,6 +83,7 @@ import com.lamndt.smartmovie.designsystem.StateMessage
 import com.lamndt.smartmovie.feature.detail.DetailUiState
 import com.lamndt.smartmovie.feature.detail.DetailViewModel
 import com.lamndt.smartmovie.model.CatalogLocale
+import com.lamndt.smartmovie.model.DiscoverSort
 import com.lamndt.smartmovie.model.HomeFeed
 import com.lamndt.smartmovie.model.ImageKind
 import com.lamndt.smartmovie.model.LibraryCollection
@@ -89,15 +92,26 @@ import com.lamndt.smartmovie.model.MediaType
 import com.lamndt.smartmovie.model.SearchScope
 import com.lamndt.smartmovie.model.TitleDetail
 import com.lamndt.smartmovie.model.TitleSummary
+import com.lamndt.smartmovie.model.WatchMonetizationType
 import com.lamndt.smartmovie.model.preferredTrailer
 
 @Composable
 fun TvApp(container: AppContainer) {
     val locale = LocalConfiguration.current.locales[0]
     val language = CatalogLocale.from(locale.language, locale.country)
-    val tvViewModel: TvCatalogViewModel = viewModel(factory = TvCatalogViewModel.factory(container, language))
+    val tvViewModel: TvCatalogViewModel = viewModel(
+        key = "tv-catalog:$language",
+        factory = TvCatalogViewModel.factory(container, language),
+    )
     val state by tvViewModel.state.collectAsStateWithLifecycle()
+    val providerRegion by container.preferences.region.collectAsStateWithLifecycle()
+    val adultUnlocked by container.preferences.adultUnlocked.collectAsStateWithLifecycle()
+    val effectiveRegion = providerRegion ?: locale.country.takeIf { it.length == 2 } ?: "US"
+    val includeAdult = adultUnlocked && container.preferences.includeAdult
     var detailTitle by remember { mutableStateOf<TitleSummary?>(null) }
+    LaunchedEffect(effectiveRegion, includeAdult) {
+        tvViewModel.updateContext(effectiveRegion, includeAdult)
+    }
 
     CinemaBackground {
         NavigationDrawer(
@@ -132,7 +146,7 @@ fun TvApp(container: AppContainer) {
         ) {
             when (state.tab) {
                 TvTab.HOME -> TvHome(state, container.images, tvViewModel::selectMediaType, tvViewModel::refreshHome, { detailTitle = it })
-                TvTab.EXPLORE -> TvExplore(state, container.images, tvViewModel::selectMediaType, tvViewModel::refreshExplore, tvViewModel::loadMoreExplore, { detailTitle = it })
+                TvTab.EXPLORE -> TvExplore(state, container.images, tvViewModel, { detailTitle = it })
                 TvTab.SEARCH -> TvSearch(state, container.images, tvViewModel::setQuery, tvViewModel::setScope, tvViewModel::loadMoreSearch, { detailTitle = it })
                 TvTab.LIBRARY -> TvLibrary(state, container.images, tvViewModel::selectCollection, { detailTitle = it })
                 TvTab.PROFILE -> ProfileScreen(
@@ -218,23 +232,210 @@ private fun TvShelf(label: String, titles: List<TitleSummary>, images: ImageUrlF
 private fun TvExplore(
     state: TvCatalogUiState,
     images: ImageUrlFactory,
-    onType: (MediaType) -> Unit,
-    onRetry: () -> Unit,
-    onLoadMore: () -> Unit,
+    controller: TvCatalogViewModel,
     onTitle: (TitleSummary) -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(start = 54.dp, top = 34.dp, end = 54.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
-        TvHeader(stringResource(R.string.explore), state.mediaType, onType)
-        when (val results = state.explore) {
-            Loadable.Idle, Loadable.Loading -> LoadingMessage(Modifier.weight(1f))
-            is Loadable.Failed -> StateMessage(stringResource(R.string.explore_unavailable), Modifier.weight(1f), results.message, onRetry)
-            is Loadable.Loaded -> LazyRow(horizontalArrangement = Arrangement.spacedBy(22.dp), contentPadding = PaddingValues(vertical = 10.dp), modifier = Modifier.weight(1f)) {
-                items(results.value, key = { it.libraryKey }) { title ->
-                    TvPoster(title, images, { onTitle(title) }, Modifier.width(220.dp), onFocus = { if (title == results.value.lastOrNull()) onLoadMore() })
+        TvHeader(stringResource(R.string.explore), state.mediaType, controller::selectMediaType)
+        if (state.showExploreFilters) {
+            BackHandler(onBack = controller::dismissExploreFilters)
+            TvExploreFilters(state, controller, Modifier.weight(1f))
+        } else {
+            TvButton(onClick = controller::showExploreFilters) { TvText(stringResource(R.string.filters)) }
+            when (val results = state.explore) {
+                Loadable.Idle, Loadable.Loading -> LoadingMessage(Modifier.weight(1f))
+                is Loadable.Failed -> StateMessage(
+                    stringResource(R.string.explore_unavailable),
+                    Modifier.weight(1f),
+                    results.message,
+                    controller::refreshExplore,
+                )
+                is Loadable.Loaded -> LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(22.dp),
+                    contentPadding = PaddingValues(vertical = 10.dp),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    items(results.value, key = { it.libraryKey }) { title ->
+                        TvPoster(
+                            title,
+                            images,
+                            { onTitle(title) },
+                            Modifier.width(220.dp),
+                            onFocus = { if (title == results.value.lastOrNull()) controller.loadMoreExplore() },
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun TvExploreFilters(
+    state: TvCatalogUiState,
+    controller: TvCatalogViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val filter = state.exploreDraft
+    LazyColumn(
+        modifier,
+        contentPadding = PaddingValues(bottom = 48.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        item {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                item { TvFilterButton(filter.minimumRating == 0.0, "${stringResource(R.string.rating)}: ${stringResource(R.string.all)}") { controller.updateExploreFilter { it.copy(minimumRating = 0.0) } } }
+                items(listOf(6.0, 7.0, 8.0, 9.0)) { rating ->
+                    TvFilterButton(filter.minimumRating == rating, "${stringResource(R.string.rating)} ${rating.toInt()}+") {
+                        controller.updateExploreFilter { it.copy(minimumRating = rating) }
+                    }
+                }
+                items(DiscoverSort.entries) { sort ->
+                    val label = stringResource(
+                        when (sort) {
+                            DiscoverSort.POPULARITY -> R.string.popularity
+                            DiscoverSort.RATING -> R.string.rating
+                            DiscoverSort.RELEASE_DATE -> R.string.release_date
+                        },
+                    )
+                    TvFilterButton(filter.sort == sort, label) { controller.updateExploreFilter { it.copy(sort = sort) } }
+                }
+            }
+        }
+        item {
+            TvFilterTextField(
+                filter.year?.toString().orEmpty(),
+                stringResource(R.string.release_year),
+                { value -> controller.updateExploreFilter { it.copy(year = value.toIntOrNull()) } },
+            )
+        }
+        if (state.genres.isNotEmpty()) {
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(state.genres, key = { it.id }) { genre ->
+                        TvFilterButton(genre.id in filter.genres, genre.name) { controller.toggleGenre(genre.id) }
+                    }
+                }
+            }
+        }
+        if (state.advancedDiscoverEnabled) {
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    TvFilterTextField(filter.releaseDateFrom.orEmpty(), stringResource(R.string.date_from), { value ->
+                        controller.updateExploreFilter { it.copy(releaseDateFrom = value) }
+                    }, Modifier.weight(1f))
+                    TvFilterTextField(filter.releaseDateThrough.orEmpty(), stringResource(R.string.date_through), { value ->
+                        controller.updateExploreFilter { it.copy(releaseDateThrough = value) }
+                    }, Modifier.weight(1f))
+                }
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    TvFilterTextField(filter.originalLanguage.orEmpty(), stringResource(R.string.original_language), { value ->
+                        controller.updateExploreFilter { it.copy(originalLanguage = value) }
+                    }, Modifier.weight(1f))
+                    TvFilterTextField(filter.originCountry.orEmpty(), stringResource(R.string.origin_country), { value ->
+                        controller.updateExploreFilter { it.copy(originCountry = value) }
+                    }, Modifier.weight(1f))
+                }
+            }
+            if (state.mediaType == MediaType.MOVIE) {
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        TvFilterTextField(filter.certificationMinimum.orEmpty(), stringResource(R.string.minimum), { value ->
+                            controller.updateExploreFilter { it.copy(certificationMinimum = value) }
+                        }, Modifier.weight(1f))
+                        TvFilterTextField(filter.certificationMaximum.orEmpty(), stringResource(R.string.maximum), { value ->
+                            controller.updateExploreFilter { it.copy(certificationMaximum = value) }
+                        }, Modifier.weight(1f))
+                    }
+                }
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    TvFilterTextField(filter.minimumRuntime?.toString().orEmpty(), stringResource(R.string.minimum_runtime), { value ->
+                        controller.updateExploreFilter { it.copy(minimumRuntime = value.toIntOrNull()) }
+                    }, Modifier.weight(1f))
+                    TvFilterTextField(filter.maximumRuntime?.toString().orEmpty(), stringResource(R.string.maximum_runtime), { value ->
+                        controller.updateExploreFilter { it.copy(maximumRuntime = value.toIntOrNull()) }
+                    }, Modifier.weight(1f))
+                    TvFilterTextField(filter.minimumVoteCount.takeIf { it > 0 }?.toString().orEmpty(), stringResource(R.string.minimum_vote_count), { value ->
+                        controller.updateExploreFilter { it.copy(minimumVoteCount = value.toIntOrNull() ?: 0) }
+                    }, Modifier.weight(1f))
+                }
+            }
+            item {
+                Text(
+                    stringResource(R.string.discover_provider_region, filter.region.orEmpty()),
+                    color = CinemaColors.Muted,
+                )
+                val providers = state.discoverConfiguration?.watchProviders?.values(state.mediaType).orEmpty()
+                if (providers.isEmpty()) {
+                    Text(stringResource(R.string.providers_unavailable), color = CinemaColors.Muted)
+                } else {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(providers, key = { it.id }) { provider ->
+                            TvFilterButton(provider.id in filter.watchProviderIds, provider.name) {
+                                controller.toggleWatchProvider(provider.id)
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(WatchMonetizationType.entries) { type ->
+                        val label = stringResource(
+                            when (type) {
+                                WatchMonetizationType.SUBSCRIPTION -> R.string.streaming
+                                WatchMonetizationType.FREE -> R.string.free
+                                WatchMonetizationType.ADS -> R.string.with_ads
+                                WatchMonetizationType.RENT -> R.string.rent
+                                WatchMonetizationType.BUY -> R.string.buy
+                            },
+                        )
+                        TvFilterButton(type in filter.monetizationTypes, label) { controller.toggleMonetization(type) }
+                    }
+                }
+                Text(stringResource(R.string.justwatch_attribution), color = CinemaColors.Muted)
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TvButton(onClick = controller::applyExploreFilter) { TvText(stringResource(R.string.apply)) }
+                TvButton(onClick = controller::resetExploreFilter) { TvText(stringResource(R.string.reset)) }
+                TvButton(onClick = controller::dismissExploreFilters) { TvText(stringResource(R.string.close_list)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvFilterButton(selected: Boolean, label: String, onClick: () -> Unit) {
+    TvButton(onClick = onClick, modifier = Modifier.semantics { this.selected = selected }) {
+        TvText(label, color = if (selected) CinemaColors.Accent else CinemaColors.Foreground)
+    }
+}
+
+@Composable
+private fun TvFilterTextField(
+    value: String,
+    label: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        label = { Text(label) },
+        modifier = modifier,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = CinemaColors.Accent,
+            focusedContainerColor = CinemaColors.Elevated,
+            unfocusedContainerColor = CinemaColors.Elevated,
+        ),
+    )
 }
 
 @Composable

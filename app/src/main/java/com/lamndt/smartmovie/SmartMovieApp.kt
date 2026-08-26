@@ -251,6 +251,12 @@ internal fun AppRoot(
     val focusRequester = remember { FocusRequester() }
     val expanded = isWindowWidthAtLeast(600)
     val providerRegion = appContainer?.preferences?.region?.collectAsState()
+    val adultUnlocked = appContainer?.preferences?.adultUnlocked?.collectAsState()?.value == true
+    val deviceRegion = LocalConfiguration.current.locales[0].country
+    val effectiveRegion = providerRegion?.value
+        ?: deviceRegion.takeIf { it.length == 2 }
+        ?: "US"
+    val includeAdult = appContainer?.preferences?.let { adultUnlocked && it.includeAdult } == true
     androidx.compose.runtime.LaunchedEffect(Unit) { focusRequester.requestFocus() }
     CinemaBackground(
         Modifier
@@ -290,6 +296,7 @@ internal fun AppRoot(
                 TabContent(
                     tab, catalog, library, images, language, { paneTitle = it }, onEntityClick,
                     Modifier.weight(if (paneTitle == null) 1f else .42f), appContainer,
+                    effectiveRegion, includeAdult,
                 )
                 paneTitle?.let { title ->
                     val accountRating = rememberTitleAccountRating(appContainer, title)
@@ -331,7 +338,10 @@ internal fun AppRoot(
                 },
             ) { padding ->
                 Box(Modifier.padding(bottom = padding.calculateBottomPadding())) {
-                    TabContent(tab, catalog, library, images, language, onTitleClick, onEntityClick, appContainer = appContainer)
+                    TabContent(
+                        tab, catalog, library, images, language, onTitleClick, onEntityClick,
+                        appContainer = appContainer, region = effectiveRegion, includeAdult = includeAdult,
+                    )
                     IconButton(onClick = { showAbout = true }, Modifier.padding(top = 42.dp, end = 8.dp).align(androidx.compose.ui.Alignment.TopEnd)) {
                         Icon(Icons.Default.Info, stringResource(R.string.about), tint = CinemaColors.Muted)
                     }
@@ -352,10 +362,15 @@ private fun TabContent(
     onEntityClick: (CatalogEntity) -> Unit = {},
     modifier: Modifier = Modifier,
     appContainer: AppContainer? = null,
+    region: String = "US",
+    includeAdult: Boolean = false,
 ) {
     when (tab) {
         AppTab.HOME -> HomeRoute(catalog, images, language, onTitleClick, modifier)
-        AppTab.EXPLORE -> ExploreRoute(catalog, images, language, onTitleClick, modifier)
+        AppTab.EXPLORE -> ExploreRoute(
+            catalog, images, language, onTitleClick, modifier,
+            region = region, includeAdult = includeAdult,
+        )
         AppTab.SEARCH -> SearchRoute(catalog, images, language, onTitleClick, modifier, onEntityClick)
         AppTab.LIBRARY -> LibraryRoute(library, images, onTitleClick, modifier)
         AppTab.PROFILE -> appContainer?.let {

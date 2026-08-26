@@ -21,5 +21,12 @@ expect fun authReturnUri(): String
 expect fun authMode(): String
 expect fun HttpRequestBuilder.applySessionRequestOptions()
 expect fun platformName(): String
+expect fun systemRegion(): String
 expect fun catalogBaseUrl(): String
 fun systemTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()
+
+internal fun regionFromLanguageTag(tag: String): String? = tag
+    .split('-', '_')
+    .drop(1)
+    .firstOrNull { part -> part.length == 2 && part.all(Char::isLetter) }
+    ?.uppercase()

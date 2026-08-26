@@ -41,4 +41,26 @@
     <string name="add_titles">영화 및 TV 시리즈 추가</string>
     <string name="search_titles">콘텐츠 검색</string>
     <string name="add_title">추가</string>
+    <string name="release_date_range">공개일 범위</string>
+    <string name="date_from">시작일 (YYYY-MM-DD)</string>
+    <string name="date_through">종료일 (YYYY-MM-DD)</string>
+    <string name="original_language">원어 (ISO)</string>
+    <string name="origin_country">제작 국가 (ISO)</string>
+    <string name="certification">시청 등급</string>
+    <string name="minimum">최소</string>
+    <string name="maximum">최대</string>
+    <string name="runtime_and_votes">상영 시간 및 투표 수</string>
+    <string name="minimum_runtime">최소 시간(분)</string>
+    <string name="maximum_runtime">최대 시간(분)</string>
+    <string name="minimum_vote_count">최소 투표 수</string>
+    <string name="watch_providers">시청 제공자</string>
+    <string name="discover_provider_region">지역: %1$s</string>
+    <string name="providers_unavailable">이 지역에서 이용 가능한 제공자가 없습니다.</string>
+    <string name="availability">이용 유형</string>
+    <string name="streaming">구독</string>
+    <string name="free">무료</string>
+    <string name="with_ads">광고 포함</string>
+    <string name="rent">대여</string>
+    <string name="buy">구매</string>
+    <string name="filter_value_hint">전체</string>
 </resources>

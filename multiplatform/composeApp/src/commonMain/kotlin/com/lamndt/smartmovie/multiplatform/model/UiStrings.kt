@@ -68,6 +68,35 @@ data class UiStrings(
     val crew: String,
     val guestStars: String,
     val creditTitle: String,
+    val advancedDiscover: AdvancedDiscoverStrings,
+)
+
+data class AdvancedDiscoverStrings(
+    val filters: String,
+    val releaseRange: String,
+    val dateFrom: String,
+    val dateThrough: String,
+    val originalLanguage: String,
+    val originCountry: String,
+    val certification: String,
+    val minimum: String,
+    val maximum: String,
+    val runtimeAndVotes: String,
+    val minimumRuntime: String,
+    val maximumRuntime: String,
+    val minimumVoteCount: String,
+    val watchProviders: String,
+    val region: String,
+    val providersUnavailable: String,
+    val availability: String,
+    val subscription: String,
+    val free: String,
+    val withAds: String,
+    val rent: String,
+    val buy: String,
+    val apply: String,
+    val any: String,
+    val justWatch: String,
 )
 
 fun strings(locale: AppLocale): UiStrings = when (locale) {
@@ -82,6 +111,13 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "Try again", "Loading…", "No titles found", "Your library is ready for its first title",
         "SmartMovie could not reach the catalog", "Language", "Multiplatform edition", "Load more", "Close",
         "Credit details", "Person", "Role", "Character", "Job", "Department", "Crew", "Guest stars", "Title",
+        AdvancedDiscoverStrings(
+            "Advanced filters", "Release date range", "From (YYYY-MM-DD)", "Through (YYYY-MM-DD)",
+            "Original language (ISO)", "Origin country (ISO)", "Certification", "Minimum", "Maximum",
+            "Runtime and votes", "Minimum minutes", "Maximum minutes", "Minimum vote count", "Watch providers",
+            "Region", "No providers are available for this region.", "Availability", "Streaming", "Free",
+            "With ads", "Rent", "Buy", "Apply filters", "Any", "Availability data by JustWatch",
+        ),
     )
     AppLocale.VIETNAMESE -> UiStrings(
         "Trang chủ", "Khám phá", "Tìm kiếm", "Thư viện", "Hồ sơ", "Phim điện ảnh", "Phim bộ", "Khám phá",
@@ -94,6 +130,13 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "Thử lại", "Đang tải…", "Không tìm thấy tựa phim", "Thư viện đang chờ tựa phim đầu tiên",
         "SmartMovie không thể kết nối danh mục", "Ngôn ngữ", "Phiên bản đa nền tảng", "Tải thêm", "Đóng",
         "Chi tiết vai diễn", "Người", "Vai trò", "Nhân vật", "Công việc", "Bộ phận", "Đoàn làm phim", "Diễn viên khách mời", "Tựa phim",
+        AdvancedDiscoverStrings(
+            "Bộ lọc nâng cao", "Khoảng ngày phát hành", "Từ ngày (YYYY-MM-DD)", "Đến ngày (YYYY-MM-DD)",
+            "Ngôn ngữ gốc (ISO)", "Quốc gia sản xuất (ISO)", "Phân loại độ tuổi", "Tối thiểu", "Tối đa",
+            "Thời lượng và lượt đánh giá", "Số phút tối thiểu", "Số phút tối đa", "Lượt đánh giá tối thiểu", "Nhà cung cấp nội dung",
+            "Khu vực", "Không có nhà cung cấp cho khu vực này.", "Hình thức xem", "Thuê bao", "Miễn phí",
+            "Có quảng cáo", "Thuê", "Mua", "Áp dụng bộ lọc", "Bất kỳ", "Dữ liệu nơi xem do JustWatch cung cấp",
+        ),
     )
     AppLocale.JAPANESE -> UiStrings(
         "ホーム", "見つける", "検索", "ライブラリ", "プロフィール", "映画", "テレビ", "作品を探す",
@@ -106,6 +149,12 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "再試行", "読み込み中…", "作品が見つかりません", "最初の作品をライブラリに追加しましょう",
         "カタログに接続できません", "言語", "マルチプラットフォーム版", "さらに読み込む", "閉じる",
         "クレジット詳細", "人物", "役割", "役名", "担当", "部門", "スタッフ", "ゲスト出演", "作品",
+        AdvancedDiscoverStrings(
+            "詳細フィルター", "公開日の範囲", "開始日 (YYYY-MM-DD)", "終了日 (YYYY-MM-DD)",
+            "原語 (ISO)", "製作国 (ISO)", "年齢区分", "最小", "最大", "上映時間と投票数", "最短（分）",
+            "最長（分）", "最小投票数", "配信サービス", "地域", "この地域で利用できる配信サービスはありません。",
+            "視聴方法", "定額配信", "無料", "広告付き", "レンタル", "購入", "フィルターを適用", "指定なし", "配信情報はJustWatch提供",
+        ),
     )
     AppLocale.KOREAN -> UiStrings(
         "홈", "둘러보기", "검색", "라이브러리", "프로필", "영화", "TV 시리즈", "작품 찾기",
@@ -118,6 +167,12 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "다시 시도", "불러오는 중…", "작품을 찾을 수 없습니다", "첫 작품을 라이브러리에 추가해 보세요",
         "카탈로그에 연결할 수 없습니다", "언어", "멀티플랫폼 에디션", "더 불러오기", "닫기",
         "크레딧 상세", "인물", "역할", "배역", "직무", "부서", "제작진", "게스트 출연", "작품",
+        AdvancedDiscoverStrings(
+            "고급 필터", "공개일 범위", "시작일 (YYYY-MM-DD)", "종료일 (YYYY-MM-DD)", "원어 (ISO)",
+            "제작 국가 (ISO)", "시청 등급", "최소", "최대", "상영 시간 및 투표 수", "최소 시간(분)", "최대 시간(분)",
+            "최소 투표 수", "시청 제공자", "지역", "이 지역에서 이용 가능한 제공자가 없습니다.", "이용 유형",
+            "구독", "무료", "광고 포함", "대여", "구매", "필터 적용", "전체", "JustWatch 제공 시청 가능 정보",
+        ),
     )
     AppLocale.CHINESE_SIMPLIFIED -> UiStrings(
         "首页", "探索", "搜索", "片库", "个人资料", "电影", "剧集", "发现作品",
@@ -130,6 +185,12 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "重试", "加载中…", "未找到作品", "把第一部作品加入片库吧",
         "SmartMovie 无法连接目录", "语言", "多平台版本", "加载更多", "关闭",
         "演职员详情", "人物", "角色", "饰演", "职务", "部门", "幕后人员", "客串演员", "作品",
+        AdvancedDiscoverStrings(
+            "高级筛选", "上映日期范围", "开始日期 (YYYY-MM-DD)", "结束日期 (YYYY-MM-DD)", "原始语言 (ISO)",
+            "制作国家/地区 (ISO)", "分级", "最低", "最高", "片长与投票数", "最短分钟数", "最长分钟数", "最少投票数",
+            "观看平台", "地区", "此地区没有可用平台。", "观看方式", "订阅", "免费", "含广告", "租赁", "购买",
+            "应用筛选", "不限", "可观看信息由 JustWatch 提供",
+        ),
     )
     AppLocale.CHINESE_TRADITIONAL -> UiStrings(
         "首頁", "探索", "搜尋", "片庫", "個人資料", "電影", "影集", "探索作品",
@@ -142,5 +203,11 @@ fun strings(locale: AppLocale): UiStrings = when (locale) {
         "再試一次", "載入中…", "找不到作品", "將第一部作品加入片庫吧",
         "SmartMovie 無法連線至目錄", "語言", "多平台版本", "載入更多", "關閉",
         "演職員詳情", "人物", "角色", "飾演", "職務", "部門", "幕後人員", "客串演員", "作品",
+        AdvancedDiscoverStrings(
+            "進階篩選", "上映日期範圍", "開始日期 (YYYY-MM-DD)", "結束日期 (YYYY-MM-DD)", "原始語言 (ISO)",
+            "製作國家/地區 (ISO)", "分級", "最低", "最高", "片長與投票數", "最短分鐘數", "最長分鐘數", "最少投票數",
+            "觀看平台", "地區", "此地區沒有可用平台。", "觀看方式", "訂閱", "免費", "含廣告", "租借", "購買",
+            "套用篩選", "不限", "可觀看資訊由 JustWatch 提供",
+        ),
     )
 }

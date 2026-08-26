@@ -38,6 +38,8 @@ actual fun HttpRequestBuilder.applySessionRequestOptions() {
 
 actual fun platformName(): String = "Web"
 
+actual fun systemRegion(): String = regionFromLanguageTag(window.navigator.language) ?: "US"
+
 actual fun catalogBaseUrl(): String {
     val parameters = window.location.search
         .removePrefix("?")

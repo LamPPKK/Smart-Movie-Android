@@ -1,6 +1,7 @@
 package com.lamndt.smartmovie.multiplatform.data
 
 import com.lamndt.smartmovie.multiplatform.model.DiscoverFilter
+import com.lamndt.smartmovie.multiplatform.model.DiscoverConfiguration
 import com.lamndt.smartmovie.multiplatform.model.Genre
 import com.lamndt.smartmovie.multiplatform.model.HomeFeed
 import com.lamndt.smartmovie.multiplatform.model.ImageConfiguration
@@ -45,6 +46,12 @@ interface CatalogApi {
     suspend fun home(mediaType: MediaType, language: String): HomeFeed
     suspend fun genres(mediaType: MediaType, language: String): List<Genre>
     suspend fun discover(mediaType: MediaType, filter: DiscoverFilter, page: Int, language: String): PagedResult<TitleSummary>
+    suspend fun discoverBasic(
+        mediaType: MediaType,
+        filter: DiscoverFilter,
+        page: Int,
+        language: String,
+    ): PagedResult<TitleSummary> = discover(mediaType, filter, page, language)
     suspend fun search(query: String, scope: SearchScope, page: Int, language: String): PagedResult<TitleSummary>
     suspend fun detail(mediaType: MediaType, id: Int, language: String): TitleDetail
     suspend fun imageConfiguration(): ImageConfiguration
@@ -52,6 +59,7 @@ interface CatalogApi {
 
 interface CatalogApiV2 : CatalogApi {
     suspend fun capabilities(): CapabilitiesV2
+    suspend fun discoverConfiguration(language: String, region: String?): DiscoverConfiguration
     suspend fun trending(kind: String, window: String, page: Int, language: String, includeAdult: Boolean): PagedResult<CatalogEntity>
     suspend fun searchEntities(
         query: String,
@@ -118,6 +126,46 @@ class KtorCatalogApi(
         page: Int,
         language: String,
     ): PagedResult<TitleSummary> = request {
+        client.get("$root/v2/discover/${mediaType.wireValue}") {
+            smartMovieHeaders()
+            parameter("page", page)
+            parameter("language", language)
+            parameter("sort_by", filter.sort.wireValue)
+            parameter("vote_average_gte", filter.minimumRating)
+            parameter("include_adult", filter.includeAdult)
+            filter.genres.takeIf { it.isNotEmpty() }?.let { parameter("genres", it.sorted().joinToString(",")) }
+            filter.year?.let { parameter("year", it) }
+            filter.releaseDateFrom.normalized()?.let { parameter("release_date_gte", it) }
+            filter.releaseDateThrough.normalized()?.let { parameter("release_date_lte", it) }
+            filter.originalLanguage.normalized()?.lowercase()?.let { parameter("original_language", it) }
+            filter.originCountry.normalized()?.uppercase()?.let { parameter("origin_country", it) }
+            filter.minimumRuntime?.let { parameter("runtime_gte", it) }
+            filter.maximumRuntime?.let { parameter("runtime_lte", it) }
+            filter.minimumVoteCount.takeIf { it > 0 }?.let { parameter("vote_count_gte", it) }
+            filter.region.normalized()?.uppercase()?.let { region ->
+                if (mediaType == MediaType.MOVIE) parameter("region", region)
+                if (filter.watchProviderIds.isNotEmpty() || filter.monetizationTypes.isNotEmpty()) {
+                    parameter("watch_region", region)
+                }
+            }
+            if (mediaType == MediaType.MOVIE) {
+                filter.certificationCountry.normalized()?.uppercase()?.let { parameter("certification_country", it) }
+                filter.certificationMinimum.normalized()?.let { parameter("certification_gte", it) }
+                filter.certificationMaximum.normalized()?.let { parameter("certification_lte", it) }
+            }
+            filter.watchProviderIds.takeIf { it.isNotEmpty() }
+                ?.let { parameter("watch_providers", it.sorted().joinToString("|")) }
+            filter.monetizationTypes.takeIf { it.isNotEmpty() }
+                ?.let { values -> parameter("watch_monetization_types", values.map { it.wireValue }.sorted().joinToString("|")) }
+        }
+    }
+
+    override suspend fun discoverBasic(
+        mediaType: MediaType,
+        filter: DiscoverFilter,
+        page: Int,
+        language: String,
+    ): PagedResult<TitleSummary> = request {
         client.get("$root/v1/discover/${mediaType.wireValue}") {
             smartMovieHeaders()
             parameter("page", page)
@@ -157,6 +205,14 @@ class KtorCatalogApi(
 
     override suspend fun capabilities(): CapabilitiesV2 = request {
         client.get("$root/v2/capabilities") { smartMovieHeaders() }
+    }
+
+    override suspend fun discoverConfiguration(language: String, region: String?): DiscoverConfiguration = request {
+        client.get("$root/v2/configuration") {
+            smartMovieHeaders()
+            parameter("language", language)
+            region.normalized()?.uppercase()?.let { parameter("region", it) }
+        }
     }
 
     override suspend fun trending(
@@ -307,6 +363,8 @@ class KtorCatalogApi(
 
     companion object { private const val MAX_ATTEMPTS = 3 }
 }
+
+private fun String?.normalized(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
 
 @Serializable
 private data class GenreEnvelope(val genres: List<Genre>)

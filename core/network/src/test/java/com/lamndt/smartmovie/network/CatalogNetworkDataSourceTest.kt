@@ -2,8 +2,11 @@ package com.lamndt.smartmovie.network
 
 import com.google.common.truth.Truth.assertThat
 import com.lamndt.smartmovie.model.CatalogException
+import com.lamndt.smartmovie.model.DiscoverFilter
 import com.lamndt.smartmovie.model.ExternalIdSource
+import com.lamndt.smartmovie.model.MediaType
 import com.lamndt.smartmovie.model.SearchScope
+import com.lamndt.smartmovie.model.WatchMonetizationType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
@@ -45,6 +48,96 @@ class CatalogNetworkDataSourceTest {
         assertThat(request.requestUrl?.queryParameter("scope")).isEqualTo("all")
         assertThat(request.requestUrl?.queryParameter("language")).isEqualTo("vi-VN")
         assertThat(request.getHeader("X-SmartMovie-Client")).isEqualTo("123e4567-e89b-12d3-a456-426614174000")
+    }
+
+    @Test
+    fun discover_sendsCompleteDeterministicV2Filter() = runTest {
+        server.enqueue(MockResponse().setBody(PAGE).setHeader("Content-Type", "application/json"))
+
+        source().discover(
+            mediaType = MediaType.MOVIE,
+            filter = DiscoverFilter(
+                genres = setOf(878, 18),
+                year = 2026,
+                minimumRating = 7.5,
+                sort = com.lamndt.smartmovie.model.DiscoverSort.RATING,
+                releaseDateFrom = " 2026-01-01 ",
+                releaseDateThrough = "2026-12-31",
+                originalLanguage = "VI",
+                originCountry = "vn",
+                certificationCountry = "us",
+                certificationMinimum = "PG",
+                certificationMaximum = "R",
+                minimumRuntime = 80,
+                maximumRuntime = 180,
+                minimumVoteCount = 250,
+                region = "vn",
+                watchProviderIds = setOf(337, 8),
+                monetizationTypes = setOf(WatchMonetizationType.RENT, WatchMonetizationType.SUBSCRIPTION),
+                includeAdult = true,
+            ),
+            page = 3,
+            language = "vi-VN",
+        )
+        val request = server.takeRequest().requestUrl!!
+
+        assertThat(request.encodedPath).isEqualTo("/v2/discover/movie")
+        assertThat(request.queryParameter("genres")).isEqualTo("18,878")
+        assertThat(request.queryParameter("release_date_gte")).isEqualTo("2026-01-01")
+        assertThat(request.queryParameter("original_language")).isEqualTo("vi")
+        assertThat(request.queryParameter("origin_country")).isEqualTo("VN")
+        assertThat(request.queryParameter("certification_country")).isEqualTo("US")
+        assertThat(request.queryParameter("runtime_gte")).isEqualTo("80")
+        assertThat(request.queryParameter("vote_count_gte")).isEqualTo("250")
+        assertThat(request.queryParameter("region")).isEqualTo("VN")
+        assertThat(request.queryParameter("watch_region")).isEqualTo("VN")
+        assertThat(request.queryParameter("watch_providers")).isEqualTo("8|337")
+        assertThat(request.queryParameter("watch_monetization_types")).isEqualTo("flatrate|rent")
+        assertThat(request.queryParameter("include_adult")).isEqualTo("true")
+    }
+
+    @Test
+    fun discoverBasic_usesV1AndOmitsAdvancedFields() = runTest {
+        server.enqueue(MockResponse().setBody(PAGE).setHeader("Content-Type", "application/json"))
+
+        source().discoverBasic(
+            mediaType = MediaType.MOVIE,
+            filter = DiscoverFilter(
+                genres = setOf(878, 18),
+                year = 1999,
+                minimumRating = 7.0,
+                releaseDateFrom = "2026-01-01",
+                watchProviderIds = setOf(8),
+                includeAdult = true,
+            ),
+            page = 2,
+            language = "en-US",
+        )
+        val request = server.takeRequest().requestUrl!!
+
+        assertThat(request.encodedPath).isEqualTo("/v1/discover/movie")
+        assertThat(request.queryParameter("genre_ids")).isEqualTo("18,878")
+        assertThat(request.queryParameter("year")).isEqualTo("1999")
+        assertThat(request.queryParameter("vote_average_gte")).isEqualTo("7.0")
+        assertThat(request.queryParameter("genres")).isNull()
+        assertThat(request.queryParameter("include_adult")).isNull()
+        assertThat(request.queryParameter("release_date_gte")).isNull()
+        assertThat(request.queryParameter("watch_providers")).isNull()
+    }
+
+    @Test
+    fun discoverConfiguration_sendsRegionAndDecodesProviderOptions() = runTest {
+        server.enqueue(MockResponse().setBody(CONFIGURATION).setHeader("Content-Type", "application/json"))
+
+        val configuration = source().discoverConfiguration("vi-VN", "VN")
+        val request = server.takeRequest()
+
+        assertThat(request.requestUrl?.encodedPath).isEqualTo("/v2/configuration")
+        assertThat(request.requestUrl?.queryParameter("language")).isEqualTo("vi-VN")
+        assertThat(request.requestUrl?.queryParameter("region")).isEqualTo("VN")
+        assertThat(configuration.region).isEqualTo("VN")
+        assertThat(configuration.watchProviders?.movie?.single()?.name).isEqualTo("Netflix")
+        assertThat(configuration.countries.single().displayName).isEqualTo("Việt Nam")
     }
 
     @Test
@@ -143,5 +236,6 @@ class CatalogNetworkDataSourceTest {
         const val FIND = """{"source":"imdb_id","external_id":"tt0133093","results":[{"entity_kind":"movie","id":603,"media_type":"movie","title":"The Matrix","original_title":"The Matrix","overview":"","vote_average":8.2,"genre_ids":[]},{"entity_kind":"person","id":6384,"name":"Keanu Reeves","known_for":[]}]}"""
         const val CREDIT = """{"credit_id":"52fe425bc3a36847f80181c1","credit_type":"cast","department":"Acting","job":"Actor","character":"Neo","person_summary":{"entity_kind":"person","id":6384,"name":"Keanu Reeves","known_for":[]},"title_summary":{"entity_kind":"movie","id":603,"media_type":"movie","title":"The Matrix","original_title":"The Matrix","overview":"","vote_average":8.2,"genre_ids":[]}}"""
         const val ERROR = """{"error":{"code":"not_found","message":"Missing","request_id":"request-1"}}"""
+        const val CONFIGURATION = """{"countries":[{"iso_3166_1":"VN","english_name":"Vietnam","native_name":"Việt Nam"}],"languages":[{"iso_639_1":"vi","english_name":"Vietnamese","name":"Tiếng Việt"}],"watch_provider_regions":[{"iso_3166_1":"VN","english_name":"Vietnam","native_name":"Việt Nam"}],"region":"VN","watch_providers":{"movie":[{"id":8,"name":"Netflix","display_priority":0}],"tv":[]}}"""
     }
 }

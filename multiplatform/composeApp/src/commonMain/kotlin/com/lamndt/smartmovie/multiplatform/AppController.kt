@@ -18,6 +18,7 @@ import com.lamndt.smartmovie.multiplatform.data.createInstallationId
 import com.lamndt.smartmovie.multiplatform.data.pinDigest
 import com.lamndt.smartmovie.multiplatform.model.AppLocale
 import com.lamndt.smartmovie.multiplatform.model.DiscoverFilter
+import com.lamndt.smartmovie.multiplatform.model.DiscoverConfiguration
 import com.lamndt.smartmovie.multiplatform.model.DiscoverSort
 import com.lamndt.smartmovie.multiplatform.model.Genre
 import com.lamndt.smartmovie.multiplatform.model.HomeFeed
@@ -45,6 +46,7 @@ import com.lamndt.smartmovie.multiplatform.model.PagedResult
 import com.lamndt.smartmovie.multiplatform.model.SearchScopeV2
 import com.lamndt.smartmovie.multiplatform.model.SeasonDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleDetailV2
+import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
 import com.lamndt.smartmovie.multiplatform.platform.KeyValueStore
 import com.lamndt.smartmovie.multiplatform.platform.catalogBaseUrl
 import com.lamndt.smartmovie.multiplatform.platform.createKeyValueStore
@@ -52,6 +54,7 @@ import com.lamndt.smartmovie.multiplatform.platform.authReturnUri
 import com.lamndt.smartmovie.multiplatform.platform.authMode
 import com.lamndt.smartmovie.multiplatform.platform.openExternalUrl
 import com.lamndt.smartmovie.multiplatform.platform.systemTimeMillis
+import com.lamndt.smartmovie.multiplatform.platform.systemRegion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -101,6 +104,8 @@ data class SmartMovieState(
     val home: LoadState<HomeFeed> = LoadState.Idle,
     val exploreType: MediaType = MediaType.MOVIE,
     val exploreFilter: DiscoverFilter = DiscoverFilter(),
+    val exploreDraftFilter: DiscoverFilter = DiscoverFilter(),
+    val discoverConfiguration: DiscoverConfiguration? = null,
     val genres: List<Genre> = emptyList(),
     val explore: LoadState<List<TitleSummary>> = LoadState.Idle,
     val explorePage: Int = 0,
@@ -157,6 +162,7 @@ class AppController(
     apiFactory: (String) -> CatalogApi = { KtorCatalogApi(baseUrl = catalogBaseUrl(), clientId = it) },
     accountFactory: ((String) -> AccountApi)? = null,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val deviceRegion: String = systemRegion(),
 ) {
     private val library = PersistentLibrary(store)
     private val accountOutbox = PersistentAccountMutationOutbox(store)
@@ -190,6 +196,7 @@ class AppController(
     private var accountListsRequestRevision = 0
 
     init {
+        syncExploreContext(reload = false)
         scope.launch { library.records.collect { records -> mutableState.update { it.copy(library = records) } } }
         scope.launch {
             val configuration = runCatching { api.imageConfiguration() }
@@ -198,9 +205,37 @@ class AppController(
             mutableState.update { it.copy(imageConfiguration = configuration) }
         }
         scope.launch {
-            apiV2?.let { v2 -> runCatching { v2.capabilities() }.onSuccess { value -> mutableState.update { it.copy(capabilities = value) } } }
+            apiV2?.let { v2 ->
+                runCatching { v2.capabilities() }.onSuccess { value ->
+                    val enabled = value.supportsCatalog("advanced_discover")
+                    mutableState.update { current ->
+                        val certificationCountry = current.exploreFilter.region.takeIf {
+                            enabled && current.exploreType == MediaType.MOVIE
+                        }
+                        val applied = if (enabled) {
+                            current.exploreFilter.copy(certificationCountry = certificationCountry)
+                        } else {
+                            current.exploreFilter.basic()
+                        }
+                        val draft = if (enabled) {
+                            current.exploreDraftFilter.copy(certificationCountry = certificationCountry)
+                        } else {
+                            applied
+                        }
+                        current.copy(
+                            capabilities = value,
+                            exploreFilter = applied,
+                            exploreDraftFilter = draft,
+                            discoverConfiguration = if (enabled) current.discoverConfiguration else null,
+                        )
+                    }
+                    reloadExploreConfiguration()
+                    reloadExplore()
+                }
+            }
             refreshAccount()
         }
+        reloadExploreConfiguration()
         reloadHome()
         reloadExplore()
     }
@@ -237,6 +272,8 @@ class AppController(
                 accountListSearch = LoadState.Idle,
             )
         }
+        syncExploreContext(reload = false)
+        reloadExploreConfiguration()
         reloadHome()
         reloadGenresAndExplore()
         if (state.value.searchQuery.isNotBlank()) {
@@ -267,22 +304,45 @@ class AppController(
 
     fun changeExploreType(mediaType: MediaType) {
         if (mediaType == state.value.exploreType) return
-        mutableState.update { it.copy(exploreType = mediaType, exploreFilter = DiscoverFilter()) }
+        mutableState.update {
+            val current = it.exploreFilter
+            val filter = DiscoverFilter(
+                region = current.region,
+                certificationCountry = current.region.takeIf { mediaType == MediaType.MOVIE },
+                includeAdult = current.includeAdult,
+            )
+            it.copy(exploreType = mediaType, exploreFilter = filter, exploreDraftFilter = filter)
+        }
         reloadGenresAndExplore()
     }
 
     fun setMinimumRating(rating: Double) {
-        mutableState.update { it.copy(exploreFilter = it.exploreFilter.copy(minimumRating = rating)) }
+        mutableState.update {
+            it.copy(
+                exploreFilter = it.exploreFilter.copy(minimumRating = rating),
+                exploreDraftFilter = it.exploreDraftFilter.copy(minimumRating = rating),
+            )
+        }
         reloadExplore()
     }
 
     fun setExploreYear(year: Int?) {
-        mutableState.update { it.copy(exploreFilter = it.exploreFilter.copy(year = year)) }
+        mutableState.update {
+            it.copy(
+                exploreFilter = it.exploreFilter.copy(year = year),
+                exploreDraftFilter = it.exploreDraftFilter.copy(year = year),
+            )
+        }
         reloadExplore()
     }
 
     fun setExploreSort(sort: DiscoverSort) {
-        mutableState.update { it.copy(exploreFilter = it.exploreFilter.copy(sort = sort)) }
+        mutableState.update {
+            it.copy(
+                exploreFilter = it.exploreFilter.copy(sort = sort),
+                exploreDraftFilter = it.exploreDraftFilter.copy(sort = sort),
+            )
+        }
         reloadExplore()
     }
 
@@ -291,13 +351,54 @@ class AppController(
             val selected = it.exploreFilter.genres.toMutableSet().apply {
                 if (!add(genreId)) remove(genreId)
             }
-            it.copy(exploreFilter = it.exploreFilter.copy(genres = selected))
+            it.copy(
+                exploreFilter = it.exploreFilter.copy(genres = selected),
+                exploreDraftFilter = it.exploreDraftFilter.copy(genres = selected),
+            )
         }
         reloadExplore()
     }
 
     fun resetExplore() {
-        mutableState.update { it.copy(exploreFilter = DiscoverFilter()) }
+        mutableState.update {
+            val current = it.exploreFilter
+            it.copy(
+                exploreFilter = DiscoverFilter(
+                    region = current.region,
+                    certificationCountry = if (it.exploreType == MediaType.MOVIE) current.region else null,
+                    includeAdult = current.includeAdult,
+                ),
+                exploreDraftFilter = DiscoverFilter(
+                    region = current.region,
+                    certificationCountry = if (it.exploreType == MediaType.MOVIE) current.region else null,
+                    includeAdult = current.includeAdult,
+                ),
+            )
+        }
+        reloadExplore()
+    }
+
+    fun updateExploreFilter(transform: (DiscoverFilter) -> DiscoverFilter) {
+        mutableState.update { it.copy(exploreDraftFilter = transform(it.exploreDraftFilter)) }
+    }
+
+    fun toggleWatchProvider(providerId: Int) = updateExploreFilter { filter ->
+        val providers = filter.watchProviderIds.toMutableSet().apply { if (!add(providerId)) remove(providerId) }
+        filter.copy(watchProviderIds = providers)
+    }
+
+    fun toggleMonetization(type: WatchMonetizationType) = updateExploreFilter { filter ->
+        val values = filter.monetizationTypes.toMutableSet().apply { if (!add(type)) remove(type) }
+        filter.copy(monetizationTypes = values)
+    }
+
+    fun applyExploreFilters() {
+        mutableState.update {
+            val normalized = it.exploreDraftFilter.normalized().let { filter ->
+                if (it.advancedDiscoverEnabled()) filter else filter.basic()
+            }
+            it.copy(exploreFilter = normalized, exploreDraftFilter = normalized)
+        }
         reloadExplore()
     }
 
@@ -306,16 +407,19 @@ class AppController(
         exploreJob = scope.launch {
             mutableState.update { it.copy(explore = LoadState.Loading, explorePage = 0) }
             val snapshot = state.value
-            runCatching { api.discover(snapshot.exploreType, snapshot.exploreFilter, 1, snapshot.locale.backendTag) }
+            runCatching { discoverPage(snapshot, 1) }
                 .propagateCancellation()
-                .onSuccess { page -> mutableState.update {
-                    it.copy(
+                .onSuccess { page -> mutableState.update { current ->
+                    if (!current.matchesExplore(snapshot)) return@update current
+                    current.copy(
                         explore = LoadState.Content(page.results.distinctBy(TitleSummary::libraryKey)),
                         explorePage = page.page,
                         exploreTotalPages = page.totalPages,
                     )
                 } }
-                .onFailure { failure -> mutableState.update { it.copy(explore = LoadState.Error(failure.message.orEmpty())) } }
+                .onFailure { failure -> mutableState.update { current ->
+                    if (current.matchesExplore(snapshot)) current.copy(explore = LoadState.Error(failure.message.orEmpty())) else current
+                } }
         }
     }
 
@@ -325,9 +429,10 @@ class AppController(
         if (snapshot.explorePage >= snapshot.exploreTotalPages || exploreJob?.isActive == true) return
         exploreJob = scope.launch {
             runCatching {
-                api.discover(snapshot.exploreType, snapshot.exploreFilter, snapshot.explorePage + 1, snapshot.locale.backendTag)
-            }.propagateCancellation().onSuccess { page -> mutableState.update {
-                it.copy(
+                discoverPage(snapshot, snapshot.explorePage + 1)
+            }.propagateCancellation().onSuccess { page -> mutableState.update { current ->
+                if (!current.matchesExplore(snapshot) || current.explorePage != snapshot.explorePage) return@update current
+                current.copy(
                     explore = LoadState.Content((content + page.results).distinctBy(TitleSummary::libraryKey)),
                     explorePage = page.page,
                     exploreTotalPages = page.totalPages,
@@ -335,6 +440,13 @@ class AppController(
             } }
         }
     }
+
+    private suspend fun discoverPage(snapshot: SmartMovieState, page: Int): PagedResult<TitleSummary> =
+        if (snapshot.advancedDiscoverEnabled()) {
+            api.discover(snapshot.exploreType, snapshot.exploreFilter, page, snapshot.locale.backendTag)
+        } else {
+            api.discoverBasic(snapshot.exploreType, snapshot.exploreFilter, page, snapshot.locale.backendTag)
+        }
 
     fun updateSearchQuery(query: String) {
         if (state.value.searchMode == CatalogSearchMode.CATALOG) {
@@ -630,6 +742,8 @@ class AppController(
         val normalized = region?.trim()?.uppercase()?.takeIf { it.matches(Regex("[A-Z]{2}")) }
         store.putString(REGION_KEY, normalized.orEmpty())
         mutableState.update { it.copy(regionOverride = normalized) }
+        syncExploreContext(reload = true)
+        reloadExploreConfiguration()
     }
 
     fun configureAdultPin(pin: String): Boolean {
@@ -639,6 +753,7 @@ class AppController(
         store.putString(ADULT_DIGEST_KEY, pinDigest(salt, pin))
         resetAdultFailures()
         mutableState.update { it.copy(adultConfigured = true, adultUnlocked = true) }
+        syncExploreContext(reload = true)
         refreshRecommendations()
         refreshAccountList()
         return true
@@ -652,6 +767,7 @@ class AppController(
         if (pinDigest(salt, pin) == digest) {
             resetAdultFailures()
             mutableState.update { it.copy(adultUnlocked = true) }
+            syncExploreContext(reload = true)
             refreshRecommendations()
             refreshAccountList()
             return true
@@ -682,6 +798,7 @@ class AppController(
                 accountRecommendationsLoadingMore = false,
             )
         }
+        syncExploreContext(reload = true)
     }
 
     fun beginSignIn(mode: String = authMode()) {
@@ -1231,9 +1348,58 @@ class AppController(
             val genres = runCatching { api.genres(snapshot.exploreType, snapshot.locale.backendTag) }
                 .propagateCancellation()
                 .getOrDefault(emptyList())
-            mutableState.update { it.copy(genres = genres) }
+            mutableState.update { current ->
+                if (current.exploreType == snapshot.exploreType && current.locale == snapshot.locale) {
+                    current.copy(genres = genres)
+                } else current
+            }
         }
         reloadExplore()
+    }
+
+    private fun reloadExploreConfiguration() {
+        val v2 = apiV2 ?: return
+        val snapshot = state.value
+        if (!snapshot.advancedDiscoverEnabled()) {
+            mutableState.update { it.copy(discoverConfiguration = null) }
+            return
+        }
+        val region = effectiveRegion(snapshot)
+        val language = snapshot.locale.backendTag
+        mutableState.update { it.copy(discoverConfiguration = null) }
+        scope.launch {
+            runCatching { v2.discoverConfiguration(language, region) }
+                .propagateCancellation()
+                .onSuccess { configuration ->
+                    val current = state.value
+                    if (effectiveRegion(current) == region && current.locale.backendTag == language) {
+                        mutableState.update { it.copy(discoverConfiguration = configuration) }
+                    }
+                }
+        }
+    }
+
+    private fun syncExploreContext(reload: Boolean) {
+        val snapshot = state.value
+        val region = effectiveRegion(snapshot)
+        val adult = includeAdult(snapshot)
+        val regionChanged = snapshot.exploreFilter.region != region
+        val filter = snapshot.exploreFilter.withContext(snapshot.exploreType, region, adult, regionChanged).let {
+            if (snapshot.advancedDiscoverEnabled()) it else it.basic()
+        }
+        val draft = snapshot.exploreDraftFilter.withContext(snapshot.exploreType, region, adult, regionChanged).let {
+            if (snapshot.advancedDiscoverEnabled()) it else it.basic()
+        }
+        if (filter != snapshot.exploreFilter || draft != snapshot.exploreDraftFilter || regionChanged) {
+            mutableState.update {
+                it.copy(
+                    exploreFilter = filter,
+                    exploreDraftFilter = draft,
+                    discoverConfiguration = if (regionChanged) null else it.discoverConfiguration,
+                )
+            }
+        }
+        if (reload) reloadExplore()
     }
 
     private fun scheduleSearch(immediate: Boolean) {
@@ -1367,6 +1533,10 @@ class AppController(
     private fun includeAdult(snapshot: SmartMovieState): Boolean = snapshot.adultConfigured &&
         snapshot.adultUnlocked && snapshot.adultLockUntil <= systemTimeMillis()
 
+    private fun effectiveRegion(snapshot: SmartMovieState): String = snapshot.regionOverride
+        ?: deviceRegion.uppercase().takeIf { it.length == 2 }
+        ?: "US"
+
     private fun normalizeRating(value: Double?): Double? = value?.let {
         ((it * 2).roundToInt() / 2.0).coerceIn(0.5, 10.0)
     }
@@ -1392,6 +1562,62 @@ class AppController(
         const val MAX_LIBRARY_SYNC_PAGES = 50
     }
 }
+
+private fun DiscoverFilter.normalized(): DiscoverFilter {
+    val minimum = minimumRuntime?.coerceAtLeast(0)
+    val maximum = maximumRuntime?.coerceAtLeast(0)
+    return copy(
+        releaseDateFrom = releaseDateFrom.clean(),
+        releaseDateThrough = releaseDateThrough.clean(),
+        originalLanguage = originalLanguage.clean()?.lowercase(),
+        originCountry = originCountry.clean()?.uppercase(),
+        certificationCountry = certificationCountry.clean()?.uppercase(),
+        certificationMinimum = certificationMinimum.clean(),
+        certificationMaximum = certificationMaximum.clean(),
+        minimumRuntime = if (minimum != null && maximum != null) minOf(minimum, maximum) else minimum,
+        maximumRuntime = if (minimum != null && maximum != null) maxOf(minimum, maximum) else maximum,
+        minimumVoteCount = minimumVoteCount.coerceAtLeast(0),
+        region = region.clean()?.uppercase(),
+    )
+}
+
+private fun DiscoverFilter.withContext(
+    mediaType: MediaType,
+    region: String,
+    includeAdult: Boolean,
+    regionChanged: Boolean,
+): DiscoverFilter = copy(
+    region = region,
+    certificationCountry = when {
+        mediaType != MediaType.MOVIE -> null
+        regionChanged -> region
+        else -> certificationCountry
+    },
+    certificationMinimum = if (regionChanged) null else certificationMinimum,
+    certificationMaximum = if (regionChanged) null else certificationMaximum,
+    watchProviderIds = if (regionChanged) emptySet() else watchProviderIds,
+    includeAdult = includeAdult,
+)
+
+private fun SmartMovieState.matchesExplore(snapshot: SmartMovieState): Boolean =
+    exploreType == snapshot.exploreType &&
+        exploreFilter == snapshot.exploreFilter &&
+        locale == snapshot.locale &&
+        advancedDiscoverEnabled() == snapshot.advancedDiscoverEnabled()
+
+private fun SmartMovieState.advancedDiscoverEnabled(): Boolean =
+    capabilities?.supportsCatalog("advanced_discover") == true
+
+private fun DiscoverFilter.basic(): DiscoverFilter = DiscoverFilter(
+    genres = genres,
+    year = year,
+    minimumRating = minimumRating,
+    sort = sort,
+    region = region,
+    includeAdult = includeAdult,
+)
+
+private fun String?.clean(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
 
 internal suspend fun loadAllAccountLists(
     maxPages: Int = 500,

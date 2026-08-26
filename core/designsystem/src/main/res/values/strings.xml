@@ -146,4 +146,26 @@
     <string name="add_titles">Add movies and TV series</string>
     <string name="search_titles">Search titles</string>
     <string name="add_title">Add</string>
+    <string name="release_date_range">Release date range</string>
+    <string name="date_from">From (YYYY-MM-DD)</string>
+    <string name="date_through">Through (YYYY-MM-DD)</string>
+    <string name="original_language">Original language (ISO)</string>
+    <string name="origin_country">Origin country (ISO)</string>
+    <string name="certification">Certification</string>
+    <string name="minimum">Minimum</string>
+    <string name="maximum">Maximum</string>
+    <string name="runtime_and_votes">Runtime and votes</string>
+    <string name="minimum_runtime">Minimum minutes</string>
+    <string name="maximum_runtime">Maximum minutes</string>
+    <string name="minimum_vote_count">Minimum vote count</string>
+    <string name="watch_providers">Watch providers</string>
+    <string name="discover_provider_region">Region: %1$s</string>
+    <string name="providers_unavailable">No providers are available for this region.</string>
+    <string name="availability">Availability</string>
+    <string name="streaming">Streaming</string>
+    <string name="free">Free</string>
+    <string name="with_ads">With ads</string>
+    <string name="rent">Rent</string>
+    <string name="buy">Buy</string>
+    <string name="filter_value_hint">Any</string>
 </resources>

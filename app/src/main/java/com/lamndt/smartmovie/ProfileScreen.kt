@@ -54,6 +54,9 @@ import com.lamndt.smartmovie.designsystem.CinemaColors
 import com.lamndt.smartmovie.designsystem.PosterCard
 import com.lamndt.smartmovie.designsystem.R
 import com.lamndt.smartmovie.model.AccountMutationPayload
+import com.lamndt.smartmovie.model.CatalogRepository
+import com.lamndt.smartmovie.model.CatalogV2Repository
+import com.lamndt.smartmovie.model.ConfigurationCountry
 import com.lamndt.smartmovie.model.PendingAccountMutation
 import com.lamndt.smartmovie.model.ImageKind
 import com.lamndt.smartmovie.model.MediaType
@@ -102,10 +105,19 @@ internal fun ProfileScreen(
     var recommendations by remember { mutableStateOf(AccountRecommendationsUiState()) }
     var recommendationReload by remember { mutableStateOf(0) }
     var accountUiOwnerId by remember { mutableStateOf<Int?>(null) }
+    var providerRegions by remember { mutableStateOf<List<ConfigurationCountry>>(emptyList()) }
     val signedInProfile = (state as? AccountSessionState.SignedIn)?.profile
     val includeAdult = container.preferences.adultConfigured && unlocked
     fun currentAccountId(): Int? =
         (container.accountSession.state.value as? AccountSessionState.SignedIn)?.profile?.id
+
+    LaunchedEffect(language, region) {
+        providerRegions = runCatching {
+            loadProfileProviderRegions(container.catalog, language, region)
+        }
+            .also { result -> if (result.exceptionOrNull() is CancellationException) throw result.exceptionOrNull()!! }
+            .getOrDefault(emptyList())
+    }
 
     LaunchedEffect(signedInProfile?.id) {
         accountUiOwnerId = null
@@ -669,12 +681,22 @@ internal fun ProfileScreen(
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(stringResource(R.string.provider_region), style = MaterialTheme.typography.titleLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("", "US", "GB", "CA", "AU", "FR", "DE", "JP", "KR", "VN", "TW", "SG", "IN").forEach { code ->
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item {
                         FilterChip(
-                            selected = region.orEmpty() == code,
-                            onClick = { container.preferences.setRegion(code.ifEmpty { null }) },
-                            label = { Text(code.ifEmpty { stringResource(R.string.device_region) }) },
+                            selected = region == null,
+                            onClick = { container.preferences.setRegion(null) },
+                            label = { Text(stringResource(R.string.device_region)) },
+                        )
+                    }
+                    val options = providerRegions.ifEmpty {
+                        fallbackProviderRegionCodes.map { ConfigurationCountry(it, it) }
+                    }
+                    items(options, key = ConfigurationCountry::code) { option ->
+                        FilterChip(
+                            selected = region == option.code,
+                            onClick = { container.preferences.setRegion(option.code) },
+                            label = { Text(option.displayName) },
                         )
                     }
                 }
@@ -734,6 +756,20 @@ internal fun ProfileScreen(
             }
         },
     )
+}
+
+private val fallbackProviderRegionCodes = listOf(
+    "US", "GB", "CA", "AU", "FR", "DE", "JP", "KR", "VN", "TW", "HK", "SG", "IN", "BR", "MX",
+)
+
+internal suspend fun loadProfileProviderRegions(
+    catalog: CatalogRepository,
+    language: String,
+    region: String?,
+): List<ConfigurationCountry> {
+    val v2 = catalog as? CatalogV2Repository ?: return emptyList()
+    if (!v2.capabilities().supportsCatalog("advanced_discover")) return emptyList()
+    return v2.discoverConfiguration(language, region).watchProviderRegions
 }
 
 internal data class AccountRecommendationsUiState(

@@ -6,6 +6,7 @@ import com.lamndt.smartmovie.model.CapabilitiesV2
 import com.lamndt.smartmovie.model.CatalogEntity
 import com.lamndt.smartmovie.model.CollectionDetail
 import com.lamndt.smartmovie.model.CreditDetail
+import com.lamndt.smartmovie.model.DiscoverConfiguration
 import com.lamndt.smartmovie.model.DiscoverFilter
 import com.lamndt.smartmovie.model.Genre
 import com.lamndt.smartmovie.model.HomeFeed
@@ -45,6 +46,12 @@ interface CatalogRemoteDataSource {
     suspend fun home(mediaType: MediaType, language: String): HomeFeed
     suspend fun genres(mediaType: MediaType, language: String): List<Genre>
     suspend fun discover(mediaType: MediaType, filter: DiscoverFilter, page: Int, language: String): PagedResult<TitleSummary>
+    suspend fun discoverBasic(
+        mediaType: MediaType,
+        filter: DiscoverFilter,
+        page: Int,
+        language: String,
+    ): PagedResult<TitleSummary> = discover(mediaType, filter, page, language)
     suspend fun search(query: String, scope: SearchScope, page: Int, language: String): PagedResult<TitleSummary>
     suspend fun detail(mediaType: MediaType, id: Int, language: String): TitleDetail
     suspend fun imageConfiguration(): ImageConfiguration
@@ -52,6 +59,7 @@ interface CatalogRemoteDataSource {
 
 interface CatalogRemoteDataSourceV2 : CatalogRemoteDataSource {
     suspend fun capabilities(): CapabilitiesV2
+    suspend fun discoverConfiguration(language: String, region: String?): DiscoverConfiguration
     suspend fun trending(kind: String, window: String, page: Int, language: String, includeAdult: Boolean): PagedResult<CatalogEntity>
     suspend fun searchEntities(
         query: String,
@@ -103,16 +111,61 @@ class CatalogNetworkDataSource(
         page: Int,
         language: String,
     ): PagedResult<TitleSummary> = execute {
+        val query = linkedMapOf(
+            "page" to page.toString(),
+            "language" to language,
+            "sort_by" to filter.sort.wireValue,
+            "vote_average_gte" to String.format(Locale.US, "%.1f", filter.minimumRating),
+            "include_adult" to filter.includeAdult.toString(),
+        )
+        filter.genres.takeIf { it.isNotEmpty() }?.let { query["genres"] = it.sorted().joinToString(",") }
+        filter.year?.let { query["year"] = it.toString() }
+        filter.releaseDateFrom.normalized()?.let { query["release_date_gte"] = it }
+        filter.releaseDateThrough.normalized()?.let { query["release_date_lte"] = it }
+        filter.originalLanguage.normalized()?.lowercase(Locale.ROOT)?.let { query["original_language"] = it }
+        filter.originCountry.normalized()?.uppercase(Locale.ROOT)?.let { query["origin_country"] = it }
+        filter.minimumRuntime?.let { query["runtime_gte"] = it.toString() }
+        filter.maximumRuntime?.let { query["runtime_lte"] = it.toString() }
+        filter.minimumVoteCount.takeIf { it > 0 }?.let { query["vote_count_gte"] = it.toString() }
+        filter.region?.uppercase(Locale.ROOT)?.let { region ->
+            if (mediaType == MediaType.MOVIE) query["region"] = region
+            if (filter.watchProviderIds.isNotEmpty() || filter.monetizationTypes.isNotEmpty()) {
+                query["watch_region"] = region
+            }
+        }
+        if (mediaType == MediaType.MOVIE) {
+            filter.certificationCountry.normalized()?.uppercase(Locale.ROOT)?.let { query["certification_country"] = it }
+            filter.certificationMinimum.normalized()?.let { query["certification_gte"] = it }
+            filter.certificationMaximum.normalized()?.let { query["certification_lte"] = it }
+        }
+        filter.watchProviderIds.takeIf { it.isNotEmpty() }?.let {
+            query["watch_providers"] = it.sorted().joinToString("|")
+        }
+        filter.monetizationTypes.takeIf { it.isNotEmpty() }?.let {
+            query["watch_monetization_types"] = it.map { value -> value.wireValue }.sorted().joinToString("|")
+        }
         service.discover(
             clientId = it,
             mediaType = mediaType.wireValue,
-            page = page,
-            language = language,
-            sortBy = filter.sort.wireValue,
-            minimumRating = String.format(Locale.US, "%.1f", filter.minimumRating),
-            genreIds = filter.genres.sorted().takeIf { it.isNotEmpty() }?.joinToString(","),
-            year = filter.year,
+            query = query,
         )
+    }
+
+    override suspend fun discoverBasic(
+        mediaType: MediaType,
+        filter: DiscoverFilter,
+        page: Int,
+        language: String,
+    ): PagedResult<TitleSummary> = execute {
+        val query = linkedMapOf(
+            "page" to page.toString(),
+            "language" to language,
+            "sort_by" to filter.sort.wireValue,
+            "vote_average_gte" to String.format(Locale.US, "%.1f", filter.minimumRating),
+        )
+        filter.genres.takeIf { it.isNotEmpty() }?.let { query["genre_ids"] = it.sorted().joinToString(",") }
+        filter.year?.let { query["year"] = it.toString() }
+        service.discoverBasic(it, mediaType.wireValue, query)
     }
 
     override suspend fun search(query: String, scope: SearchScope, page: Int, language: String): PagedResult<TitleSummary> = execute {
@@ -126,6 +179,10 @@ class CatalogNetworkDataSource(
     override suspend fun imageConfiguration(): ImageConfiguration = execute { service.imageConfiguration(it) }
 
     override suspend fun capabilities(): CapabilitiesV2 = execute { service.capabilities(it) }
+
+    override suspend fun discoverConfiguration(language: String, region: String?) = execute {
+        service.discoverConfiguration(it, language, region)
+    }
 
     override suspend fun trending(
         kind: String,
@@ -225,3 +282,5 @@ class CatalogNetworkDataSource(
         }
     }
 }
+
+private fun String?.normalized(): String? = this?.trim()?.takeIf { it.isNotEmpty() }

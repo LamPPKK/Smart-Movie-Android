@@ -14,6 +14,13 @@ class ContractV2ConformanceTest {
         val capabilities = decode<CapabilitiesV2>("capabilities")
         assertThat(capabilities.apiVersion).isEqualTo("v2")
         assertThat(capabilities.supportedEntityKinds).containsExactlyElementsIn(EntityKind.entries)
+        val configuration = decode<DiscoverConfiguration>("configuration")
+        assertThat(configuration.region).isEqualTo("US")
+        val providers = requireNotNull(configuration.watchProviders)
+        assertThat(providers.movie.map(WatchProviderOption::id))
+            .containsExactly(8)
+            .inOrder()
+        assertThat(providers.tv.single().id).isEqualTo(337)
 
         val page = decode<PagedResult<CatalogEntity>>("entities")
         assertThat(page.results.map(CatalogEntity::entityKind)).containsExactlyElementsIn(EntityKind.entries)

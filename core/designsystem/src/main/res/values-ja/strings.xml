@@ -41,4 +41,26 @@
     <string name="add_titles">映画とTVシリーズを追加</string>
     <string name="search_titles">作品を検索</string>
     <string name="add_title">追加</string>
+    <string name="release_date_range">公開日の範囲</string>
+    <string name="date_from">開始日 (YYYY-MM-DD)</string>
+    <string name="date_through">終了日 (YYYY-MM-DD)</string>
+    <string name="original_language">原語 (ISO)</string>
+    <string name="origin_country">製作国 (ISO)</string>
+    <string name="certification">年齢区分</string>
+    <string name="minimum">最小</string>
+    <string name="maximum">最大</string>
+    <string name="runtime_and_votes">上映時間と投票数</string>
+    <string name="minimum_runtime">最短（分）</string>
+    <string name="maximum_runtime">最長（分）</string>
+    <string name="minimum_vote_count">最小投票数</string>
+    <string name="watch_providers">配信サービス</string>
+    <string name="discover_provider_region">地域: %1$s</string>
+    <string name="providers_unavailable">この地域で利用できる配信サービスはありません。</string>
+    <string name="availability">視聴方法</string>
+    <string name="streaming">定額配信</string>
+    <string name="free">無料</string>
+    <string name="with_ads">広告付き</string>
+    <string name="rent">レンタル</string>
+    <string name="buy">購入</string>
+    <string name="filter_value_hint">指定なし</string>
 </resources>

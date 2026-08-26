@@ -30,6 +30,25 @@ class CatalogPagingSourcesTest {
 
         assertThat(first.data.map(TitleSummary::libraryKey)).containsExactly("movie:7", "tv:7").inOrder()
         assertThat(second.data.map(TitleSummary::libraryKey)).containsExactly("movie:8")
+        assertThat(catalog.basicDiscoverCalls).hasSize(2)
+        assertThat(catalog.discoverCalls).isEmpty()
+    }
+
+    @Test
+    fun discoverUsesAdvancedRouteOnlyWhenCapabilityEnablesIt() = runTest {
+        val catalog = FakeCatalogRepository()
+        val source = DiscoverPagingSource(
+            catalog,
+            MediaType.MOVIE,
+            DiscoverFilter(releaseDateFrom = "2026-01-01"),
+            "en-US",
+            advancedDiscoverEnabled = true,
+        )
+
+        source.load(PagingSource.LoadParams.Refresh(null, 20, false))
+
+        assertThat(catalog.discoverCalls).hasSize(1)
+        assertThat(catalog.basicDiscoverCalls).isEmpty()
     }
 
     @Test

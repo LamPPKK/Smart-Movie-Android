@@ -115,6 +115,7 @@ import com.lamndt.smartmovie.multiplatform.model.SearchScopeV2
 import com.lamndt.smartmovie.multiplatform.model.TitleDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleSummary
 import com.lamndt.smartmovie.multiplatform.model.UiStrings
+import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
 import com.lamndt.smartmovie.multiplatform.model.preferredTrailer
 import com.lamndt.smartmovie.multiplatform.model.strings
 import com.lamndt.smartmovie.multiplatform.platform.openExternalUrl
@@ -442,6 +443,33 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
                         label = { Text(copy.regionHint) },
                         singleLine = true,
                     )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            FilterChip(
+                                selected = state.regionOverride == null,
+                                onClick = {
+                                    region = ""
+                                    controller.setRegion(null)
+                                },
+                                label = { Text(copy.deviceRegion) },
+                            )
+                        }
+                        val options = state.discoverConfiguration?.watchProviderRegions.orEmpty().ifEmpty {
+                            fallbackProviderRegionCodes.map { code ->
+                                com.lamndt.smartmovie.multiplatform.model.ConfigurationCountry(code, code)
+                            }
+                        }
+                        items(options, key = { it.code }) { option ->
+                            FilterChip(
+                                selected = state.regionOverride == option.code,
+                                onClick = {
+                                    region = option.code
+                                    controller.setRegion(option.code)
+                                },
+                                label = { Text(option.displayName) },
+                            )
+                        }
+                    }
                     Button(onClick = { controller.setRegion(region.ifBlank { null }) }) { Text(copy.save) }
                 }
             }
@@ -474,6 +502,10 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
         item { Text(copy.attribution, color = CinemaColors.Muted, style = MaterialTheme.typography.bodySmall) }
     }
 }
+
+private val fallbackProviderRegionCodes = listOf(
+    "US", "GB", "CA", "AU", "FR", "DE", "JP", "KR", "VN", "TW", "HK", "SG", "IN", "BR", "MX",
+)
 
 @Composable
 private fun AccountListDetailPanel(
@@ -736,6 +768,109 @@ private fun ExploreScreen(state: SmartMovieState, copy: UiStrings, controller: A
                         }
                     }
                 }
+                if (state.capabilities?.supportsCatalog("advanced_discover") == true) {
+                    Text(copy.advancedDiscover.filters, style = MaterialTheme.typography.titleMedium)
+                    Text(copy.advancedDiscover.releaseRange, color = CinemaColors.Muted)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DiscoverTextField(
+                        state.exploreDraftFilter.releaseDateFrom.orEmpty(),
+                        copy.advancedDiscover.dateFrom,
+                        { value -> controller.updateExploreFilter { it.copy(releaseDateFrom = value) } },
+                        Modifier.weight(1f),
+                    )
+                    DiscoverTextField(
+                        state.exploreDraftFilter.releaseDateThrough.orEmpty(),
+                        copy.advancedDiscover.dateThrough,
+                        { value -> controller.updateExploreFilter { it.copy(releaseDateThrough = value) } },
+                        Modifier.weight(1f),
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DiscoverTextField(
+                        state.exploreDraftFilter.originalLanguage.orEmpty(),
+                        copy.advancedDiscover.originalLanguage,
+                        { value -> controller.updateExploreFilter { it.copy(originalLanguage = value) } },
+                        Modifier.weight(1f),
+                    )
+                    DiscoverTextField(
+                        state.exploreDraftFilter.originCountry.orEmpty(),
+                        copy.advancedDiscover.originCountry,
+                        { value -> controller.updateExploreFilter { it.copy(originCountry = value) } },
+                        Modifier.weight(1f),
+                    )
+                }
+                if (state.exploreType == MediaType.MOVIE) {
+                    Text(copy.advancedDiscover.certification, color = CinemaColors.Muted)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        DiscoverTextField(
+                            state.exploreDraftFilter.certificationMinimum.orEmpty(),
+                            copy.advancedDiscover.minimum,
+                            { value -> controller.updateExploreFilter { it.copy(certificationMinimum = value) } },
+                            Modifier.weight(1f),
+                        )
+                        DiscoverTextField(
+                            state.exploreDraftFilter.certificationMaximum.orEmpty(),
+                            copy.advancedDiscover.maximum,
+                            { value -> controller.updateExploreFilter { it.copy(certificationMaximum = value) } },
+                            Modifier.weight(1f),
+                        )
+                    }
+                }
+                Text(copy.advancedDiscover.runtimeAndVotes, color = CinemaColors.Muted)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DiscoverTextField(
+                        state.exploreDraftFilter.minimumRuntime?.toString().orEmpty(),
+                        copy.advancedDiscover.minimumRuntime,
+                        { value -> controller.updateExploreFilter { it.copy(minimumRuntime = value.toIntOrNull()) } },
+                        Modifier.weight(1f),
+                    )
+                    DiscoverTextField(
+                        state.exploreDraftFilter.maximumRuntime?.toString().orEmpty(),
+                        copy.advancedDiscover.maximumRuntime,
+                        { value -> controller.updateExploreFilter { it.copy(maximumRuntime = value.toIntOrNull()) } },
+                        Modifier.weight(1f),
+                    )
+                    DiscoverTextField(
+                        state.exploreDraftFilter.minimumVoteCount.takeIf { it > 0 }?.toString().orEmpty(),
+                        copy.advancedDiscover.minimumVoteCount,
+                        { value -> controller.updateExploreFilter { it.copy(minimumVoteCount = value.toIntOrNull() ?: 0) } },
+                        Modifier.weight(1f),
+                    )
+                }
+                Text(
+                    "${copy.advancedDiscover.watchProviders} · ${copy.advancedDiscover.region}: ${state.exploreDraftFilter.region.orEmpty()}",
+                    color = CinemaColors.Muted,
+                )
+                val providers = state.discoverConfiguration?.watchProviders?.values(state.exploreType).orEmpty()
+                if (providers.isEmpty()) {
+                    Text(copy.advancedDiscover.providersUnavailable, color = CinemaColors.Muted)
+                } else {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        items(providers, key = { it.id }) { provider ->
+                            FilterChip(
+                                selected = provider.id in state.exploreDraftFilter.watchProviderIds,
+                                onClick = { controller.toggleWatchProvider(provider.id) },
+                                label = { Text(provider.name) },
+                            )
+                        }
+                    }
+                }
+                Text(copy.advancedDiscover.availability, color = CinemaColors.Muted)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    items(WatchMonetizationType.entries) { type ->
+                        FilterChip(
+                            selected = type in state.exploreDraftFilter.monetizationTypes,
+                            onClick = { controller.toggleMonetization(type) },
+                            label = { Text(monetizationLabel(type, copy)) },
+                        )
+                    }
+                }
+                Text(copy.advancedDiscover.justWatch, style = MaterialTheme.typography.labelSmall, color = CinemaColors.Muted)
+                    Button(
+                        onClick = controller::applyExploreFilters,
+                        colors = ButtonDefaults.buttonColors(containerColor = CinemaColors.Accent),
+                    ) { Text(copy.advancedDiscover.apply) }
+                }
             }
         }
         when (val result = state.explore) {
@@ -763,6 +898,30 @@ private fun ExploreScreen(state: SmartMovieState, copy: UiStrings, controller: A
             }
         }
     }
+}
+
+@Composable
+private fun DiscoverTextField(
+    value: String,
+    label: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        singleLine = true,
+        modifier = modifier,
+    )
+}
+
+private fun monetizationLabel(type: WatchMonetizationType, copy: UiStrings): String = when (type) {
+    WatchMonetizationType.SUBSCRIPTION -> copy.advancedDiscover.subscription
+    WatchMonetizationType.FREE -> copy.advancedDiscover.free
+    WatchMonetizationType.ADS -> copy.advancedDiscover.withAds
+    WatchMonetizationType.RENT -> copy.advancedDiscover.rent
+    WatchMonetizationType.BUY -> copy.advancedDiscover.buy
 }
 
 private const val CURRENT_YEAR = 2026
@@ -1487,6 +1646,7 @@ private data class ProfileCopy(
     val retry: String,
     val region: String,
     val regionHint: String,
+    val deviceRegion: String,
     val save: String,
     val adultContent: String,
     val adultDescription: String,
@@ -1521,7 +1681,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     AppLocale.ENGLISH -> ProfileCopy(
         "Profile", "TMDb account", "Checking your session…", "Sign in through TMDb in your browser. SmartMovie never sees your password.",
         "Sign in with TMDb", "Finish approval in your browser; SmartMovie will reconnect automatically.", "Device code", "Cancel",
-        "Sign out · keep local", "Sign out · remove data", "Try again", "Content region", "Two-letter country code", "Save",
+        "Sign out · keep local", "Sign out · remove data", "Try again", "Content region", "Two-letter country code", "Device region", "Save",
         "Adult content", "Off by default. Enabling it requires a six-digit PIN stored only on this device.",
         "Too many attempts. Try again in five minutes.", "Six-digit PIN", "Unlock", "Enable", "Lock",
         "Movie data and images: TMDb. Availability data: JustWatch via TMDb.", "Custom lists", "List name", "Description", "Create list", "Delete",
@@ -1532,7 +1692,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     AppLocale.VIETNAMESE -> ProfileCopy(
         "Hồ sơ", "Tài khoản TMDb", "Đang kiểm tra phiên…", "Đăng nhập qua TMDb trong trình duyệt. SmartMovie không bao giờ nhận mật khẩu của bạn.",
         "Đăng nhập với TMDb", "Hoàn tất phê duyệt trong trình duyệt; SmartMovie sẽ tự kết nối lại.", "Mã thiết bị", "Hủy",
-        "Đăng xuất · giữ cục bộ", "Đăng xuất · xóa dữ liệu", "Thử lại", "Khu vực nội dung", "Mã quốc gia hai chữ cái", "Lưu",
+        "Đăng xuất · giữ cục bộ", "Đăng xuất · xóa dữ liệu", "Thử lại", "Khu vực nội dung", "Mã quốc gia hai chữ cái", "Vùng thiết bị", "Lưu",
         "Nội dung 18+", "Mặc định tắt. Cần PIN sáu chữ số chỉ lưu trên thiết bị để bật.",
         "Sai quá nhiều lần. Hãy thử lại sau năm phút.", "PIN sáu chữ số", "Mở khóa", "Bật", "Khóa",
         "Dữ liệu và hình ảnh phim: TMDb. Dữ liệu nơi xem: JustWatch qua TMDb.", "Danh sách tùy chỉnh", "Tên danh sách", "Mô tả", "Tạo danh sách", "Xóa",
@@ -1543,7 +1703,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     AppLocale.JAPANESE -> ProfileCopy(
         "プロフィール", "TMDbアカウント", "セッションを確認中…", "ブラウザーでTMDbにログインします。SmartMovieがパスワードを取得することはありません。",
         "TMDbでログイン", "ブラウザーで承認を完了すると自動的に再接続します。", "デバイスコード", "キャンセル",
-        "ログアウト・端末に保持", "ログアウト・データ削除", "再試行", "コンテンツ地域", "2文字の国コード", "保存",
+        "ログアウト・端末に保持", "ログアウト・データ削除", "再試行", "コンテンツ地域", "2文字の国コード", "デバイスの地域", "保存",
         "成人向けコンテンツ", "初期設定はオフです。有効化には端末内だけに保存する6桁PINが必要です。",
         "試行回数を超えました。5分後に再試行してください。", "6桁PIN", "ロック解除", "有効にする", "ロック",
         "映画データと画像: TMDb。配信情報: TMDb経由のJustWatch。", "カスタムリスト", "リスト名", "説明", "リストを作成", "削除",
@@ -1554,7 +1714,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     AppLocale.KOREAN -> ProfileCopy(
         "프로필", "TMDb 계정", "세션 확인 중…", "브라우저에서 TMDb에 로그인합니다. SmartMovie는 비밀번호를 받지 않습니다.",
         "TMDb로 로그인", "브라우저에서 승인을 완료하면 자동으로 다시 연결됩니다.", "기기 코드", "취소",
-        "로그아웃 · 로컬 유지", "로그아웃 · 데이터 삭제", "다시 시도", "콘텐츠 지역", "두 글자 국가 코드", "저장",
+        "로그아웃 · 로컬 유지", "로그아웃 · 데이터 삭제", "다시 시도", "콘텐츠 지역", "두 글자 국가 코드", "기기 지역", "저장",
         "성인 콘텐츠", "기본값은 꺼짐입니다. 이 기기에만 저장되는 6자리 PIN이 필요합니다.",
         "시도 횟수를 초과했습니다. 5분 후 다시 시도하세요.", "6자리 PIN", "잠금 해제", "사용", "잠금",
         "영화 데이터 및 이미지: TMDb. 시청 가능 정보: TMDb를 통한 JustWatch.", "사용자 목록", "목록 이름", "설명", "목록 만들기", "삭제",
@@ -1565,7 +1725,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     AppLocale.CHINESE_SIMPLIFIED -> ProfileCopy(
         "个人资料", "TMDb 账户", "正在检查会话…", "请在浏览器中登录 TMDb。SmartMovie 不会获取您的密码。",
         "使用 TMDb 登录", "在浏览器中完成授权后，SmartMovie 会自动重新连接。", "设备代码", "取消",
-        "退出 · 保留本地", "退出 · 删除数据", "重试", "内容地区", "两位国家代码", "保存",
+        "退出 · 保留本地", "退出 · 删除数据", "重试", "内容地区", "两位国家代码", "设备地区", "保存",
         "成人内容", "默认关闭。启用时需要设置仅存储在本设备上的六位 PIN。",
         "尝试次数过多，请五分钟后重试。", "六位 PIN", "解锁", "启用", "锁定",
         "电影数据和图片：TMDb。可观看信息：通过 TMDb 提供的 JustWatch。", "自定义列表", "列表名称", "说明", "创建列表", "删除",
@@ -1576,7 +1736,7 @@ private fun profileCopy(locale: AppLocale): ProfileCopy = when (locale) {
     AppLocale.CHINESE_TRADITIONAL -> ProfileCopy(
         "個人資料", "TMDb 帳戶", "正在檢查工作階段…", "請在瀏覽器中登入 TMDb。SmartMovie 不會取得您的密碼。",
         "使用 TMDb 登入", "在瀏覽器完成授權後，SmartMovie 會自動重新連線。", "裝置代碼", "取消",
-        "登出 · 保留本機", "登出 · 刪除資料", "重試", "內容地區", "兩位國家代碼", "儲存",
+        "登出 · 保留本機", "登出 · 刪除資料", "重試", "內容地區", "兩位國家代碼", "裝置地區", "儲存",
         "成人內容", "預設關閉。啟用時需設定只儲存在本裝置的六位 PIN。",
         "嘗試次數過多，請五分鐘後再試。", "六位 PIN", "解鎖", "啟用", "鎖定",
         "電影資料與圖片：TMDb。可觀看資訊：由 TMDb 提供的 JustWatch。", "自訂清單", "清單名稱", "說明", "建立清單", "刪除",

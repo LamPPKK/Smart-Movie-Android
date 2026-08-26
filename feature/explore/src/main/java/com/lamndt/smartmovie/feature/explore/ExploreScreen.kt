@@ -32,11 +32,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +64,7 @@ import com.lamndt.smartmovie.model.DiscoverSort
 import com.lamndt.smartmovie.model.ImageKind
 import com.lamndt.smartmovie.model.MediaType
 import com.lamndt.smartmovie.model.TitleSummary
+import com.lamndt.smartmovie.model.WatchMonetizationType
 import java.time.Year
 import kotlin.math.roundToInt
 
@@ -72,10 +75,18 @@ fun ExploreRoute(
     language: String,
     onTitleClick: (TitleSummary) -> Unit,
     modifier: Modifier = Modifier,
-    exploreViewModel: ExploreViewModel = viewModel(factory = ExploreViewModel.factory(catalog, language)),
+    region: String = "US",
+    includeAdult: Boolean = false,
+    exploreViewModel: ExploreViewModel = viewModel(
+        key = "explore:$language",
+        factory = ExploreViewModel.factory(catalog, language),
+    ),
 ) {
     val state by exploreViewModel.state.collectAsStateWithLifecycle()
     val titles = exploreViewModel.titles.collectAsLazyPagingItems()
+    LaunchedEffect(language, region, includeAdult) {
+        exploreViewModel.updateContext(region, includeAdult)
+    }
     ExploreScreen(
         state = state,
         itemCount = titles.itemCount,
@@ -201,6 +212,136 @@ private fun FilterSheet(
             onValueChange = { range -> onUpdate { it.copy(year = range.endInclusive.roundToInt().takeUnless { year -> year == currentYear }) } },
             valueRange = 1950f..currentYear.toFloat(),
         )
+        if (state.advancedDiscoverEnabled) {
+            Text(stringResource(R.string.release_date_range), style = MaterialTheme.typography.titleMedium)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FilterTextField(
+                value = state.draftFilter.releaseDateFrom.orEmpty(),
+                label = stringResource(R.string.date_from),
+                onValueChange = { value -> onUpdate { it.copy(releaseDateFrom = value) } },
+                modifier = Modifier.weight(1f),
+            )
+            FilterTextField(
+                value = state.draftFilter.releaseDateThrough.orEmpty(),
+                label = stringResource(R.string.date_through),
+                onValueChange = { value -> onUpdate { it.copy(releaseDateThrough = value) } },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FilterTextField(
+                value = state.draftFilter.originalLanguage.orEmpty(),
+                label = stringResource(R.string.original_language),
+                onValueChange = { value -> onUpdate { it.copy(originalLanguage = value) } },
+                modifier = Modifier.weight(1f),
+            )
+            FilterTextField(
+                value = state.draftFilter.originCountry.orEmpty(),
+                label = stringResource(R.string.origin_country),
+                onValueChange = { value -> onUpdate { it.copy(originCountry = value) } },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (state.mediaType == MediaType.MOVIE) {
+            Text(stringResource(R.string.certification), style = MaterialTheme.typography.titleMedium)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FilterTextField(
+                    value = state.draftFilter.certificationMinimum.orEmpty(),
+                    label = stringResource(R.string.minimum),
+                    onValueChange = { value -> onUpdate { it.copy(certificationMinimum = value) } },
+                    modifier = Modifier.weight(1f),
+                )
+                FilterTextField(
+                    value = state.draftFilter.certificationMaximum.orEmpty(),
+                    label = stringResource(R.string.maximum),
+                    onValueChange = { value -> onUpdate { it.copy(certificationMaximum = value) } },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        Text(stringResource(R.string.runtime_and_votes), style = MaterialTheme.typography.titleMedium)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FilterTextField(
+                value = state.draftFilter.minimumRuntime?.toString().orEmpty(),
+                label = stringResource(R.string.minimum_runtime),
+                onValueChange = { value -> onUpdate { it.copy(minimumRuntime = value.toIntOrNull()) } },
+                modifier = Modifier.weight(1f),
+            )
+            FilterTextField(
+                value = state.draftFilter.maximumRuntime?.toString().orEmpty(),
+                label = stringResource(R.string.maximum_runtime),
+                onValueChange = { value -> onUpdate { it.copy(maximumRuntime = value.toIntOrNull()) } },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        FilterTextField(
+            value = state.draftFilter.minimumVoteCount.takeIf { it > 0 }?.toString().orEmpty(),
+            label = stringResource(R.string.minimum_vote_count),
+            onValueChange = { value -> onUpdate { it.copy(minimumVoteCount = value.toIntOrNull() ?: 0) } },
+        )
+        Text(stringResource(R.string.watch_providers), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.discover_provider_region, state.draftFilter.region.orEmpty()),
+            style = MaterialTheme.typography.bodyMedium,
+            color = CinemaColors.Muted,
+        )
+        val providers = state.configuration?.watchProviders?.values(state.mediaType).orEmpty()
+        if (providers.isEmpty()) {
+            Text(stringResource(R.string.providers_unavailable), color = CinemaColors.Muted)
+        } else {
+            FlowRow(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                providers.forEach { provider ->
+                    FilterChip(
+                        selected = provider.id in state.draftFilter.watchProviderIds,
+                        onClick = {
+                            onUpdate { filter ->
+                                filter.copy(
+                                    watchProviderIds = if (provider.id in filter.watchProviderIds) {
+                                        filter.watchProviderIds - provider.id
+                                    } else {
+                                        filter.watchProviderIds + provider.id
+                                    },
+                                )
+                            }
+                        },
+                        label = { Text(provider.name) },
+                    )
+                }
+            }
+        }
+        Text(stringResource(R.string.availability), style = MaterialTheme.typography.titleMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            WatchMonetizationType.entries.forEach { type ->
+                val label = when (type) {
+                    WatchMonetizationType.SUBSCRIPTION -> R.string.streaming
+                    WatchMonetizationType.FREE -> R.string.free
+                    WatchMonetizationType.ADS -> R.string.with_ads
+                    WatchMonetizationType.RENT -> R.string.rent
+                    WatchMonetizationType.BUY -> R.string.buy
+                }
+                FilterChip(
+                    selected = type in state.draftFilter.monetizationTypes,
+                    onClick = {
+                        onUpdate { filter ->
+                            filter.copy(
+                                monetizationTypes = if (type in filter.monetizationTypes) {
+                                    filter.monetizationTypes - type
+                                } else {
+                                    filter.monetizationTypes + type
+                                },
+                            )
+                        }
+                    },
+                    label = { Text(stringResource(label)) },
+                )
+            }
+        }
+            Text(stringResource(R.string.justwatch_attribution), style = MaterialTheme.typography.labelSmall, color = CinemaColors.Muted)
+        }
         Text(stringResource(R.string.sort_by), style = MaterialTheme.typography.titleMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             DiscoverSort.entries.forEach { sort ->
@@ -217,4 +358,21 @@ private fun FilterSheet(
         }
         Spacer(Modifier.height(24.dp))
     }
+}
+
+@Composable
+private fun FilterTextField(
+    value: String,
+    label: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = { Text(stringResource(R.string.filter_value_hint)) },
+        singleLine = true,
+        modifier = modifier,
+    )
 }

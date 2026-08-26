@@ -16,12 +16,17 @@ class DiscoverPagingSource(
     private val mediaType: MediaType,
     private val filter: DiscoverFilter,
     private val language: String,
+    private val advancedDiscoverEnabled: Boolean = false,
 ) : PagingSource<Int, TitleSummary>() {
     private val seenKeys = mutableSetOf<String>()
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, TitleSummary> = runCatching {
         val page = params.key ?: 1
-        val response = catalog.discover(mediaType, filter, page, language)
+        val response = if (advancedDiscoverEnabled) {
+            catalog.discover(mediaType, filter, page, language)
+        } else {
+            catalog.discoverBasic(mediaType, filter, page, language)
+        }
         LoadResult.Page(
             data = synchronized(seenKeys) { response.results.filter { seenKeys.add(it.libraryKey) } },
             prevKey = if (page > 1) page - 1 else null,

@@ -24,7 +24,7 @@ Apple and Android keep native UI, lifecycle, and storage while sharing the addit
 
 ## What you can do
 
-- **Explore the complete catalog** through Home, advanced Discover, trending, pagination, retry, and cancellation.
+- **Explore the complete catalog** through Home, trending, pagination, retry, cancellation, and regional Discover filters for dates, language, country, certification, runtime, votes, providers, monetization, rating, and adult-PIN context.
 - **Search across entities** with discriminated Movie, TV, Person, Collection, Company, and Keyword results, or resolve an IMDb, TheTVDB, Wikidata, Facebook, Instagram, or X/Twitter ID.
 - **Open deep details** for titles, people, collections, organizations, keywords, seasons, episodes, and individual cast/crew credits, including navigable person/title links, role metadata, media, reviews, related content, providers, and release information.
 - **Use TMDb account recommendations** from Profile with separate Movie/TV feeds, retry, pagination, title navigation, deduplication, and local adult-PIN filtering across phone, Android TV, and KMP desktop/web.
@@ -189,7 +189,7 @@ cd Android.Smart.Movie
 ./gradlew --dependency-verification=strict :app:assembleDebug :wear:assembleDebug
 ```
 
-The native debug build calls `https://staging-catalog.smartmovie.app/`; release calls `https://catalog.smartmovie.app/`. Both support legacy `/v1` and additive `/v2`. `/v2/capabilities` keeps account UI disabled until the deployed Worker has D1, encryption, callback, and allowlist configuration. No TMDb or Cloudflare credential belongs in a client.
+The native debug build calls `https://staging-catalog.smartmovie.app/`; release calls `https://catalog.smartmovie.app/`. Both support legacy `/v1` and additive `/v2`. `/v2/capabilities` keeps account and Advanced Discover UI disabled until the deployed Worker advertises support; Explore remains available through the basic `/v1` route during rollout or rollback. No TMDb or Cloudflare credential belongs in a client.
 
 ### Run desktop or web
 

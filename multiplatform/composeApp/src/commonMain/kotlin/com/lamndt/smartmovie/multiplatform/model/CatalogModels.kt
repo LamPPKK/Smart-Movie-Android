@@ -128,11 +128,33 @@ enum class DiscoverSort(val wireValue: String) {
     RELEASE_DATE("primary_release_date.desc"),
 }
 
+enum class WatchMonetizationType(val wireValue: String) {
+    SUBSCRIPTION("flatrate"),
+    FREE("free"),
+    ADS("ads"),
+    RENT("rent"),
+    BUY("buy"),
+}
+
 data class DiscoverFilter(
     val genres: Set<Int> = emptySet(),
     val year: Int? = null,
     val minimumRating: Double = 0.0,
     val sort: DiscoverSort = DiscoverSort.POPULARITY,
+    val releaseDateFrom: String? = null,
+    val releaseDateThrough: String? = null,
+    val originalLanguage: String? = null,
+    val originCountry: String? = null,
+    val certificationCountry: String? = null,
+    val certificationMinimum: String? = null,
+    val certificationMaximum: String? = null,
+    val minimumRuntime: Int? = null,
+    val maximumRuntime: Int? = null,
+    val minimumVoteCount: Int = 0,
+    val region: String? = null,
+    val watchProviderIds: Set<Int> = emptySet(),
+    val monetizationTypes: Set<WatchMonetizationType> = emptySet(),
+    val includeAdult: Boolean = false,
 )
 
 fun preferredTrailer(videos: List<Video>, language: String): Video? {
