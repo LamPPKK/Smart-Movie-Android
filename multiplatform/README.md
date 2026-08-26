@@ -17,6 +17,8 @@ The separate `SmartMovie` repository owns the native SwiftUI clients for iPhone,
 
 Desktop conformance tests decode the repository-level `catalog-contract` fixtures. The vendored snapshot is shared with native Android and is updated by an automated cross-repository pull request whenever the Worker contract changes.
 
+Title detail uses typed contract models for production companies/networks, region-matched certification and release dates, alternative titles, localized translations, and external identifiers. The same six-locale summary is also documented in the in-app Profile/About surface.
+
 All catalog/account traffic goes through `https://catalog.smartmovie.app/v2`; `/v1` remains for deterministic legacy preview and 2.0 compatibility. Desktop development can override the origin with `SMARTMOVIE_CATALOG_BASE_URL`; web development can use `?api=https://…`. The `?preview=1` switch is reserved for the deterministic local preview server.
 
 ## Build

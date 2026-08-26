@@ -57,6 +57,15 @@ class ContractConformanceTest {
         assertEquals("Catalog everything.", title.tagline)
         assertEquals("JustWatch", title.watchProviders.single().attribution)
         assertTrue(title.watchProviders.single().stream.isNotEmpty())
+        assertEquals(listOf("Phim Mẫu", "Catalog Sample"), title.alternativeTitles.map(AlternativeTitle::title))
+        assertNull(title.alternativeTitles.last().countryCode)
+        assertEquals("PG-13", title.releaseInformation.single().certification)
+        assertEquals("2026-08-25T00:00:00.000Z", title.releaseInformation.single().firstReleaseDate)
+        assertEquals("Phim Mẫu", title.translations.single().localizedTitle)
+        assertEquals(null, title.releaseInformationFor("vn"))
+        assertEquals("US", title.releaseInformationFor("us")?.countryCode)
+        assertEquals("Phim Mẫu", title.displayAlternativeTitles("VN").first().title)
+        assertEquals(listOf("Phim Mẫu"), title.displayTranslations("vi-VN").mapNotNull(TitleTranslation::localizedTitle))
 
         assertEquals(12, decodeV2<PersonDetail>("person").id)
         assertEquals(13, decodeV2<CollectionDetail>("collection").id)
@@ -76,6 +85,12 @@ class ContractConformanceTest {
         assertTrue(capabilities.supportsAccount("browser_auth"))
         assertTrue(capabilities.supportsAccount("tv_qr_auth"))
         assertTrue(capabilities.supportsAccount("ratings"))
+
+        val tvRating = json.decodeFromString<ReleaseInformation>(
+            """{"iso_3166_1":"US","rating":"TV-14","future":true}""",
+        )
+        assertEquals("TV-14", tvRating.certification)
+        assertTrue(tvRating.releaseDates.isEmpty())
     }
 
     @Test

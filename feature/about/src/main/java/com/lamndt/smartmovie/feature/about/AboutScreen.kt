@@ -35,6 +35,8 @@ fun AboutScreen(versionName: String, modifier: Modifier = Modifier) {
         Text(stringResource(R.string.app_name), style = MaterialTheme.typography.displayMedium, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.cinematic_description), color = CinemaColors.Muted, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.catalog_metadata_description), color = CinemaColors.Muted, textAlign = TextAlign.Center)
         Spacer(Modifier.height(28.dp))
         Surface(shape = CinemaCardShape, color = CinemaColors.Surface, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

@@ -66,4 +66,10 @@
     <string name="adult_age_confirmation">만 18세 이상임을 확인합니다.</string>
     <string name="adult_age_required">만 18세 이상임을 확인하세요.</string>
     <string name="source_repositories">소스 저장소</string>
+    <string name="production">제작</string>
+    <string name="release_localization">공개 및 현지화</string>
+    <string name="alternative_titles">대체 제목</string>
+    <string name="translations">번역</string>
+    <string name="external_identifiers">외부 식별자</string>
+    <string name="catalog_metadata_description">TMDb의 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.</string>
 </resources>

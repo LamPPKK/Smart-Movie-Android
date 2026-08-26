@@ -243,6 +243,7 @@ class AppControllerTest {
         )
         advanceUntilIdle()
 
+        assertEquals("CA", controller.contentRegion())
         assertEquals("CA", controller.state.value.exploreFilter.region)
         assertEquals("CA", controller.state.value.exploreFilter.certificationCountry)
         assertEquals("CA", api.configurationRequests.last().second)
@@ -251,6 +252,8 @@ class AppControllerTest {
         assertEquals(emptySet(), controller.state.value.exploreFilter.watchProviderIds)
         assertEquals(setOf(8), controller.state.value.exploreDraftFilter.watchProviderIds)
         assertEquals(emptySet(), api.discoverFilters.last().watchProviderIds)
+        controller.setRegion("vn")
+        assertEquals("VN", controller.contentRegion())
         controller.close()
     }
 

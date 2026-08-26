@@ -117,6 +117,7 @@ import com.lamndt.smartmovie.multiplatform.model.PersonSummary
 import com.lamndt.smartmovie.multiplatform.model.SearchScope
 import com.lamndt.smartmovie.multiplatform.model.SearchScopeV2
 import com.lamndt.smartmovie.multiplatform.model.TitleDetail
+import com.lamndt.smartmovie.multiplatform.model.TitleDetailV2
 import com.lamndt.smartmovie.multiplatform.model.TitleSummary
 import com.lamndt.smartmovie.multiplatform.model.UiStrings
 import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
@@ -578,6 +579,7 @@ private fun ProfileScreen(state: SmartMovieState, controller: AppController) {
             Surface(shape = RoundedCornerShape(22.dp), color = CinemaColors.Elevated) {
                 Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(copy.sourceRepositories, style = MaterialTheme.typography.titleLarge)
+                    Text(titleMetadataCopy(state.locale).aboutDescription, color = CinemaColors.Muted)
                     TextButton(onClick = { openExternalUrl("https://github.com/LamPPKK/Smart-Movie-iOS") }) {
                         Text("Smart Movie iOS")
                     }
@@ -1480,6 +1482,8 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
     val images = remember(state.imageConfiguration) { ImageUrlFactory(state.imageConfiguration) }
     val record = state.library.firstOrNull { it.title.libraryKey == detail.summary.libraryKey }
     val trailer = preferredTrailer(detail.videos, state.locale.backendTag)
+    val metadataCopy = titleMetadataCopy(state.locale)
+    val region = controller.contentRegion()
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
         item {
@@ -1557,7 +1561,27 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
                         label = { Text(collection.name) },
                     )
                 }
-                state.deepDetail?.watchProviders?.firstOrNull()?.let { providers ->
+                state.deepDetail?.let { deep ->
+                    val organizations = deep.companies + deep.networks
+                    if (organizations.isNotEmpty()) {
+                        SectionTitle(metadataCopy.production)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            organizations.forEach { organization ->
+                                AssistChip(
+                                    onClick = { controller.openEntity(CatalogEntity.Organization(organization)) },
+                                    label = { Text(organization.name) },
+                                )
+                            }
+                        }
+                    }
+                    TitleMetadataPanel(
+                        detail = deep,
+                        language = state.locale.backendTag,
+                        region = region,
+                        copy = metadataCopy,
+                    )
+                }
+                state.deepDetail?.watchProviders?.firstOrNull { it.region.equals(region, ignoreCase = true) }?.let { providers ->
                     SectionTitle("${providers.region} · ${providers.attribution}")
                     val names = (providers.stream + providers.rent + providers.buy).distinctBy { it.providerId }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1629,6 +1653,80 @@ private fun DetailContent(detail: TitleDetail, state: SmartMovieState, copy: UiS
             }
         }
     }
+}
+
+@Composable
+private fun TitleMetadataPanel(detail: TitleDetailV2, language: String, region: String, copy: TitleMetadataCopy) {
+    val release = detail.releaseInformationFor(region)
+    val aliases = detail.displayAlternativeTitles(region).take(6)
+    val translations = detail.displayTranslations(language).take(6)
+    val externalIds = detail.externalIds
+        .filterValues(String::isNotBlank)
+        .entries
+        .sortedBy { entry -> entry.key }
+        .take(8)
+    if (release == null && aliases.isEmpty() && translations.isEmpty() && externalIds.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle(copy.releaseAndLocalization)
+        release?.certification?.let { Text("${copy.certification}: $it", color = CinemaColors.Muted) }
+        release?.firstReleaseDate?.let { Text("${copy.releaseDate}: ${it.take(10)}", color = CinemaColors.Muted) }
+        if (aliases.isNotEmpty()) {
+            Text(copy.alternativeTitles, fontWeight = FontWeight.SemiBold)
+            aliases.forEach { alias ->
+                Text(listOfNotNull(alias.title, alias.countryCode).joinToString(" · "), color = CinemaColors.Muted)
+            }
+        }
+        if (translations.isNotEmpty()) {
+            Text(copy.translations, fontWeight = FontWeight.SemiBold)
+            translations.forEach { translation ->
+                val language = translation.languageName.ifBlank { translation.languageCode.uppercase() }
+                Text("${translation.localizedTitle} · $language", color = CinemaColors.Muted)
+            }
+        }
+        if (externalIds.isNotEmpty()) {
+            Text(copy.externalIdentifiers, fontWeight = FontWeight.SemiBold)
+            externalIds.forEach { (source, value) -> Text("$source: $value", color = CinemaColors.Muted) }
+        }
+    }
+}
+
+private data class TitleMetadataCopy(
+    val production: String,
+    val releaseAndLocalization: String,
+    val certification: String,
+    val releaseDate: String,
+    val alternativeTitles: String,
+    val translations: String,
+    val externalIdentifiers: String,
+    val aboutDescription: String,
+)
+
+private fun titleMetadataCopy(locale: AppLocale): TitleMetadataCopy = when (locale) {
+    AppLocale.ENGLISH -> TitleMetadataCopy(
+        "Production", "Release & localization", "Certification", "Release date", "Alternative titles", "Translations",
+        "External identifiers", "Explore regional release dates, certifications, localized titles, translations and external identifiers from TMDb.",
+    )
+    AppLocale.VIETNAMESE -> TitleMetadataCopy(
+        "Sản xuất", "Phát hành & bản địa hóa", "Phân loại độ tuổi", "Ngày phát hành", "Tên gọi khác", "Bản dịch",
+        "Định danh bên ngoài", "Khám phá ngày phát hành và phân loại theo khu vực, tên bản địa hóa, bản dịch và định danh ngoài từ TMDb.",
+    )
+    AppLocale.JAPANESE -> TitleMetadataCopy(
+        "制作", "公開・ローカライズ", "年齢区分", "公開日", "別タイトル", "翻訳", "外部識別子",
+        "TMDbの地域別公開日、年齢区分、ローカライズされたタイトル、翻訳、外部識別子を確認できます。",
+    )
+    AppLocale.KOREAN -> TitleMetadataCopy(
+        "제작", "공개 및 현지화", "시청 등급", "공개일", "대체 제목", "번역", "외부 식별자",
+        "TMDb의 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.",
+    )
+    AppLocale.CHINESE_SIMPLIFIED -> TitleMetadataCopy(
+        "制作", "发行与本地化", "分级", "上映日期", "其他片名", "翻译", "外部标识符",
+        "查看 TMDb 提供的地区发行日期、分级、本地化片名、翻译和外部标识符。",
+    )
+    AppLocale.CHINESE_TRADITIONAL -> TitleMetadataCopy(
+        "製作", "發行與在地化", "分級", "上映日期", "其他片名", "翻譯", "外部識別碼",
+        "查看 TMDb 提供的地區發行日期、分級、在地化片名、翻譯和外部識別碼。",
+    )
 }
 
 @Composable

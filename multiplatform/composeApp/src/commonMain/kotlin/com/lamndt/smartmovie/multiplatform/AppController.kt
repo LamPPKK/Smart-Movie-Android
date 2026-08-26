@@ -625,7 +625,7 @@ class AppController(
                     title.mediaType,
                     title.id,
                     snapshot.locale.backendTag,
-                    snapshot.regionOverride,
+                    effectiveRegion(snapshot),
                     includeAdult(snapshot),
                 )
             }
@@ -785,6 +785,8 @@ class AppController(
         syncExploreContext(reload = true)
         reloadExploreConfiguration()
     }
+
+    fun contentRegion(): String = effectiveRegion(state.value)
 
     fun configureAdultPin(pin: String, confirmation: String, ageConfirmed: Boolean): Boolean {
         if (!isValidAdultConfiguration(pin, confirmation, ageConfirmed)) return false

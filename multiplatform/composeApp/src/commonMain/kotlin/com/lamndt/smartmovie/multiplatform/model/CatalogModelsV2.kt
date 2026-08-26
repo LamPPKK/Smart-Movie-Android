@@ -309,6 +309,58 @@ data class Review(
 )
 
 @Serializable
+data class AlternativeTitle(
+    @SerialName("iso_3166_1") val countryCode: String? = null,
+    val title: String = "",
+    val type: String? = null,
+)
+
+@Serializable
+data class ReleaseEvent(
+    val certification: String = "",
+    val descriptors: List<String> = emptyList(),
+    @SerialName("iso_639_1") val languageCode: String? = null,
+    val note: String? = null,
+    @SerialName("release_date") val releaseDate: String? = null,
+    val type: Int? = null,
+)
+
+@Serializable
+data class ReleaseInformation(
+    @SerialName("iso_3166_1") val countryCode: String = "",
+    @SerialName("release_dates") val releaseDates: List<ReleaseEvent> = emptyList(),
+    val rating: String? = null,
+    val descriptors: List<String> = emptyList(),
+) {
+    val certification: String?
+        get() = rating?.takeIf(String::isNotBlank)
+            ?: releaseDates.firstNotNullOfOrNull { event -> event.certification.takeIf(String::isNotBlank) }
+    val firstReleaseDate: String? get() = releaseDates.mapNotNull(ReleaseEvent::releaseDate).minOrNull()
+}
+
+@Serializable
+data class TitleTranslationData(
+    val title: String? = null,
+    val name: String? = null,
+    val overview: String? = null,
+    val homepage: String? = null,
+    val tagline: String? = null,
+    val runtime: Int? = null,
+)
+
+@Serializable
+data class TitleTranslation(
+    @SerialName("iso_639_1") val languageCode: String = "",
+    @SerialName("iso_3166_1") val countryCode: String = "",
+    @SerialName("name") val languageName: String = "",
+    @SerialName("english_name") val englishName: String = "",
+    val data: TitleTranslationData = TitleTranslationData(),
+) {
+    val localizedTitle: String?
+        get() = data.title?.takeIf(String::isNotBlank) ?: data.name?.takeIf(String::isNotBlank)
+}
+
+@Serializable
 data class TitleDetailV2(
     val id: Int,
     @SerialName("media_type") val mediaType: MediaType,
@@ -340,15 +392,39 @@ data class TitleDetailV2(
     val companies: List<OrganizationSummary> = emptyList(),
     val networks: List<OrganizationSummary> = emptyList(),
     val seasons: List<SeasonSummary> = emptyList(),
+    @SerialName("alternative_titles") val alternativeTitles: List<AlternativeTitle> = emptyList(),
     @SerialName("external_ids") val externalIds: Map<String, String> = emptyMap(),
     val images: ImageGroup = ImageGroup(),
     val videos: List<Video> = emptyList(),
     val reviews: PagedResult<Review> = PagedResult(1, 0, emptyList()),
     val recommendations: PagedResult<TitleSummary> = PagedResult(1, 0, emptyList()),
     val similar: List<TitleSummary> = emptyList(),
+    @SerialName("release_information") val releaseInformation: List<ReleaseInformation> = emptyList(),
+    val translations: List<TitleTranslation> = emptyList(),
     @SerialName("watch_providers") val watchProviders: List<ProviderRegion> = emptyList(),
 ) {
     val summary get() = TitleSummary(id, mediaType, title, originalTitle, overview, posterPath, backdropPath, releaseDate, voteAverage, genreIds, adult)
+
+    fun releaseInformationFor(region: String?): ReleaseInformation? {
+        val normalized = region?.trim()?.uppercase()
+        return releaseInformation.firstOrNull { it.countryCode.uppercase() == normalized }
+    }
+
+    fun displayAlternativeTitles(region: String?): List<AlternativeTitle> {
+        val normalized = region?.trim()?.uppercase()
+        return alternativeTitles
+            .filter { it.title.isNotBlank() }
+            .sortedByDescending { it.countryCode?.uppercase() == normalized }
+            .distinctBy { it.title.lowercase() }
+    }
+
+    fun displayTranslations(language: String?): List<TitleTranslation> {
+        val normalized = language?.substringBefore('-')?.lowercase()
+        return translations
+            .filter { it.localizedTitle != null }
+            .sortedByDescending { it.languageCode.lowercase() == normalized }
+            .distinctBy { "${it.languageCode.lowercase()}:${it.localizedTitle?.lowercase()}" }
+    }
 }
 
 @Serializable

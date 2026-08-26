@@ -135,6 +135,7 @@ fun DetailRoute(
         onTitleClick = onTitleClick,
         onEntityClick = onEntityClick,
         onCreditClick = onCreditClick,
+        region = region,
         onRetry = detailViewModel::refresh,
         onToggle = detailViewModel::toggle,
         modifier = modifier,
@@ -155,6 +156,7 @@ fun DetailScreen(
     onTitleClick: (TitleSummary) -> Unit,
     onEntityClick: (CatalogEntity) -> Unit = {},
     onCreditClick: (Credit) -> Unit = {},
+    region: String? = null,
     onRetry: () -> Unit,
     onToggle: (LibraryCollection) -> Unit,
     modifier: Modifier = Modifier,
@@ -179,7 +181,7 @@ fun DetailScreen(
             Loadable.Idle, Loadable.Loading -> item { LoadingMessage(Modifier.height(260.dp)) }
             is Loadable.Failed -> item { StateMessage(stringResource(R.string.details_unavailable), message = detail.message, retry = onRetry) }
             is Loadable.Loaded -> item {
-                DetailBody(detail.value, state.deepDetail, images, onTitleClick, onEntityClick, onCreditClick)
+                DetailBody(detail.value, state.deepDetail, images, onTitleClick, onEntityClick, onCreditClick, language, region)
             }
         }
     }
@@ -309,6 +311,8 @@ private fun DetailBody(
     onTitleClick: (TitleSummary) -> Unit,
     onEntityClick: (CatalogEntity) -> Unit,
     onCreditClick: (Credit) -> Unit,
+    language: String,
+    region: String?,
 ) {
     val wide = isWindowWidthAtLeast(700)
     Column(
@@ -369,6 +373,26 @@ private fun DetailBody(
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
+            val organizations = value.companies + value.networks
+            if (organizations.isNotEmpty()) {
+                SectionTitle(stringResource(R.string.production))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(organizations, key = { "${it.entityKind}:${it.id}" }) { organization ->
+                        Surface(
+                            modifier = Modifier.clickable { onEntityClick(CatalogEntity.Organization(organization)) },
+                            shape = CircleShape,
+                            color = CinemaColors.Surface,
+                        ) {
+                            Text(
+                                organization.name,
+                                Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    }
+                }
+            }
+            TitleMetadataSection(value, language, region)
             if (value.seasons.isNotEmpty()) {
                 SectionTitle(stringResource(R.string.seasons_episodes))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -385,7 +409,7 @@ private fun DetailBody(
                     }
                 }
             }
-            value.watchProviders.firstOrNull()?.let { providers ->
+            value.watchProviders.firstOrNull { it.region.equals(region, ignoreCase = true) }?.let { providers ->
                 if (providers.stream.isNotEmpty() || providers.rent.isNotEmpty() || providers.buy.isNotEmpty()) {
                     SectionTitle(stringResource(R.string.where_to_watch))
                     Text(
@@ -403,6 +427,70 @@ private fun DetailBody(
                     PosterCard(title, images.url(title.posterPath, ImageKind.POSTER), { onTitleClick(title) })
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun TitleMetadataSection(
+    detail: TitleDetailV2,
+    language: String,
+    region: String?,
+    modifier: Modifier = Modifier,
+) {
+    val release = detail.releaseInformationFor(region)
+    val aliases = detail.displayAlternativeTitles(region).take(6)
+    val translations = detail.displayTranslations(language).take(6)
+    val externalIds = detail.externalIds.filterValues(String::isNotBlank).toSortedMap().entries.take(8)
+    if (release == null && aliases.isEmpty() && translations.isEmpty() && externalIds.isEmpty()) return
+
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionTitle(stringResource(R.string.release_localization))
+        release?.certification?.let {
+            MetadataLine(stringResource(R.string.certification), it)
+        }
+        release?.firstReleaseDate?.let {
+            MetadataLine(stringResource(R.string.release_date), it.take(10))
+        }
+        if (aliases.isNotEmpty()) {
+            MetadataBlock(
+                stringResource(R.string.alternative_titles),
+                aliases.map { alias -> listOfNotNull(alias.title, alias.countryCode).joinToString(" · ") },
+            )
+        }
+        if (translations.isNotEmpty()) {
+            MetadataBlock(
+                stringResource(R.string.translations),
+                translations.mapNotNull { translation ->
+                    translation.localizedTitle?.let { title ->
+                        "$title · ${translation.languageName.ifBlank { translation.languageCode.uppercase() }}"
+                    }
+                },
+            )
+        }
+        if (externalIds.isNotEmpty()) {
+            MetadataBlock(
+                stringResource(R.string.external_identifiers),
+                externalIds.map { (source, value) -> "$source: $value" },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetadataLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.labelLarge)
+        Text(value, color = CinemaColors.Muted, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun MetadataBlock(label: String, values: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge)
+        values.forEach { value ->
+            Text(value, color = CinemaColors.Muted, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

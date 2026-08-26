@@ -42,6 +42,17 @@ class ContractV2ConformanceTest {
         assertThat(detail.summary.libraryKey).isEqualTo("movie:10")
         assertThat(detail.watchProviders.single().attribution).isEqualTo("JustWatch")
         assertThat(detail.externalIds["imdb_id"]).isEqualTo("tt0000010")
+        assertThat(detail.alternativeTitles.map(AlternativeTitle::title))
+            .containsExactly("Phim Mẫu", "Catalog Sample")
+            .inOrder()
+        assertThat(detail.alternativeTitles.last().countryCode).isNull()
+        assertThat(detail.releaseInformation.single().certification).isEqualTo("PG-13")
+        assertThat(detail.releaseInformation.single().firstReleaseDate).isEqualTo("2026-08-25T00:00:00.000Z")
+        assertThat(detail.translations.single().localizedTitle).isEqualTo("Phim Mẫu")
+        assertThat(detail.releaseInformationFor("vn")).isNull()
+        assertThat(detail.releaseInformationFor("us")?.countryCode).isEqualTo("US")
+        assertThat(detail.displayAlternativeTitles("VN").first().title).isEqualTo("Phim Mẫu")
+        assertThat(detail.displayTranslations("vi-VN").mapNotNull(TitleTranslation::localizedTitle)).containsExactly("Phim Mẫu")
 
         assertThat(decode<PersonDetail>("person").id).isEqualTo(12)
         assertThat(decode<CollectionDetail>("collection").id).isEqualTo(13)
@@ -70,6 +81,12 @@ class ContractV2ConformanceTest {
             """{"entity_kind":"person","id":99,"name":"Future Person","profile_path":null,"known_for_department":null,"popularity":0,"known_for":[],"future":{"safe":true}}""",
         )
         assertThat(future).isInstanceOf(CatalogEntity.Person::class.java)
+
+        val tvRating = json.decodeFromString<ReleaseInformation>(
+            """{"iso_3166_1":"US","rating":"TV-14","future":true}""",
+        )
+        assertThat(tvRating.certification).isEqualTo("TV-14")
+        assertThat(tvRating.releaseDates).isEmpty()
     }
 
     private inline fun <reified Value> decode(fixture: String): Value {

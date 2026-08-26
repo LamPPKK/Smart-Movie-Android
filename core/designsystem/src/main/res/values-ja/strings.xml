@@ -66,4 +66,10 @@
     <string name="adult_age_confirmation">18歳以上であることを確認します。</string>
     <string name="adult_age_required">18歳以上であることを確認してください。</string>
     <string name="source_repositories">ソースリポジトリ</string>
+    <string name="production">制作</string>
+    <string name="release_localization">公開・ローカライズ</string>
+    <string name="alternative_titles">別タイトル</string>
+    <string name="translations">翻訳</string>
+    <string name="external_identifiers">外部識別子</string>
+    <string name="catalog_metadata_description">TMDbの地域別公開日、年齢区分、ローカライズされたタイトル、翻訳、外部識別子を確認できます。</string>
 </resources>

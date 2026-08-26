@@ -66,4 +66,10 @@
     <string name="adult_age_confirmation">我确认自己已年满18岁。</string>
     <string name="adult_age_required">请确认您已年满18岁。</string>
     <string name="source_repositories">源代码仓库</string>
+    <string name="production">制作</string>
+    <string name="release_localization">发行与本地化</string>
+    <string name="alternative_titles">其他片名</string>
+    <string name="translations">翻译</string>
+    <string name="external_identifiers">外部标识符</string>
+    <string name="catalog_metadata_description">查看 TMDb 提供的地区发行日期、分级、本地化片名、翻译和外部标识符。</string>
 </resources>

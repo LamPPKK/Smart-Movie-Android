@@ -26,7 +26,8 @@ Apple and Android keep native UI, lifecycle, and storage while sharing the addit
 
 - **Explore the complete catalog** through Home, trending, pagination, retry, cancellation, and regional Discover filters for dates, language, country, certification, runtime, votes, providers, monetization, rating, and adult-PIN context.
 - **Search across entities** with discriminated Movie, TV, Person, Collection, Company, and Keyword results, or resolve an IMDb, TheTVDB, Wikidata, Facebook, Instagram, or X/Twitter ID.
-- **Open deep details** for titles, people, collections, organizations, keywords, seasons, episodes, and individual cast/crew credits, including navigable person/title links, role metadata, media, reviews, related content, providers, and release information.
+- **Open deep details** for titles, people, collections, organizations, keywords, seasons, episodes, and individual cast/crew credits, including navigable person/title links, role metadata, media, reviews, related content, and providers.
+- **Understand every regional edition** through production-company/network links, region-matched certification and release date, alternative titles, localized translations, and external identifiers on native Android/TV and KMP desktop/web.
 - **Use TMDb account recommendations** from Profile with separate Movie/TV feeds, retry, pagination, title navigation, deduplication, and local adult-PIN filtering across phone, Android TV, and KMP desktop/web.
 - **Manage mixed custom lists** by loading every list page, editing metadata, paging through Movie/TV contents, searching the catalog, and adding or removing titles with restart-safe optimistic synchronization across native Android/TV and KMP.
 - **See where to watch** in a device or chosen region, open only TMDb URLs, and retain required JustWatch attribution.

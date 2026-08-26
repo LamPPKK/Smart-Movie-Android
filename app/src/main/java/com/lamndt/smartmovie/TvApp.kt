@@ -82,6 +82,7 @@ import com.lamndt.smartmovie.designsystem.SectionTitle
 import com.lamndt.smartmovie.designsystem.StateMessage
 import com.lamndt.smartmovie.feature.detail.DetailUiState
 import com.lamndt.smartmovie.feature.detail.DetailViewModel
+import com.lamndt.smartmovie.feature.detail.TitleMetadataSection
 import com.lamndt.smartmovie.model.CatalogLocale
 import com.lamndt.smartmovie.model.DiscoverSort
 import com.lamndt.smartmovie.model.HomeFeed
@@ -158,7 +159,15 @@ fun TvApp(container: AppContainer) {
             }
         }
         detailTitle?.let { title ->
-            TvDetailOverlay(title, container, language, onBack = { detailTitle = null }, onTitleClick = { detailTitle = it })
+            TvDetailOverlay(
+                title,
+                container,
+                language,
+                effectiveRegion,
+                includeAdult,
+                onBack = { detailTitle = null },
+                onTitleClick = { detailTitle = it },
+            )
         }
     }
 }
@@ -522,9 +531,14 @@ private fun TvDetailOverlay(
     title: TitleSummary,
     container: AppContainer,
     language: String,
+    region: String,
+    includeAdult: Boolean,
     onBack: () -> Unit,
     onTitleClick: (TitleSummary) -> Unit,
-    detailViewModel: DetailViewModel = viewModel(key = "tv:${title.libraryKey}", factory = DetailViewModel.factory(title, container.catalog, container.library, language)),
+    detailViewModel: DetailViewModel = viewModel(
+        key = "tv:${title.libraryKey}:$region:$includeAdult",
+        factory = DetailViewModel.factory(title, container.catalog, container.library, language, region, includeAdult),
+    ),
 ) {
     val state by detailViewModel.state.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
@@ -534,7 +548,15 @@ private fun TvDetailOverlay(
         when (val detail = state.detail) {
             Loadable.Idle, Loadable.Loading -> LoadingMessage()
             is Loadable.Failed -> StateMessage(stringResource(R.string.details_unavailable), Modifier.align(Alignment.Center), detail.message, detailViewModel::refresh)
-            is Loadable.Loaded -> TvDetailContent(state, detail.value, container.images, language, detailViewModel::toggle, onTitleClick)
+            is Loadable.Loaded -> TvDetailContent(
+                state,
+                detail.value,
+                container.images,
+                language,
+                region,
+                detailViewModel::toggle,
+                onTitleClick,
+            )
         }
     }
 }
@@ -545,6 +567,7 @@ private fun TvDetailContent(
     detail: TitleDetail,
     images: ImageUrlFactory,
     language: String,
+    region: String,
     onToggle: (LibraryCollection) -> Unit,
     onTitleClick: (TitleSummary) -> Unit,
 ) {
@@ -568,6 +591,17 @@ private fun TvDetailContent(
                         }, enabled = trailer != null) { TvIcon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(8.dp)); TvText(stringResource(R.string.trailer)) }
                         TvButton(onClick = { onToggle(LibraryCollection.FAVORITES) }) { TvIcon(Icons.Default.Favorite, null); Spacer(Modifier.width(8.dp)); TvText(stringResource(R.string.favorite), color = if (state.membership.isFavorite) CinemaColors.Accent else CinemaColors.Foreground) }
                         TvButton(onClick = { onToggle(LibraryCollection.WATCHLIST) }) { TvIcon(Icons.AutoMirrored.Filled.PlaylistAddCheck, null); Spacer(Modifier.width(8.dp)); TvText(stringResource(R.string.watchlist), color = if (state.membership.isWatchlisted) CinemaColors.Accent else CinemaColors.Foreground) }
+                    }
+                    state.deepDetail?.let { deep ->
+                        if (deep.tagline.isNotBlank()) {
+                            Text("“${deep.tagline}”", color = CinemaColors.Accent, style = MaterialTheme.typography.titleLarge)
+                        }
+                        val organizations = deep.companies + deep.networks
+                        if (organizations.isNotEmpty()) {
+                            SectionTitle(stringResource(R.string.production))
+                            Text(organizations.joinToString(" · ") { it.name }, color = CinemaColors.Muted)
+                        }
+                        TitleMetadataSection(deep, language, region)
                     }
                 }
             }

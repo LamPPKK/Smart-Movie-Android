@@ -147,6 +147,11 @@ internal fun SmartMovieContent(
     val locale = configuration.locales[0]
     val language = CatalogLocale.from(locale.language, locale.country)
     val providerRegion = appContainer?.preferences?.region?.collectAsState()
+    val adultUnlocked = appContainer?.preferences?.adultUnlocked?.collectAsState()?.value == true
+    val effectiveRegion = providerRegion?.value
+        ?: locale.country.takeIf { it.length == 2 }
+        ?: "US"
+    val includeAdult = appContainer?.preferences?.let { adultUnlocked && it.includeAdult } == true
     androidx.compose.runtime.LaunchedEffect(watchRemote) {
         watchRemote?.actions?.collect { action ->
             when (action) {
@@ -187,8 +192,8 @@ internal fun SmartMovieContent(
                         onTitleClick = { backStack.add(it.toDetailKey()) },
                         onRemoteStateChange = { watchRemote?.publish(it, images) },
                         onRemoteClosed = { watchRemote?.clear(it) },
-                        region = providerRegion?.value ?: locale.country,
-                        includeAdult = appContainer?.preferences?.includeAdult == true,
+                        region = effectiveRegion,
+                        includeAdult = includeAdult,
                         onEntityClick = { entity -> backStack.add(entity.toEntityKey()) },
                         onCreditClick = { credit -> credit.creditId?.let { backStack.add(CreditKey(it, credit.title.orEmpty())) } },
                         accountRating = accountRating.value,
@@ -311,8 +316,8 @@ internal fun AppRoot(
                         modifier = Modifier.weight(.58f),
                         onRemoteStateChange = { watchRemote?.publish(it, images) },
                         onRemoteClosed = { watchRemote?.clear(it) },
-                        region = providerRegion?.value,
-                        includeAdult = appContainer?.preferences?.includeAdult == true,
+                        region = effectiveRegion,
+                        includeAdult = includeAdult,
                         onEntityClick = onEntityClick,
                         onCreditClick = onCreditClick,
                         accountRating = accountRating.value,

@@ -70,4 +70,10 @@
     <string name="adult_age_confirmation">Tôi xác nhận mình đã đủ 18 tuổi.</string>
     <string name="adult_age_required">Hãy xác nhận bạn đã đủ 18 tuổi.</string>
     <string name="source_repositories">Kho mã nguồn</string>
+    <string name="production">Sản xuất</string>
+    <string name="release_localization">Phát hành &amp; bản địa hóa</string>
+    <string name="alternative_titles">Tên gọi khác</string>
+    <string name="translations">Bản dịch</string>
+    <string name="external_identifiers">Định danh bên ngoài</string>
+    <string name="catalog_metadata_description">Khám phá ngày phát hành và phân loại theo khu vực, tên bản địa hóa, bản dịch và định danh ngoài từ TMDb.</string>
 </resources>
