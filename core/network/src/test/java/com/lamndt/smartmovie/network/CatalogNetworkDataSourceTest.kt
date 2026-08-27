@@ -144,7 +144,7 @@ class CatalogNetworkDataSourceTest {
     fun findExternalId_sendsSourceAndDecodesMixedEntities() = runTest {
         server.enqueue(MockResponse().setBody(FIND).setHeader("Content-Type", "application/json"))
 
-        val result = source().findExternalId("tt0133093", ExternalIdSource.IMDB, "vi-VN")
+        val result = source().findExternalId("tt0133093", ExternalIdSource.IMDB, "vi-VN", includeAdult = true)
         val request = server.takeRequest()
 
         assertThat(result.externalId).isEqualTo("tt0133093")
@@ -152,19 +152,21 @@ class CatalogNetworkDataSourceTest {
         assertThat(request.requestUrl?.encodedPath).isEqualTo("/v2/find/tt0133093")
         assertThat(request.requestUrl?.queryParameter("source")).isEqualTo("imdb_id")
         assertThat(request.requestUrl?.queryParameter("language")).isEqualTo("vi-VN")
+        assertThat(request.requestUrl?.queryParameter("include_adult")).isEqualTo("true")
     }
 
     @Test
     fun creditDetail_sendsLocaleAndDecodesStableLinks() = runTest {
         server.enqueue(MockResponse().setBody(CREDIT).setHeader("Content-Type", "application/json"))
 
-        val result = source().credit("52fe425bc3a36847f80181c1", "ja-JP")
+        val result = source().credit("52fe425bc3a36847f80181c1", "ja-JP", includeAdult = false)
         val request = server.takeRequest()
 
         assertThat(result.personSummary?.name).isEqualTo("Keanu Reeves")
         assertThat(result.titleSummary?.libraryKey).isEqualTo("movie:603")
         assertThat(request.requestUrl?.encodedPath).isEqualTo("/v2/credits/52fe425bc3a36847f80181c1")
         assertThat(request.requestUrl?.queryParameter("language")).isEqualTo("ja-JP")
+        assertThat(request.requestUrl?.queryParameter("include_adult")).isEqualTo("false")
     }
 
     @Test

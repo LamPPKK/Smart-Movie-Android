@@ -33,7 +33,7 @@ Apple and Android keep native UI, lifecycle, and storage while sharing the addit
 - **Use TMDb account recommendations** from Profile with separate Movie/TV feeds, retry, pagination, title navigation, deduplication, and local adult-PIN filtering across phone, Android TV, and KMP desktop/web.
 - **Manage mixed custom lists** by loading every list page, editing metadata, paging through Movie/TV contents, searching the catalog, and adding or removing titles with restart-safe optimistic synchronization across native Android/TV and KMP.
 - **See where to watch** in a device or chosen region, open only TMDb URLs, and retain required JustWatch attribution.
-- **Keep adult content private by default** behind local confirmation, a six-digit PIN, and five-attempt lockout; Wear/public surfaces never receive it.
+- **Keep adult content private by default** behind local confirmation, a six-digit PIN, and five-attempt lockout. The gate partitions Search, External ID, Title, Person, Collection, Company, Network, Keyword, Credit Detail, recommendations and similar titles; native Android and KMP filter again before display, while Wear/public surfaces never receive restricted titles.
 - **Connect TMDb safely** in a browser or by TV QR. Rate Movie/TV/Episode titles and manage account library/lists through optimistic durable retry without exposing credentials.
 - **Keep a local-first library** with independent Favorite and Watchlist records in Room or the KMP platform store.
 - **Use an interface built for each screen**: bottom navigation on phones, rail/list-detail layouts on larger windows, a dedicated 10-foot TV composition, and compact Wear OS actions.

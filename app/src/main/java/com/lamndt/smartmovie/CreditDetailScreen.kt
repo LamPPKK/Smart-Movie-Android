@@ -57,16 +57,20 @@ internal fun CreditDetailScreen(
     catalog: CatalogV2Repository,
     images: ImageUrlFactory,
     language: String,
+    includeAdult: Boolean,
     onBack: () -> Unit,
     onPerson: (PersonSummary) -> Unit,
     onTitle: (TitleSummary) -> Unit,
 ) {
-    var state by remember(creditId) { mutableStateOf<CreditDetailState>(CreditDetailState.Loading) }
+    var state by remember(creditId, includeAdult) { mutableStateOf<CreditDetailState>(CreditDetailState.Loading) }
     var reloadKey by remember(creditId) { mutableStateOf(0) }
-    LaunchedEffect(creditId, language, reloadKey) {
+    LaunchedEffect(creditId, language, includeAdult, reloadKey) {
         state = CreditDetailState.Loading
         state = try {
-            CreditDetailState.Content(catalog.credit(creditId, language))
+            val detail = catalog.credit(creditId, language, includeAdult)
+            CreditDetailState.Content(
+                if (!includeAdult && detail.titleSummary?.adult == true) detail.copy(titleSummary = null) else detail,
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {

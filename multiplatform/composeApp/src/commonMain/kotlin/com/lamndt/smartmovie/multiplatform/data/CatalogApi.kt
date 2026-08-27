@@ -69,15 +69,26 @@ interface CatalogApiV2 : CatalogApi {
         region: String?,
         includeAdult: Boolean,
     ): PagedResult<CatalogEntity>
-    suspend fun findExternalId(externalId: String, source: ExternalIdSource, language: String): ExternalIdFindResult
+    suspend fun findExternalId(
+        externalId: String,
+        source: ExternalIdSource,
+        language: String,
+        includeAdult: Boolean = false,
+    ): ExternalIdFindResult
     suspend fun deepDetail(mediaType: MediaType, id: Int, language: String, region: String?, includeAdult: Boolean): TitleDetailV2
-    suspend fun person(id: Int, language: String): PersonDetail
-    suspend fun collection(id: Int, language: String): CollectionDetail
-    suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail
-    suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail
+    suspend fun person(id: Int, language: String, includeAdult: Boolean = false): PersonDetail
+    suspend fun collection(id: Int, language: String, includeAdult: Boolean = false): CollectionDetail
+    suspend fun organization(
+        kind: EntityKind,
+        id: Int,
+        language: String,
+        page: Int,
+        includeAdult: Boolean = false,
+    ): OrganizationDetail
+    suspend fun keyword(id: Int, language: String, page: Int, includeAdult: Boolean = false): KeywordDetail
     suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail
     suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail
-    suspend fun credit(id: String, language: String): CreditDetail
+    suspend fun credit(id: String, language: String, includeAdult: Boolean = false): CreditDetail
 }
 
 class CatalogFailure(
@@ -245,9 +256,11 @@ class KtorCatalogApi(
         externalId: String,
         source: ExternalIdSource,
         language: String,
+        includeAdult: Boolean,
     ): ExternalIdFindResult = request {
         client.get("$root/v2/find/${externalId.encodeURLPathPart()}") {
             smartMovieHeaders(); parameter("source", source.wireValue); parameter("language", language)
+            parameter("include_adult", includeAdult)
         }
     }
 
@@ -263,18 +276,32 @@ class KtorCatalogApi(
         }
     }
 
-    override suspend fun person(id: Int, language: String): PersonDetail = request {
-        client.get("$root/v2/entities/person/$id") { smartMovieHeaders(); parameter("language", language) }
+    override suspend fun person(id: Int, language: String, includeAdult: Boolean): PersonDetail = request {
+        client.get("$root/v2/entities/person/$id") {
+            smartMovieHeaders(); parameter("language", language); parameter("include_adult", includeAdult)
+        }
     }
-    override suspend fun collection(id: Int, language: String): CollectionDetail = request {
-        client.get("$root/v2/entities/collection/$id") { smartMovieHeaders(); parameter("language", language) }
+    override suspend fun collection(id: Int, language: String, includeAdult: Boolean): CollectionDetail = request {
+        client.get("$root/v2/entities/collection/$id") {
+            smartMovieHeaders(); parameter("language", language); parameter("include_adult", includeAdult)
+        }
     }
-    override suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail = request {
+    override suspend fun organization(
+        kind: EntityKind,
+        id: Int,
+        language: String,
+        page: Int,
+        includeAdult: Boolean,
+    ): OrganizationDetail = request {
         require(kind == EntityKind.COMPANY || kind == EntityKind.NETWORK)
-        client.get("$root/v2/entities/${kind.wireValue}/$id") { smartMovieHeaders(); parameter("language", language); parameter("page", page) }
+        client.get("$root/v2/entities/${kind.wireValue}/$id") {
+            smartMovieHeaders(); parameter("language", language); parameter("page", page); parameter("include_adult", includeAdult)
+        }
     }
-    override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = request {
-        client.get("$root/v2/entities/keyword/$id") { smartMovieHeaders(); parameter("language", language); parameter("page", page) }
+    override suspend fun keyword(id: Int, language: String, page: Int, includeAdult: Boolean): KeywordDetail = request {
+        client.get("$root/v2/entities/keyword/$id") {
+            smartMovieHeaders(); parameter("language", language); parameter("page", page); parameter("include_adult", includeAdult)
+        }
     }
     override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = request {
         client.get("$root/v2/tv/$seriesId/seasons/$number") { smartMovieHeaders(); parameter("language", language) }
@@ -282,8 +309,10 @@ class KtorCatalogApi(
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = request {
         client.get("$root/v2/tv/$seriesId/seasons/$season/episodes/$number") { smartMovieHeaders(); parameter("language", language) }
     }
-    override suspend fun credit(id: String, language: String): CreditDetail = request {
-        client.get("$root/v2/credits/${id.encodeURLPathPart()}") { smartMovieHeaders(); parameter("language", language) }
+    override suspend fun credit(id: String, language: String, includeAdult: Boolean): CreditDetail = request {
+        client.get("$root/v2/credits/${id.encodeURLPathPart()}") {
+            smartMovieHeaders(); parameter("language", language); parameter("include_adult", includeAdult)
+        }
     }
 
     private fun io.ktor.client.request.HttpRequestBuilder.smartMovieHeaders() {

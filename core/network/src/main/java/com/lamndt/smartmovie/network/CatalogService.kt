@@ -124,6 +124,7 @@ internal interface CatalogService {
         @Path("externalId") externalId: String,
         @Query("source") source: String,
         @Query("language") language: String,
+        @Query("include_adult") includeAdult: Boolean,
     ): ExternalIdFindResult
 
     @GET("v2/titles/{mediaType}/{id}")
@@ -138,16 +139,19 @@ internal interface CatalogService {
 
     @GET("v2/entities/person/{id}") suspend fun person(
         @Header(CLIENT_HEADER) clientId: String, @Path("id") id: Int, @Query("language") language: String,
+        @Query("include_adult") includeAdult: Boolean,
     ): PersonDetail
     @GET("v2/entities/collection/{id}") suspend fun collection(
         @Header(CLIENT_HEADER) clientId: String, @Path("id") id: Int, @Query("language") language: String,
+        @Query("include_adult") includeAdult: Boolean,
     ): CollectionDetail
     @GET("v2/entities/{kind}/{id}") suspend fun organization(
         @Header(CLIENT_HEADER) clientId: String, @Path("kind") kind: String, @Path("id") id: Int,
-        @Query("language") language: String, @Query("page") page: Int,
+        @Query("language") language: String, @Query("page") page: Int, @Query("include_adult") includeAdult: Boolean,
     ): OrganizationDetail
     @GET("v2/entities/keyword/{id}") suspend fun keyword(
-        @Header(CLIENT_HEADER) clientId: String, @Path("id") id: Int, @Query("language") language: String, @Query("page") page: Int,
+        @Header(CLIENT_HEADER) clientId: String, @Path("id") id: Int, @Query("language") language: String,
+        @Query("page") page: Int, @Query("include_adult") includeAdult: Boolean,
     ): KeywordDetail
     @GET("v2/tv/{seriesId}/seasons/{number}") suspend fun season(
         @Header(CLIENT_HEADER) clientId: String, @Path("seriesId") seriesId: Int, @Path("number") number: Int,
@@ -161,6 +165,7 @@ internal interface CatalogService {
         @Header(CLIENT_HEADER) clientId: String,
         @Path("creditId") creditId: String,
         @Query("language") language: String,
+        @Query("include_adult") includeAdult: Boolean,
     ): CreditDetail
 
     @POST("v2/auth/attempts") suspend fun createAuthAttempt(

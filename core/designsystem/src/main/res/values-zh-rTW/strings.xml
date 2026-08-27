@@ -71,7 +71,7 @@
     <string name="alternative_titles">其他片名</string>
     <string name="translations">翻譯</string>
     <string name="external_identifiers">外部識別碼</string>
-    <string name="catalog_metadata_description">查看影片、季度和集數的 TMDb 圖片與影片藝廊、影評、推薦、地區發行日期、分級、在地化片名、翻譯和外部識別碼。</string>
+    <string name="catalog_metadata_description">查看 TMDb 圖片、影片、影評、推薦、發行資訊、在地化內容和外部識別碼。本機成人內容 PIN 適用於搜尋及人物、合輯、公司、電視網、關鍵字和演職員詳細資料的所有相關頁面。</string>
     <string name="companion_episode_description">Wear OS 會顯示 Android 上開啟的安全影視項目或正確集數，並可在不需個別登入的情況下返回詳細資料。</string>
     <string name="details">詳細資料</string>
     <string name="images">圖片</string>

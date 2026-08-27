@@ -318,6 +318,7 @@ class AppControllerTest {
         advanceUntilIdle()
 
         assertEquals(listOf(Triple("Q83495", ExternalIdSource.WIKIDATA, "en-US")), api.externalIdCalls)
+        assertEquals(listOf(false), api.externalIdAdultFlags)
         val result = assertIs<LoadState.Content<List<CatalogEntity>>>(controller.state.value.externalIdSearch)
         assertEquals(listOf(EntityKind.MOVIE, EntityKind.PERSON), result.value.map(CatalogEntity::entityKind))
 
@@ -340,10 +341,40 @@ class AppControllerTest {
         advanceUntilIdle()
 
         assertEquals(listOf(Pair("credit-603", "en-US")), api.creditCalls)
+        assertEquals(listOf(false), api.creditAdultFlags)
         val result = assertIs<LoadState.Content<EntityDetail>>(controller.state.value.entityDetail)
         val credit = assertIs<EntityDetail.Credit>(result.value).value
         assertEquals(6384, credit.personSummary?.id)
         assertEquals("movie:603", credit.titleSummary?.libraryKey)
+        controller.close()
+    }
+
+    @Test
+    fun creditDetailForwardsAdultGateAndFailsClosedLocally() = runTest {
+        val api = FakeCatalogApi().apply { creditAdultTitle = true }
+        val controller = AppController(
+            MemoryStore(),
+            apiFactory = { api },
+            scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler)),
+        )
+        advanceUntilIdle()
+
+        controller.openCredit(Credit(creditId = "restricted-credit"))
+        advanceUntilIdle()
+        val locked = assertIs<EntityDetail.Credit>(
+            assertIs<LoadState.Content<EntityDetail>>(controller.state.value.entityDetail).value,
+        )
+        assertEquals(null, locked.value.titleSummary)
+        assertEquals(false, api.creditAdultFlags.last())
+
+        assertTrue(controller.configureAdultPin("123456", "123456", ageConfirmed = true))
+        controller.openCredit(Credit(creditId = "restricted-credit"))
+        advanceUntilIdle()
+        val unlocked = assertIs<EntityDetail.Credit>(
+            assertIs<LoadState.Content<EntityDetail>>(controller.state.value.entityDetail).value,
+        )
+        assertEquals(true, unlocked.value.titleSummary?.adult)
+        assertEquals(true, api.creditAdultFlags.last())
         controller.close()
     }
 }
@@ -353,10 +384,13 @@ private class FakeCatalogApi : CatalogApiV2 {
     val discoverFilters = mutableListOf<DiscoverFilter>()
     val basicDiscoverFilters = mutableListOf<DiscoverFilter>()
     val externalIdCalls = mutableListOf<Triple<String, ExternalIdSource, String>>()
+    val externalIdAdultFlags = mutableListOf<Boolean>()
     val creditCalls = mutableListOf<Pair<String, String>>()
+    val creditAdultFlags = mutableListOf<Boolean>()
     val configurationRequests = mutableListOf<Pair<String, String?>>()
     var capabilitiesResult: suspend () -> CapabilitiesV2 = { capabilities(true) }
     var searchAdult = false
+    var creditAdultTitle = false
 
     override suspend fun home(mediaType: MediaType, language: String) = HomeFeed(mediaType)
     override suspend fun genres(mediaType: MediaType, language: String): List<Genre> = emptyList()
@@ -420,8 +454,10 @@ private class FakeCatalogApi : CatalogApiV2 {
         externalId: String,
         source: ExternalIdSource,
         language: String,
+        includeAdult: Boolean,
     ): ExternalIdFindResult {
         externalIdCalls += Triple(externalId, source, language)
+        externalIdAdultFlags += includeAdult
         return ExternalIdFindResult(
             source,
             externalId,
@@ -439,14 +475,21 @@ private class FakeCatalogApi : CatalogApiV2 {
         region: String?,
         includeAdult: Boolean,
     ): TitleDetailV2 = error("Not used")
-    override suspend fun person(id: Int, language: String): PersonDetail = error("Not used")
-    override suspend fun collection(id: Int, language: String): CollectionDetail = error("Not used")
-    override suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail = error("Not used")
-    override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = error("Not used")
+    override suspend fun person(id: Int, language: String, includeAdult: Boolean): PersonDetail = error("Not used")
+    override suspend fun collection(id: Int, language: String, includeAdult: Boolean): CollectionDetail = error("Not used")
+    override suspend fun organization(
+        kind: EntityKind,
+        id: Int,
+        language: String,
+        page: Int,
+        includeAdult: Boolean,
+    ): OrganizationDetail = error("Not used")
+    override suspend fun keyword(id: Int, language: String, page: Int, includeAdult: Boolean): KeywordDetail = error("Not used")
     override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = error("Not used")
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = error("Not used")
-    override suspend fun credit(id: String, language: String): CreditDetail {
+    override suspend fun credit(id: String, language: String, includeAdult: Boolean): CreditDetail {
         creditCalls += id to language
+        creditAdultFlags += includeAdult
         return CreditDetail(
             creditId = id,
             creditType = "cast",
@@ -454,7 +497,7 @@ private class FakeCatalogApi : CatalogApiV2 {
             job = "Actor",
             character = "Neo",
             personSummary = PersonSummary(6384, "Keanu Reeves"),
-            titleSummary = TitleSummary(603, MediaType.MOVIE, "The Matrix", "The Matrix", ""),
+            titleSummary = TitleSummary(603, MediaType.MOVIE, "The Matrix", "The Matrix", "", adult = creditAdultTitle),
         )
     }
 }

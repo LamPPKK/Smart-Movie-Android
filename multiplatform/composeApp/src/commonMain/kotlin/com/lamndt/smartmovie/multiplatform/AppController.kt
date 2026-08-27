@@ -48,6 +48,9 @@ import com.lamndt.smartmovie.multiplatform.model.SeasonDetail
 import com.lamndt.smartmovie.multiplatform.model.TitleDetailV2
 import com.lamndt.smartmovie.multiplatform.model.WatchMonetizationType
 import com.lamndt.smartmovie.multiplatform.model.supportsAccountAuthentication
+import com.lamndt.smartmovie.multiplatform.model.visibleCatalogCredits
+import com.lamndt.smartmovie.multiplatform.model.visibleCatalogEntities
+import com.lamndt.smartmovie.multiplatform.model.visibleCatalogTitles
 import com.lamndt.smartmovie.multiplatform.platform.KeyValueStore
 import com.lamndt.smartmovie.multiplatform.platform.catalogBaseUrl
 import com.lamndt.smartmovie.multiplatform.platform.createKeyValueStore
@@ -496,7 +499,14 @@ class AppController(
         searchJob?.cancel()
         searchJob = scope.launch {
             mutableState.update { it.copy(externalIdSearch = LoadState.Loading) }
-            runCatching { catalog.findExternalId(externalId, snapshot.externalIdSource, snapshot.locale.backendTag) }
+            runCatching {
+                catalog.findExternalId(
+                    externalId,
+                    snapshot.externalIdSource,
+                    snapshot.locale.backendTag,
+                    includeAdult(snapshot),
+                )
+            }
                 .propagateCancellation()
                 .onSuccess { result ->
                     val current = state.value
@@ -672,13 +682,17 @@ class AppController(
         }
         if (entity is CatalogEntity.Episode) refreshEpisodeRating(entity.value.seriesId, entity.value.seasonNumber, entity.value.episodeNumber)
         detailJob = scope.launch {
-            val language = state.value.locale.backendTag
+            val snapshot = state.value
+            val language = snapshot.locale.backendTag
+            val allowAdult = includeAdult(snapshot)
             runCatching {
                 when (entity) {
-                    is CatalogEntity.Person -> EntityDetail.Person(catalog.person(entity.value.id, language))
-                    is CatalogEntity.Collection -> EntityDetail.Collection(catalog.collection(entity.value.id, language))
-                    is CatalogEntity.Organization -> EntityDetail.Organization(catalog.organization(entity.value.entityKind, entity.value.id, language, 1))
-                    is CatalogEntity.Keyword -> EntityDetail.Keyword(catalog.keyword(entity.value.id, language, 1))
+                    is CatalogEntity.Person -> EntityDetail.Person(catalog.person(entity.value.id, language, allowAdult))
+                    is CatalogEntity.Collection -> EntityDetail.Collection(catalog.collection(entity.value.id, language, allowAdult))
+                    is CatalogEntity.Organization -> EntityDetail.Organization(
+                        catalog.organization(entity.value.entityKind, entity.value.id, language, 1, allowAdult),
+                    )
+                    is CatalogEntity.Keyword -> EntityDetail.Keyword(catalog.keyword(entity.value.id, language, 1, allowAdult))
                     is CatalogEntity.Season -> {
                         val seriesId = requireNotNull(entity.value.seriesId) { "Season is missing its series context." }
                         EntityDetail.Season(catalog.season(seriesId, entity.value.seasonNumber, language))
@@ -689,7 +703,11 @@ class AppController(
                     is CatalogEntity.Title -> error("Title detail is handled separately")
                 }
             }.propagateCancellation()
-                .onSuccess { detail -> mutableState.update { it.copy(entityDetail = LoadState.Content(detail)) } }
+                .onSuccess { detail ->
+                    mutableState.update {
+                        it.copy(entityDetail = LoadState.Content(detail.withAdultVisibility(includeAdult(it))))
+                    }
+                }
                 .onFailure { error -> mutableState.update { it.copy(entityDetail = LoadState.Error(error.message.orEmpty())) } }
         }
     }
@@ -711,9 +729,18 @@ class AppController(
             )
         }
         detailJob = scope.launch {
-            runCatching { EntityDetail.Credit(catalog.credit(creditID, state.value.locale.backendTag)) }
+            val snapshot = state.value
+            runCatching {
+                EntityDetail.Credit(
+                    catalog.credit(creditID, snapshot.locale.backendTag, includeAdult(snapshot)),
+                )
+            }
                 .propagateCancellation()
-                .onSuccess { detail -> mutableState.update { it.copy(entityDetail = LoadState.Content(detail)) } }
+                .onSuccess { detail ->
+                    mutableState.update {
+                        it.copy(entityDetail = LoadState.Content(detail.withAdultVisibility(includeAdult(it))))
+                    }
+                }
                 .onFailure { error -> mutableState.update { it.copy(entityDetail = LoadState.Error(error.message.orEmpty())) } }
         }
     }
@@ -845,6 +872,8 @@ class AppController(
             val externalSearch = (snapshot.externalIdSearch as? LoadState.Content)?.value
                 ?.withoutAdultTitles()
             val adultDetail = snapshot.detailSelection?.adult == true || snapshot.deepDetail?.adult == true
+            val entityDetail = (snapshot.entityDetail as? LoadState.Content)?.value
+                ?.withAdultVisibility(includeAdult = false)
             snapshot.copy(
                 adultUnlocked = false,
                 search = catalogSearch?.let { LoadState.Content(it) } ?: snapshot.search,
@@ -855,6 +884,7 @@ class AppController(
                 deepDetail = if (adultDetail) null else snapshot.deepDetail,
                 detailSelection = if (adultDetail) null else snapshot.detailSelection,
                 detailRating = if (adultDetail) AccountRatingState() else snapshot.detailRating,
+                entityDetail = entityDetail?.let { LoadState.Content(it) } ?: snapshot.entityDetail,
                 accountRecommendations = visible?.let { LoadState.Content(it) } ?: snapshot.accountRecommendations,
                 accountListDetail = list?.let { LoadState.Content(it) } ?: snapshot.accountListDetail,
                 accountListSearch = search?.let { LoadState.Content(it) } ?: LoadState.Idle,
@@ -1650,8 +1680,34 @@ class AppController(
 internal fun isValidAdultConfiguration(pin: String, confirmation: String, ageConfirmed: Boolean): Boolean =
     ageConfirmed && pin == confirmation && pin.matches(Regex("[0-9]{6}"))
 
-private fun List<CatalogEntity>.withoutAdultTitles(): List<CatalogEntity> = filter { entity ->
-    (entity as? CatalogEntity.Title)?.value?.adult != true
+private fun List<CatalogEntity>.withoutAdultTitles(): List<CatalogEntity> =
+    visibleCatalogEntities(this, includeAdult = false)
+
+private fun EntityDetail.withAdultVisibility(includeAdult: Boolean): EntityDetail = when (this) {
+    is EntityDetail.Person -> EntityDetail.Person(
+        value.copy(
+            knownFor = visibleCatalogTitles(value.knownFor, includeAdult),
+            credits = value.credits.copy(
+                cast = visibleCatalogCredits(value.credits.cast, includeAdult),
+                crew = visibleCatalogCredits(value.credits.crew, includeAdult),
+            ),
+        ),
+    )
+    is EntityDetail.Collection -> EntityDetail.Collection(
+        value.copy(parts = visibleCatalogTitles(value.parts, includeAdult)),
+    )
+    is EntityDetail.Organization -> EntityDetail.Organization(
+        value.copy(titles = value.titles.copy(results = visibleCatalogTitles(value.titles.results, includeAdult))),
+    )
+    is EntityDetail.Keyword -> EntityDetail.Keyword(
+        value.copy(titles = value.titles.copy(results = visibleCatalogTitles(value.titles.results, includeAdult))),
+    )
+    is EntityDetail.Credit -> EntityDetail.Credit(
+        value.copy(titleSummary = value.titleSummary?.takeIf { includeAdult || !it.adult }),
+    )
+    is EntityDetail.Season,
+    is EntityDetail.Episode,
+    -> this
 }
 
 private fun DiscoverFilter.normalized(): DiscoverFilter {

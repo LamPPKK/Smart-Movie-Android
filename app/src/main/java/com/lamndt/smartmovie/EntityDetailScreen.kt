@@ -55,6 +55,8 @@ import com.lamndt.smartmovie.model.OrganizationDetail
 import com.lamndt.smartmovie.model.PersonDetail
 import com.lamndt.smartmovie.model.SeasonDetail
 import com.lamndt.smartmovie.model.TitleSummary
+import com.lamndt.smartmovie.model.visibleCatalogCredits
+import com.lamndt.smartmovie.model.visibleCatalogTitles
 import java.util.Locale
 
 private sealed interface EntityDetailState {
@@ -74,6 +76,7 @@ internal fun EntityDetailScreen(
     catalog: CatalogV2Repository,
     images: ImageUrlFactory,
     language: String,
+    includeAdult: Boolean,
     onBack: () -> Unit,
     onTitle: (TitleSummary) -> Unit,
     onEntity: (CatalogEntity) -> Unit,
@@ -81,7 +84,7 @@ internal fun EntityDetailScreen(
     appContainer: AppContainer? = null,
     watchRemote: PhoneWatchRemoteController? = null,
 ) {
-    var state by remember(key) { mutableStateOf<EntityDetailState>(EntityDetailState.Loading) }
+    var state by remember(key, includeAdult) { mutableStateOf<EntityDetailState>(EntityDetailState.Loading) }
     val episodeRating = if (key.kind == "episode") {
         rememberEpisodeAccountRating(
             appContainer,
@@ -92,14 +95,18 @@ internal fun EntityDetailScreen(
     } else {
         AccountRatingBinding()
     }
-    LaunchedEffect(key) {
+    LaunchedEffect(key, language, includeAdult) {
         state = runCatching {
             when (key.kind) {
-                "person" -> EntityDetailState.Person(catalog.person(key.id, language))
-                "collection" -> EntityDetailState.Collection(catalog.collection(key.id, language))
-                "company" -> EntityDetailState.Organization(catalog.organization(EntityKind.COMPANY, key.id, language, 1))
-                "network" -> EntityDetailState.Organization(catalog.organization(EntityKind.NETWORK, key.id, language, 1))
-                "keyword" -> EntityDetailState.Keyword(catalog.keyword(key.id, language, 1))
+                "person" -> EntityDetailState.Person(catalog.person(key.id, language, includeAdult))
+                "collection" -> EntityDetailState.Collection(catalog.collection(key.id, language, includeAdult))
+                "company" -> EntityDetailState.Organization(
+                    catalog.organization(EntityKind.COMPANY, key.id, language, 1, includeAdult),
+                )
+                "network" -> EntityDetailState.Organization(
+                    catalog.organization(EntityKind.NETWORK, key.id, language, 1, includeAdult),
+                )
+                "keyword" -> EntityDetailState.Keyword(catalog.keyword(key.id, language, 1, includeAdult))
                 "season" -> EntityDetailState.Season(catalog.season(requireNotNull(key.seriesId), requireNotNull(key.seasonNumber), language))
                 "episode" -> EntityDetailState.Episode(catalog.episode(requireNotNull(key.seriesId), requireNotNull(key.seasonNumber), requireNotNull(key.episodeNumber), language))
                 else -> error("Unsupported catalog entity")
@@ -131,10 +138,25 @@ internal fun EntityDetailScreen(
         when (val value = state) {
             EntityDetailState.Loading -> LoadingMessage(Modifier.fillMaxSize())
             is EntityDetailState.Failed -> StateMessage(stringResource(R.string.details_unavailable), Modifier.fillMaxSize(), value.message)
-            is EntityDetailState.Person -> PersonContent(value.value, images, onTitle, onCredit)
-            is EntityDetailState.Collection -> TitleCatalog(value.value.overview, value.value.parts, images, onTitle)
-            is EntityDetailState.Organization -> TitleCatalog(value.value.description, value.value.titles.results, images, onTitle)
-            is EntityDetailState.Keyword -> TitleCatalog("", value.value.titles.results, images, onTitle)
+            is EntityDetailState.Person -> PersonContent(value.value, images, includeAdult, onTitle, onCredit)
+            is EntityDetailState.Collection -> TitleCatalog(
+                value.value.overview,
+                visibleCatalogTitles(value.value.parts, includeAdult),
+                images,
+                onTitle,
+            )
+            is EntityDetailState.Organization -> TitleCatalog(
+                value.value.description,
+                visibleCatalogTitles(value.value.titles.results, includeAdult),
+                images,
+                onTitle,
+            )
+            is EntityDetailState.Keyword -> TitleCatalog(
+                "",
+                visibleCatalogTitles(value.value.titles.results, includeAdult),
+                images,
+                onTitle,
+            )
             is EntityDetailState.Season -> SeasonContent(value.value, images, onEntity, onCredit)
             is EntityDetailState.Episode -> EpisodeContent(value.value, images, episodeRating, onCredit)
         }
@@ -145,6 +167,7 @@ internal fun EntityDetailScreen(
 private fun PersonContent(
     value: PersonDetail,
     images: ImageUrlFactory,
+    includeAdult: Boolean,
     onTitle: (TitleSummary) -> Unit,
     onCredit: (Credit) -> Unit,
 ) {
@@ -160,9 +183,9 @@ private fun PersonContent(
             }
         }
         if (value.biography.isNotBlank()) item { SectionTitle(stringResource(R.string.biography)); Text(value.biography, color = CinemaColors.Muted) }
-        item { TitleShelf(stringResource(R.string.known_for), value.knownFor, images, onTitle) }
-        item { CreditShelf(stringResource(R.string.cast), value.credits.cast, images, onCredit) }
-        item { CreditShelf(stringResource(R.string.crew), value.credits.crew, images, onCredit) }
+        item { TitleShelf(stringResource(R.string.known_for), visibleCatalogTitles(value.knownFor, includeAdult), images, onTitle) }
+        item { CreditShelf(stringResource(R.string.cast), visibleCatalogCredits(value.credits.cast, includeAdult), images, onCredit) }
+        item { CreditShelf(stringResource(R.string.crew), visibleCatalogCredits(value.credits.crew, includeAdult), images, onCredit) }
     }
 }
 

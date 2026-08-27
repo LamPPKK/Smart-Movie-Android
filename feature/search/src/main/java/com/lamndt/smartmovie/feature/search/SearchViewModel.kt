@@ -17,6 +17,7 @@ import com.lamndt.smartmovie.model.ExternalIdSource
 import com.lamndt.smartmovie.model.SearchScope
 import com.lamndt.smartmovie.model.SearchScopeV2
 import com.lamndt.smartmovie.model.TitleSummary
+import com.lamndt.smartmovie.model.visibleCatalogEntities
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -135,16 +136,19 @@ class SearchViewModel(
         externalJob = viewModelScope.launch {
             mutableState.update { it.copy(externalLoading = true, externalError = null, externalSubmitted = true) }
             try {
-                val result = (catalog as? CatalogV2Repository)?.findExternalId(externalId, source, language)
+                val includeAdult = entityRequest.value.includeAdult
+                val result = (catalog as? CatalogV2Repository)?.findExternalId(
+                    externalId,
+                    source,
+                    language,
+                    includeAdult,
+                )
                     ?: error("External ID search requires the /v2 catalog")
                 val current = mutableState.value
-                val includeAdult = entityRequest.value.includeAdult
                 if (current.mode == CatalogSearchMode.EXTERNAL_ID && current.query.trim() == externalId && current.externalIdSource == source) {
                     mutableState.update {
                         it.copy(
-                            externalResults = result.results.filter { entity ->
-                                includeAdult || (entity as? CatalogEntity.Title)?.value?.adult != true
-                            },
+                            externalResults = visibleCatalogEntities(result.results, includeAdult),
                             externalLoading = false,
                         )
                     }
@@ -171,9 +175,7 @@ class SearchViewModel(
         if (!includeAdult) {
             mutableState.update { state ->
                 state.copy(
-                    externalResults = state.externalResults.filter { entity ->
-                        (entity as? CatalogEntity.Title)?.value?.adult != true
-                    },
+                    externalResults = visibleCatalogEntities(state.externalResults, includeAdult = false),
                     externalLoading = false,
                 )
             }

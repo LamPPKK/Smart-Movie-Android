@@ -69,15 +69,26 @@ interface CatalogRemoteDataSourceV2 : CatalogRemoteDataSource {
         region: String?,
         includeAdult: Boolean,
     ): PagedResult<CatalogEntity>
-    suspend fun findExternalId(externalId: String, source: ExternalIdSource, language: String): ExternalIdFindResult
+    suspend fun findExternalId(
+        externalId: String,
+        source: ExternalIdSource,
+        language: String,
+        includeAdult: Boolean,
+    ): ExternalIdFindResult
     suspend fun deepDetail(mediaType: MediaType, id: Int, language: String, region: String?, includeAdult: Boolean): TitleDetailV2
-    suspend fun person(id: Int, language: String): PersonDetail
-    suspend fun collection(id: Int, language: String): CollectionDetail
-    suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail
-    suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail
+    suspend fun person(id: Int, language: String, includeAdult: Boolean): PersonDetail
+    suspend fun collection(id: Int, language: String, includeAdult: Boolean): CollectionDetail
+    suspend fun organization(
+        kind: EntityKind,
+        id: Int,
+        language: String,
+        page: Int,
+        includeAdult: Boolean,
+    ): OrganizationDetail
+    suspend fun keyword(id: Int, language: String, page: Int, includeAdult: Boolean): KeywordDetail
     suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail
     suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail
-    suspend fun credit(id: String, language: String): CreditDetail
+    suspend fun credit(id: String, language: String, includeAdult: Boolean): CreditDetail
 }
 
 class CatalogNetworkDataSource(
@@ -207,7 +218,8 @@ class CatalogNetworkDataSource(
         externalId: String,
         source: ExternalIdSource,
         language: String,
-    ): ExternalIdFindResult = execute { service.findExternalId(it, externalId, source.wireValue, language) }
+        includeAdult: Boolean,
+    ): ExternalIdFindResult = execute { service.findExternalId(it, externalId, source.wireValue, language, includeAdult) }
 
     override suspend fun deepDetail(
         mediaType: MediaType,
@@ -217,20 +229,29 @@ class CatalogNetworkDataSource(
         includeAdult: Boolean,
     ): TitleDetailV2 = execute { service.deepDetail(it, mediaType.wireValue, id, language, region, includeAdult) }
 
-    override suspend fun person(id: Int, language: String): PersonDetail = execute { service.person(it, id, language) }
-    override suspend fun collection(id: Int, language: String): CollectionDetail = execute { service.collection(it, id, language) }
-    override suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail = execute {
+    override suspend fun person(id: Int, language: String, includeAdult: Boolean): PersonDetail =
+        execute { service.person(it, id, language, includeAdult) }
+    override suspend fun collection(id: Int, language: String, includeAdult: Boolean): CollectionDetail =
+        execute { service.collection(it, id, language, includeAdult) }
+    override suspend fun organization(
+        kind: EntityKind,
+        id: Int,
+        language: String,
+        page: Int,
+        includeAdult: Boolean,
+    ): OrganizationDetail = execute {
         require(kind == EntityKind.COMPANY || kind == EntityKind.NETWORK)
-        service.organization(it, kind.wireValue, id, language, page)
+        service.organization(it, kind.wireValue, id, language, page, includeAdult)
     }
-    override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = execute { service.keyword(it, id, language, page) }
+    override suspend fun keyword(id: Int, language: String, page: Int, includeAdult: Boolean): KeywordDetail =
+        execute { service.keyword(it, id, language, page, includeAdult) }
     override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = execute { service.season(it, seriesId, number, language) }
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = execute {
         service.episode(it, seriesId, season, number, language)
     }
 
-    override suspend fun credit(id: String, language: String): CreditDetail = execute {
-        service.credit(it, id, language)
+    override suspend fun credit(id: String, language: String, includeAdult: Boolean): CreditDetail = execute {
+        service.credit(it, id, language, includeAdult)
     }
 
     private suspend fun <T> execute(block: suspend (String) -> T): T {

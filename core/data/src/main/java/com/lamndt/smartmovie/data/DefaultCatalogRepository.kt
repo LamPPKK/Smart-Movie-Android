@@ -66,19 +66,32 @@ class DefaultCatalogRepository(private val network: CatalogRemoteDataSource) : C
         region: String?,
         includeAdult: Boolean,
     ): PagedResult<CatalogEntity> = v2().searchEntities(query, scope, page, language, region, includeAdult)
-    override suspend fun findExternalId(externalId: String, source: ExternalIdSource, language: String): ExternalIdFindResult =
-        v2().findExternalId(externalId, source, language)
+    override suspend fun findExternalId(
+        externalId: String,
+        source: ExternalIdSource,
+        language: String,
+        includeAdult: Boolean,
+    ): ExternalIdFindResult = v2().findExternalId(externalId, source, language, includeAdult)
     override suspend fun deepDetail(mediaType: MediaType, id: Int, language: String, region: String?, includeAdult: Boolean): TitleDetailV2 =
         v2().deepDetail(mediaType, id, language, region, includeAdult)
-    override suspend fun person(id: Int, language: String): PersonDetail = v2().person(id, language)
-    override suspend fun collection(id: Int, language: String): CollectionDetail = v2().collection(id, language)
-    override suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail =
-        v2().organization(kind, id, language, page)
-    override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = v2().keyword(id, language, page)
+    override suspend fun person(id: Int, language: String, includeAdult: Boolean): PersonDetail =
+        v2().person(id, language, includeAdult)
+    override suspend fun collection(id: Int, language: String, includeAdult: Boolean): CollectionDetail =
+        v2().collection(id, language, includeAdult)
+    override suspend fun organization(
+        kind: EntityKind,
+        id: Int,
+        language: String,
+        page: Int,
+        includeAdult: Boolean,
+    ): OrganizationDetail = v2().organization(kind, id, language, page, includeAdult)
+    override suspend fun keyword(id: Int, language: String, page: Int, includeAdult: Boolean): KeywordDetail =
+        v2().keyword(id, language, page, includeAdult)
     override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = v2().season(seriesId, number, language)
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail =
         v2().episode(seriesId, season, number, language)
-    override suspend fun credit(id: String, language: String): CreditDetail = v2().credit(id, language)
+    override suspend fun credit(id: String, language: String, includeAdult: Boolean): CreditDetail =
+        v2().credit(id, language, includeAdult)
 
     private fun v2(): CatalogRemoteDataSourceV2 = network as? CatalogRemoteDataSourceV2
         ?: error("The configured catalog data source does not support /v2")

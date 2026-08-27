@@ -177,7 +177,7 @@
     <string name="alternative_titles">Alternative titles</string>
     <string name="translations">Translations</string>
     <string name="external_identifiers">External identifiers</string>
-    <string name="catalog_metadata_description">Explore TMDb image and video galleries, member reviews, catalog recommendations, regional release dates, certifications, localized titles, translations and external identifiers across titles, seasons and episodes.</string>
+    <string name="catalog_metadata_description">Explore TMDb image and video galleries, member reviews, recommendations, regional release dates, certifications, localized titles, translations and external identifiers. The local adult-content PIN applies to Search and every related Person, Collection, Company, Network, Keyword and Credit Detail surface.</string>
     <string name="companion_episode_description">Wear OS mirrors the safe title or exact episode open on Android and returns to that detail without signing in independently.</string>
     <string name="details">Details</string>
     <string name="images">Images</string>

@@ -98,12 +98,14 @@ class SearchViewModelTest {
         val viewModel = SearchViewModel(catalog, "vi-VN")
         viewModel.setMode(CatalogSearchMode.EXTERNAL_ID)
         viewModel.setExternalIdSource(ExternalIdSource.WIKIDATA)
+        viewModel.setIncludeAdult(true)
         viewModel.setQuery(" Q83495 ")
 
         viewModel.findExternalId()
         advanceUntilIdle()
 
         assertThat(catalog.externalIdCalls).containsExactly(Triple("Q83495", ExternalIdSource.WIKIDATA, "vi-VN"))
+        assertThat(catalog.externalIdAdultFlags).containsExactly(true)
         assertThat(viewModel.state.value.externalResults.map(CatalogEntity::entityKind))
             .containsExactly(EntityKind.MOVIE, EntityKind.PERSON)
             .inOrder()

@@ -10,6 +10,7 @@ import com.lamndt.smartmovie.model.MediaType
 import com.lamndt.smartmovie.model.SearchScope
 import com.lamndt.smartmovie.model.SearchScopeV2
 import com.lamndt.smartmovie.model.TitleSummary
+import com.lamndt.smartmovie.model.visibleCatalogEntities
 
 class DiscoverPagingSource(
     private val catalog: CatalogRepository,
@@ -64,7 +65,9 @@ class EntitySearchPagingSource(
             }
         }
         LoadResult.Page(
-            data = synchronized(seenKeys) { response.results.filter { seenKeys.add(it.stableKey) } },
+            data = synchronized(seenKeys) {
+                visibleCatalogEntities(response.results, includeAdult).filter { seenKeys.add(it.stableKey) }
+            },
             prevKey = if (page > 1) page - 1 else null,
             nextKey = if (page < response.totalPages) page + 1 else null,
         )

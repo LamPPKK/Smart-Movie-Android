@@ -77,6 +77,7 @@ class FakeCatalogV2Repository(
     val legacy: FakeCatalogRepository = FakeCatalogRepository(),
 ) : CatalogV2Repository, CatalogRepository by legacy {
     val externalIdCalls = mutableListOf<Triple<String, ExternalIdSource, String>>()
+    val externalIdAdultFlags = mutableListOf<Boolean>()
     val entitySearchAdultFlags = mutableListOf<Boolean>()
     var externalIdResult: suspend (String, ExternalIdSource) -> ExternalIdFindResult = { id, source ->
         ExternalIdFindResult(source, id, emptyList())
@@ -122,8 +123,10 @@ class FakeCatalogV2Repository(
         externalId: String,
         source: ExternalIdSource,
         language: String,
+        includeAdult: Boolean,
     ): ExternalIdFindResult {
         externalIdCalls += Triple(externalId, source, language)
+        externalIdAdultFlags += includeAdult
         return externalIdResult(externalId, source)
     }
 
@@ -134,13 +137,19 @@ class FakeCatalogV2Repository(
         region: String?,
         includeAdult: Boolean,
     ): TitleDetailV2 = error("Not configured")
-    override suspend fun person(id: Int, language: String): PersonDetail = error("Not configured")
-    override suspend fun collection(id: Int, language: String): CollectionDetail = error("Not configured")
-    override suspend fun organization(kind: EntityKind, id: Int, language: String, page: Int): OrganizationDetail = error("Not configured")
-    override suspend fun keyword(id: Int, language: String, page: Int): KeywordDetail = error("Not configured")
+    override suspend fun person(id: Int, language: String, includeAdult: Boolean): PersonDetail = error("Not configured")
+    override suspend fun collection(id: Int, language: String, includeAdult: Boolean): CollectionDetail = error("Not configured")
+    override suspend fun organization(
+        kind: EntityKind,
+        id: Int,
+        language: String,
+        page: Int,
+        includeAdult: Boolean,
+    ): OrganizationDetail = error("Not configured")
+    override suspend fun keyword(id: Int, language: String, page: Int, includeAdult: Boolean): KeywordDetail = error("Not configured")
     override suspend fun season(seriesId: Int, number: Int, language: String): SeasonDetail = error("Not configured")
     override suspend fun episode(seriesId: Int, season: Int, number: Int, language: String): EpisodeDetail = error("Not configured")
-    override suspend fun credit(id: String, language: String): CreditDetail = error("Not configured")
+    override suspend fun credit(id: String, language: String, includeAdult: Boolean): CreditDetail = error("Not configured")
 }
 
 fun capabilities(

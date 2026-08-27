@@ -202,7 +202,26 @@ data class Credit(
     @SerialName("poster_path") val posterPath: String? = null,
     val order: Int? = null,
     @SerialName("episode_count") val episodeCount: Int? = null,
+    val adult: Boolean = false,
 )
+
+fun visibleCatalogTitles(values: List<TitleSummary>, includeAdult: Boolean): List<TitleSummary> =
+    values.filter { includeAdult || !it.adult }
+
+fun visibleCatalogCredits(values: List<Credit>, includeAdult: Boolean): List<Credit> =
+    values.filter { includeAdult || !it.adult }
+
+fun visibleCatalogEntities(values: List<CatalogEntity>, includeAdult: Boolean): List<CatalogEntity> =
+    values.mapNotNull { entity ->
+        when (entity) {
+            is CatalogEntity.Title -> entity.takeIf { includeAdult || !entity.value.adult }
+            is CatalogEntity.Person -> CatalogEntity.Person(
+                entity.value.copy(knownFor = visibleCatalogTitles(entity.value.knownFor, includeAdult)),
+            )
+            is CatalogEntity.Season, is CatalogEntity.Episode -> entity.takeIf { includeAdult }
+            else -> entity
+        }
+    }
 
 @Serializable
 data class CreditDetail(

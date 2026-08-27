@@ -1964,27 +1964,27 @@ private data class TitleMetadataCopy(
 private fun titleMetadataCopy(locale: AppLocale): TitleMetadataCopy = when (locale) {
     AppLocale.ENGLISH -> TitleMetadataCopy(
         "Production", "Release & localization", "Certification", "Release date", "Alternative titles", "Translations",
-        "External identifiers", "Explore TMDb image and video galleries, member reviews, catalog recommendations, regional release dates, certifications, localized titles, translations and external identifiers across titles, seasons and episodes.",
+        "External identifiers", "Explore TMDb image and video galleries, member reviews, recommendations, regional release dates, certifications, localized titles, translations and external identifiers. The local adult-content PIN applies to Search and every related Person, Collection, Company, Network, Keyword and Credit Detail surface.",
     )
     AppLocale.VIETNAMESE -> TitleMetadataCopy(
         "Sản xuất", "Phát hành & bản địa hóa", "Phân loại độ tuổi", "Ngày phát hành", "Tên gọi khác", "Bản dịch",
-        "Định danh bên ngoài", "Khám phá thư viện hình ảnh và video TMDb, bài đánh giá, đề xuất danh mục, ngày phát hành và phân loại theo khu vực, tên bản địa hóa, bản dịch và định danh ngoài của phim, mùa và tập.",
+        "Định danh bên ngoài", "Khám phá hình ảnh, video, bài đánh giá, đề xuất, thông tin phát hành, bản địa hóa và định danh ngoài từ TMDb. PIN nội dung 18+ cục bộ áp dụng cho Tìm kiếm và mọi trang Người, Bộ sưu tập, Công ty, Mạng, Từ khóa và Chi tiết vai trò liên quan.",
     )
     AppLocale.JAPANESE -> TitleMetadataCopy(
         "制作", "公開・ローカライズ", "年齢区分", "公開日", "別タイトル", "翻訳", "外部識別子",
-        "作品、シーズン、エピソードのTMDb画像・動画ギャラリー、レビュー、おすすめ、地域別公開日、年齢区分、ローカライズされたタイトル、翻訳、外部識別子を確認できます。",
+        "TMDbの画像、動画、レビュー、おすすめ、公開情報、ローカライズ、外部識別子を確認できます。端末内の成人向けPINは、検索と人物、コレクション、会社、ネットワーク、キーワード、クレジット詳細の関連画面すべてに適用されます。",
     )
     AppLocale.KOREAN -> TitleMetadataCopy(
         "제작", "공개 및 현지화", "시청 등급", "공개일", "대체 제목", "번역", "외부 식별자",
-        "작품, 시즌, 에피소드의 TMDb 이미지·동영상 갤러리, 리뷰, 추천, 지역별 공개일, 시청 등급, 현지화 제목, 번역 및 외부 식별자를 확인하세요.",
+        "TMDb 이미지, 동영상, 리뷰, 추천, 공개 정보, 현지화 및 외부 식별자를 확인하세요. 기기 내 성인 콘텐츠 PIN은 검색과 인물, 컬렉션, 제작사, 네트워크, 키워드 및 크레딧 상세의 모든 관련 화면에 적용됩니다.",
     )
     AppLocale.CHINESE_SIMPLIFIED -> TitleMetadataCopy(
         "制作", "发行与本地化", "分级", "上映日期", "其他片名", "翻译", "外部标识符",
-        "查看影片、季和剧集的 TMDb 图片与视频画廊、影评、推荐、地区发行日期、分级、本地化片名、翻译和外部标识符。",
+        "查看 TMDb 图片、视频、影评、推荐、发行信息、本地化内容和外部标识符。本地成人内容 PIN 适用于搜索及人物、合集、公司、电视网、关键词和演职员详情的所有相关页面。",
     )
     AppLocale.CHINESE_TRADITIONAL -> TitleMetadataCopy(
         "製作", "發行與在地化", "分級", "上映日期", "其他片名", "翻譯", "外部識別碼",
-        "查看影片、季度和集數的 TMDb 圖片與影片藝廊、影評、推薦、地區發行日期、分級、在地化片名、翻譯和外部識別碼。",
+        "查看 TMDb 圖片、影片、影評、推薦、發行資訊、在地化內容和外部識別碼。本機成人內容 PIN 適用於搜尋及人物、合輯、公司、電視網、關鍵字和演職員詳細資料的所有相關頁面。",
     )
 }
 
