@@ -66,6 +66,7 @@
     <string name="adult_age_confirmation">18歳以上であることを確認します。</string>
     <string name="adult_age_required">18歳以上であることを確認してください。</string>
     <string name="source_repositories">ソースリポジトリ</string>
+    <string name="development_roadmap">開発ロードマップ</string>
     <string name="production">制作</string>
     <string name="release_localization">公開・ローカライズ</string>
     <string name="alternative_titles">別タイトル</string>

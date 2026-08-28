@@ -66,6 +66,7 @@
     <string name="adult_age_confirmation">만 18세 이상임을 확인합니다.</string>
     <string name="adult_age_required">만 18세 이상임을 확인하세요.</string>
     <string name="source_repositories">소스 저장소</string>
+    <string name="development_roadmap">개발 로드맵</string>
     <string name="production">제작</string>
     <string name="release_localization">공개 및 현지화</string>
     <string name="alternative_titles">대체 제목</string>

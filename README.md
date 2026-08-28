@@ -22,6 +22,8 @@ The native app adapts from phones to tablets, foldables, ChromeOS, Android TV, a
 
 Apple and Android keep native UI, lifecycle, and storage while sharing the additive `/v2` Worker contract, six locales, semantic release train, normalized errors, and decoder fixtures. `/v1` remains available for 2.0 clients. TMDb is the post-login account source of truth; each client remains local-first through a durable, account-scoped outbox.
 
+The canonical cross-repository roadmap lives in the backend-owner repository: [Kế hoạch phát triển Smart Movie sau 3.0](https://github.com/LamPPKK/Smart-Movie-iOS/blob/main/docs/DEVELOPMENT_PLAN.md). It defines release order, parity, per-feature commit/push discipline, and the shared Definition of Done.
+
 ## What you can do
 
 - **Explore the complete catalog** through Home, trending, pagination, retry, cancellation, and regional Discover filters for dates, language, country, certification, runtime, votes, providers, monetization, rating, and adult-PIN context.
@@ -40,52 +42,54 @@ Apple and Android keep native UI, lifecycle, and storage while sharing the addit
 - **Navigate without touch** using keyboard shortcuts on ChromeOS/desktop and focus-preserving D-pad navigation on Android TV.
 - **Use the app in six languages**: English, Vietnamese, Japanese, Korean, Simplified Chinese, and Traditional Chinese.
 
-## Screenshots
+## Latest screenshots
 
-All images below are checked-in deterministic captures. The native Android images are also visual-regression baselines used by CI.
+The gallery combines local Web/Wasm preview captures with native Android component goldens. Abstract artwork is generated demo imagery, not actual TMDb posters or portraits. Native goldens intentionally have no network images; they do not prove native image loading. No image contains an account token, personal list, adult title, or production credential.
 
-### Native Android phone and tablet
+Missing thumbnails? See the shared [image loading diagnosis and production checklist](https://github.com/LamPPKK/Smart-Movie-iOS/blob/main/docs/IMAGE_LOADING.md). Local preview image delivery has regression tests; staging/production Worker DNS remains a separate release blocker as checked on 2026-08-28.
 
-<table>
-  <tr>
-    <td width="34%" align="center"><strong>Phone</strong><br><sub>Compact Home with bottom navigation</sub></td>
-    <td width="66%" align="center"><strong>Tablet · foldable · ChromeOS · XR Home Space</strong><br><sub>Expanded navigation rail and denser content shelves</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/PhoneHomeGolden_phone_compact_8dbe636a_0.png" alt="SmartMovie native Android Home on a compact phone" width="330"></td>
-    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TabletHomeGolden_tablet_expanded_97f2797e_0.png" alt="SmartMovie native Android Home on an expanded tablet" width="760"></td>
-  </tr>
-</table>
-
-### Android TV and Wear OS
+### Native Android phone, tablet, TV and Wear OS
 
 <table>
   <tr>
-    <td width="72%" align="center"><strong>Android TV</strong><br><sub>10-foot layout with high-visibility D-pad focus</sub></td>
-    <td width="28%" align="center"><strong>Wear OS remote</strong><br><sub>Mirror a safe title/episode; title-only trailer and library controls</sub></td>
+    <td width="34%" align="center"><strong>Phone</strong><br><sub>Compact cinematic Home composition</sub></td>
+    <td width="66%" align="center"><strong>Tablet · foldable · ChromeOS · XR Home Space</strong><br><sub>Expanded layout and denser shelves</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TvHomeGolden_tv_1080p_b8c175df_0.png" alt="SmartMovie Home on Android TV" width="760"></td>
-    <td align="center"><img src="wear/src/screenshotTestDebug/reference/com/lamndt/smartmovie/wear/WearRemoteGoldenPreviewKt/WearRemoteGolden_wear_round_remote_a6040ff4_0.png" alt="SmartMovie companion remote on Wear OS" width="280"></td>
+    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/PhoneHomeGolden_phone_compact_8dbe636a_0.png" alt="Smart Movie Android native Home on a compact phone" width="330"></td>
+    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TabletHomeGolden_tablet_expanded_97f2797e_0.png" alt="Smart Movie Android native Home on an expanded tablet" width="760"></td>
   </tr>
 </table>
-
-### Compose Multiplatform — desktop and web
-
-The Kotlin Multiplatform app shares one Compose UI/data layer across macOS, Windows, Linux, JavaScript, and Wasm. It is separate from the native Android modules and does not replace the native SwiftUI Apple mobile app.
 
 <table>
   <tr>
-    <td width="66%" align="center"><strong>Expanded desktop/web</strong><br><sub>Navigation rail and responsive content grid</sub></td>
-    <td width="34%" align="center"><strong>Compact detail</strong><br><sub>Trailer, library actions, story, and cast</sub></td>
+    <td width="72%" align="center"><strong>Android TV</strong><br><sub>Dedicated 10-foot layout and D-pad focus</sub></td>
+    <td width="28%" align="center"><strong>Wear OS</strong><br><sub>Safe title/episode remote and phone handoff</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/images/screenshots/multiplatform-home-desktop.png" alt="SmartMovie Compose Multiplatform Home on desktop" width="760"></td>
-    <td align="center"><img src="docs/images/screenshots/multiplatform-detail-phone.png" alt="SmartMovie Compose Multiplatform detail on a compact browser" width="330"></td>
+    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TvHomeGolden_tv_1080p_b8c175df_0.png" alt="Smart Movie Android Home on Android TV" width="760"></td>
+    <td align="center"><img src="wear/src/screenshotTestDebug/reference/com/lamndt/smartmovie/wear/WearRemoteGoldenPreviewKt/WearRemoteGolden_wear_round_remote_a6040ff4_0.png" alt="Smart Movie Android companion remote on Wear OS" width="280"></td>
   </tr>
 </table>
 
-See the complete [screen gallery](docs/SCREENSHOTS.md) for Home, Explore, Search, Detail, Library, and responsive layout captures. [Platform support](docs/PLATFORM_SUPPORT.md) defines the exact release boundary for every device class, including why Android Auto is intentionally not declared.
+### Compose Multiplatform — desktop and Web/Wasm
+
+The isolated KMP app shares its Kotlin data and Compose UI across macOS, Windows, Linux, JavaScript, and Wasm. The latest captures expose the same five destinations as the native clients.
+
+<table>
+  <tr>
+    <td width="50%" align="center"><strong>Expanded desktop/web</strong><br><sub>Navigation rail and responsive catalog</sub></td>
+    <td width="25%" align="center"><strong>Detail</strong><br><sub>Typed `/v2` metadata and actions</sub></td>
+    <td width="25%" align="center"><strong>Profile</strong><br><sub>TMDb auth, region and adult-content PIN</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/screenshots/multiplatform-home-desktop.png" alt="Smart Movie Compose Multiplatform Home on desktop" width="720"></td>
+    <td align="center"><img src="docs/images/screenshots/multiplatform-detail-phone.png" alt="Smart Movie Compose Multiplatform title detail" width="300"></td>
+    <td align="center"><img src="docs/images/screenshots/multiplatform-profile-phone.png" alt="Smart Movie Compose Multiplatform Profile" width="300"></td>
+  </tr>
+</table>
+
+See the complete [screen gallery](docs/SCREENSHOTS.md) for Home, Explore, Search, Detail, Library, Profile and capture provenance. [Platform support](docs/PLATFORM_SUPPORT.md) defines the exact release boundary for every device class, including why Android Auto is intentionally not declared.
 
 ## App and platform matrix
 

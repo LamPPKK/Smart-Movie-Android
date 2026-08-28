@@ -66,6 +66,7 @@
     <string name="adult_age_confirmation">我確認自己已年滿18歲。</string>
     <string name="adult_age_required">請確認您已年滿18歲。</string>
     <string name="source_repositories">原始碼儲存庫</string>
+    <string name="development_roadmap">開發藍圖</string>
     <string name="production">製作</string>
     <string name="release_localization">發行與在地化</string>
     <string name="alternative_titles">其他片名</string>

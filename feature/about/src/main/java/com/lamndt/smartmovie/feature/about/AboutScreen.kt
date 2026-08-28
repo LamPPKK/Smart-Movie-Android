@@ -53,6 +53,11 @@ fun AboutScreen(versionName: String, modifier: Modifier = Modifier) {
                 TextButton(onClick = { uriHandler.openUri("https://github.com/LamPPKK/Smart-Movie-Android") }) {
                     Text("Smart Movie Android")
                 }
+                TextButton(onClick = {
+                    uriHandler.openUri("https://github.com/LamPPKK/Smart-Movie-iOS/blob/main/docs/DEVELOPMENT_PLAN.md")
+                }) {
+                    Text(stringResource(R.string.development_roadmap))
+                }
                 Text(stringResource(R.string.version_format, versionName), color = CinemaColors.Muted, style = MaterialTheme.typography.labelMedium)
             }
         }

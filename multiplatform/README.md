@@ -11,6 +11,8 @@ This project delivers SmartMovie to the remaining production Compose Multiplatfo
 
 The separate `SmartMovie` repository owns the native SwiftUI clients for iPhone, iPad, Mac, Apple TV, Apple Watch, and Apple Vision Pro. Compose Multiplatform intentionally does not produce an Apple mobile framework or host application.
 
+Product work follows the single cross-repository [Smart Movie development plan](https://github.com/LamPPKK/Smart-Movie-iOS/blob/main/docs/DEVELOPMENT_PLAN.md). Every KMP feature must keep contract behavior, six-locale copy, privacy and release version aligned with the native apps.
+
 ## Architecture
 
 `composeApp` owns the shared `/v2` catalog/account contracts, Ktor Worker client, entity and External ID search, navigable Credit Detail flows, paginated Movie/TV account recommendations, retry/cancellation behavior, anonymous installation ID, local-first Favorite/Watchlist library, account-scoped durable mutation outbox, explicit adult age confirmation plus local PIN/lockout state, six-locale copy, UDF controller, and adaptive cinematic UI. Platform source sets provide storage, secure session behavior, URL handoff, API base URL, and entry points.
@@ -43,7 +45,11 @@ First build the Wasm distribution, then run:
 python3 tools/preview_server.py
 ```
 
-Open `http://127.0.0.1:8099/?preview=1`. The server supplies deterministic `/v1` responses without a TMDb token and is intended only for UI QA.
+Open `http://127.0.0.1:8099/?preview=1`. The server supplies deterministic, contract-backed `/v1` and `/v2` catalog responses without a TMDb token and is intended only for UI QA and documentation captures. Account requests remain unauthorized so screenshots cannot include a real session.
+
+The preview's `/artwork/` configuration points to generated abstract demo images, not actual TMDb posters/portraits. Nested fixture paths are mapped to available local assets; canonical fixtures are unchanged. Run `python3 -B -m unittest discover -s tools -p 'test_*.py' -v` to verify complete PNG responses for every advertised size, missing-image 404 and account 401. These checks are part of Compose Multiplatform CI and do not prove production Worker/CDN availability.
+
+The current Home, Explore, Search, Detail, Library, Profile and expanded-layout captures are documented in the repository [screen gallery](../docs/SCREENSHOTS.md).
 
 ## Release boundaries
 

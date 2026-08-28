@@ -70,6 +70,7 @@
     <string name="adult_age_confirmation">Tôi xác nhận mình đã đủ 18 tuổi.</string>
     <string name="adult_age_required">Hãy xác nhận bạn đã đủ 18 tuổi.</string>
     <string name="source_repositories">Kho mã nguồn</string>
+    <string name="development_roadmap">Kế hoạch phát triển</string>
     <string name="production">Sản xuất</string>
     <string name="release_localization">Phát hành &amp; bản địa hóa</string>
     <string name="alternative_titles">Tên gọi khác</string>
