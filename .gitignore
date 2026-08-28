@@ -13,3 +13,5 @@ captures/
 *.properties.local
 .env*
 .dev.vars*
+__pycache__/
+*.pyc

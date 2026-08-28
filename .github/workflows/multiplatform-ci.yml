@@ -37,6 +37,8 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
+      - name: Verify deterministic preview image responses
+        run: python3 -B -m unittest discover -s tools -p 'test_*.py' -v
       - name: Verify release train and vendored contract
         working-directory: ${{ github.workspace }}
         run: ./scripts/verify-release.sh kmp
