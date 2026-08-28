@@ -72,6 +72,7 @@
     <string name="translations">翻訳</string>
     <string name="external_identifiers">外部識別子</string>
     <string name="catalog_metadata_description">TMDbの画像、動画、レビュー、おすすめ、公開情報、ローカライズ、外部識別子を確認できます。端末内の成人向けPINは、検索と人物、コレクション、会社、ネットワーク、キーワード、クレジット詳細の関連画面すべてに適用されます。</string>
+    <string name="account_sync_description">TMDb経由でログインし、お気に入り、ウォッチリスト、評価、おすすめ、映画とTVの混合リストを同期できます。オフライン変更は永続化され、安全に再試行されます。</string>
     <string name="companion_episode_description">Wear OSはAndroidで開いている安全な作品または正確なエピソードを表示し、個別にログインせず詳細へ戻れます。</string>
     <string name="details">詳細</string>
     <string name="images">画像</string>

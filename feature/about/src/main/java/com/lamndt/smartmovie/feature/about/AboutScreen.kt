@@ -38,6 +38,8 @@ fun AboutScreen(versionName: String, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.catalog_metadata_description), color = CinemaColors.Muted, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.account_sync_description), color = CinemaColors.Muted, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.companion_episode_description), color = CinemaColors.Muted, textAlign = TextAlign.Center)
         Spacer(Modifier.height(28.dp))
         Surface(shape = CinemaCardShape, color = CinemaColors.Surface, modifier = Modifier.fillMaxWidth()) {

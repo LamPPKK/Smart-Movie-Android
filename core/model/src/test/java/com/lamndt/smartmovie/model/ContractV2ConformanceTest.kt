@@ -98,7 +98,9 @@ class ContractV2ConformanceTest {
         assertThat(account.state.favorite).isTrue()
         assertThat(account.list.results.map(TitleSummary::libraryKey)).containsExactly("movie:10", "tv:11").inOrder()
         assertThat(decode<AuthAttempt>("auth-attempt").authorizationUrl).contains("themoviedb.org")
-        assertThat(decode<MutationResult>("mutation").success).isTrue()
+        val mutation = decode<MutationResult>("mutation")
+        assertThat(mutation.success).isTrue()
+        assertThat(mutation.listId).isEqualTo(101)
 
         val future = json.decodeFromString<CatalogEntity>(
             """{"entity_kind":"person","id":99,"name":"Future Person","profile_path":null,"known_for_department":null,"popularity":0,"known_for":[],"future":{"safe":true}}""",

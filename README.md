@@ -31,7 +31,7 @@ Apple and Android keep native UI, lifecycle, and storage while sharing the addit
 - **Read catalog reviews and follow recommendations** with full review bodies, blank/duplicate removal, localized author fallbacks, optional rating/date metadata, same-media-type TMDb recommendations, current-title exclusion, a separate similar-titles shelf, and adult-title filtering unless the local PIN is unlocked on phone/tablet, Android TV, and KMP desktop/web.
 - **Understand every regional edition** through production-company/network links, region-matched certification and release date, alternative titles, localized translations, and external identifiers on native Android/TV and KMP desktop/web.
 - **Use TMDb account recommendations** from Profile with separate Movie/TV feeds, retry, pagination, title navigation, deduplication, and local adult-PIN filtering across phone, Android TV, and KMP desktop/web.
-- **Manage mixed custom lists** by loading every list page, editing metadata, paging through Movie/TV contents, searching the catalog, and adding or removing titles with restart-safe optimistic synchronization across native Android/TV and KMP.
+- **Manage mixed custom lists** by loading every list page, editing metadata, paging through Movie/TV contents, searching the catalog, and adding or removing titles with restart-safe optimistic synchronization across native Android/TV and KMP. Canonical `list_id` acknowledgements survive idempotent create replay, so a lost response cannot strand a pending list.
 - **See where to watch** in a device or chosen region, open only TMDb URLs, and retain required JustWatch attribution.
 - **Keep adult content private by default** behind local confirmation, a six-digit PIN, and five-attempt lockout. The gate partitions Search, External ID, Title, Person, Collection, Company, Network, Keyword, Credit Detail, recommendations and similar titles; native Android and KMP filter again before display, while Wear/public surfaces never receive restricted titles.
 - **Connect TMDb safely** in a browser or by TV QR. Rate Movie/TV/Episode titles and manage account library/lists through optimistic durable retry without exposing credentials.
@@ -246,7 +246,7 @@ Read [Testing](docs/TESTING.md) for the complete suite, emulator setup, golden u
 
 ## Contract compatibility
 
-`catalog-contract/` is a checksummed snapshot of the canonical OpenAPI document and fixtures from the companion Apple/backend repository. Native Android and KMP conformance tests decode the same success and error fixtures, including unknown fields and missing nullable values.
+`catalog-contract/` is a checksummed snapshot of the canonical OpenAPI document and fixtures from the companion Apple/backend repository. Native Android and KMP conformance tests decode the same success and error fixtures, including unknown fields, missing nullable values, and the canonical list identifier returned by first and replayed account mutations.
 
 The manifest records the contract version, upstream commit, OpenAPI SHA-256, and fixture SHA-256. A protected cross-repository workflow opens or refreshes the Android snapshot PR whenever the canonical contract changes. Production Worker promotion is blocked until Android `main` matches all four release inputs.
 
