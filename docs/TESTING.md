@@ -68,6 +68,8 @@ The 17 August 2026 local device run was not executed because the only configured
 
 The latest local KMP gate passed desktop tests and non-incremental compile, JavaScript development distribution, optimized Wasm distribution, and a portable macOS application image with strict dependency verification. The macOS ARM packaging path was also simulated with `os.arch=aarch64`; its Compose Desktop POM and Skiko runtime JAR/POM checksums were matched byte-for-byte against the SHA-256 values published by Maven Central before the distributable completed. CI must reproduce portable images on macOS, Windows, and Linux.
 
+On 29 August 2026, native `core:model` contract conformance passed 2/2 tests and KMP desktop contract conformance passed 4/4 tests using canonical Episode account-state fixtures for a 0.5 rating and an unrated episode. The snapshot manifest records upstream Apple/backend commit `b658d1da1b71e70bbfe2f4aab54b52056eb955f4` and fixture checksum `7ab968a4781b02010e2f213666ba587ce840f414de0eace72d1cf51f47faa96f`. This proves decoder parity, not a live signed-in UI flow.
+
 ## Release interpretation
 
 - A native unit, lint, golden, APK, instrumentation, or TV smoke failure blocks the Android candidate.

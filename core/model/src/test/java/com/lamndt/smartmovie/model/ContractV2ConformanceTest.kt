@@ -2,6 +2,7 @@ package com.lamndt.smartmovie.model
 
 import com.google.common.truth.Truth.assertThat
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 import org.junit.Test
 import java.io.File
@@ -96,6 +97,10 @@ class ContractV2ConformanceTest {
     fun accountAuthMutationAndUnknownFieldsRemainCompatible() {
         val account = decode<AccountFixture>("account")
         assertThat(account.state.favorite).isTrue()
+        assertThat(account.episodeStates.map(EpisodeAccountState::seriesId)).containsExactly(11, 11).inOrder()
+        assertThat(account.episodeStates.map(EpisodeAccountState::seasonNumber)).containsExactly(1, 0).inOrder()
+        assertThat(account.episodeStates.map(EpisodeAccountState::episodeNumber)).containsExactly(2, 1).inOrder()
+        assertThat(account.episodeStates.map(EpisodeAccountState::ratingValue)).containsExactly(0.5, null).inOrder()
         assertThat(account.list.results.map(TitleSummary::libraryKey)).containsExactly("movie:10", "tv:11").inOrder()
         assertThat(decode<AuthAttempt>("auth-attempt").authorizationUrl).contains("themoviedb.org")
         val mutation = decode<MutationResult>("mutation")
@@ -122,7 +127,12 @@ class ContractV2ConformanceTest {
 }
 
 @Serializable
-private data class AccountFixture(val profile: AccountProfile, val state: AccountStateFixture, val list: UserList)
+private data class AccountFixture(
+    val profile: AccountProfile,
+    val state: AccountStateFixture,
+    val list: UserList,
+    @SerialName("episode_states") val episodeStates: List<EpisodeAccountState>,
+)
 
 @Serializable
 private data class AccountStateFixture(val favorite: Boolean, val watchlist: Boolean)

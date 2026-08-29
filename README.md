@@ -250,7 +250,7 @@ Read [Testing](docs/TESTING.md) for the complete suite, emulator setup, golden u
 
 ## Contract compatibility
 
-`catalog-contract/` is a checksummed snapshot of the canonical OpenAPI document and fixtures from the companion Apple/backend repository. Native Android and KMP conformance tests decode the same success and error fixtures, including unknown fields, missing nullable values, and the canonical list identifier returned by first and replayed account mutations.
+`catalog-contract/` is a checksummed snapshot of the canonical OpenAPI document and fixtures from the companion Apple/backend repository. Native Android and KMP conformance tests decode the same success and error fixtures, including unknown fields, missing nullable values, half-step/unrated Episode account state, and the canonical list identifier returned by first and replayed account mutations.
 
 The manifest records the contract version, upstream commit, OpenAPI SHA-256, and fixture SHA-256. A protected cross-repository workflow opens or refreshes the Android snapshot PR whenever the canonical contract changes. Production Worker promotion is blocked until Android `main` matches all four release inputs.
 

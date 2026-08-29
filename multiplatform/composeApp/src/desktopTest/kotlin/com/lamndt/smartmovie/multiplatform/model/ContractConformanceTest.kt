@@ -2,6 +2,7 @@ package com.lamndt.smartmovie.multiplatform.model
 
 import com.lamndt.smartmovie.multiplatform.data.ErrorEnvelope
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 import java.io.File
 import kotlin.test.Test
@@ -115,6 +116,10 @@ class ContractConformanceTest {
     fun canonicalV2AccountAndErrorsDecodeWithoutSecrets() {
         val account = decodeV2<AccountFixture>("account")
         assertEquals("fixture_user", account.profile.username)
+        assertEquals(listOf(11, 11), account.episodeStates.map(EpisodeAccountState::seriesId))
+        assertEquals(listOf(1, 0), account.episodeStates.map(EpisodeAccountState::seasonNumber))
+        assertEquals(listOf(2, 1), account.episodeStates.map(EpisodeAccountState::episodeNumber))
+        assertEquals(listOf(0.5, null), account.episodeStates.map(EpisodeAccountState::ratingValue))
         assertEquals(7, account.list.id)
         assertEquals("pending", decodeV2<AuthAttempt>("auth-attempt").status)
         val mutation = decodeV2<MutationResult>("mutation")
@@ -144,4 +149,8 @@ class ContractConformanceTest {
 private data class GenreEnvelope(val genres: List<Genre>)
 
 @Serializable
-private data class AccountFixture(val profile: AccountProfile, val list: UserList)
+private data class AccountFixture(
+    val profile: AccountProfile,
+    val list: UserList,
+    @SerialName("episode_states") val episodeStates: List<EpisodeAccountState>,
+)
