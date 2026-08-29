@@ -34,4 +34,30 @@ class CatalogModelsTest {
         assertEquals(listOf(8, 13, 18, 23), id.indices.filter { id[it] == '-' })
         assertTrue(id.all { it == '-' || it in '0'..'9' || it in 'a'..'f' })
     }
+
+    @Test
+    fun imageUrlsNormalizeConfigurationAndPaths() {
+        val images = ImageUrlFactory(
+            ImageConfiguration(
+                secureBaseUrl = "https://image.tmdb.org/t/p",
+                posterSizes = listOf("w342", "w500", "original"),
+                backdropSizes = listOf("w780", "w1280", "original"),
+                profileSizes = listOf("w185", "h632", "original"),
+            ),
+        )
+
+        assertEquals("https://image.tmdb.org/t/p/w342/poster.jpg", images.poster("/poster.jpg"))
+        assertEquals("https://image.tmdb.org/t/p/w500/poster.jpg", images.poster("poster.jpg", expanded = true))
+        assertEquals("https://image.tmdb.org/t/p/w1280/backdrop.jpg", images.backdrop(" backdrop.jpg "))
+        assertEquals("https://image.tmdb.org/t/p/w185/profile.jpg", images.profile("/profile.jpg"))
+    }
+
+    @Test
+    fun imageUrlsKeepAbsolutePreviewArtworkAndRejectBlankPaths() {
+        val images = ImageUrlFactory(ImageConfiguration.Fallback)
+
+        assertEquals("https://preview.example/poster.png", images.poster("https://preview.example/poster.png"))
+        assertNull(images.poster("  "))
+        assertNull(images.backdrop(null))
+    }
 }

@@ -50,7 +50,10 @@ class AppContainer(context: Context, baseUrl: String) {
     val images = ImageUrlFactory(imageConfiguration::value)
 
     init {
-        applicationScope.launch { imageConfiguration.value = catalog.imageConfiguration() }
+        applicationScope.launch {
+            runCatching { catalog.imageConfiguration() }
+                .onSuccess { imageConfiguration.value = it }
+        }
         applicationScope.launch {
             val resolved = runCatching { catalog.capabilities() }.getOrNull()
             mutableCapabilities.value = resolved

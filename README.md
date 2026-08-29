@@ -56,8 +56,8 @@ Missing thumbnails? See the shared [image loading diagnosis and production check
     <td width="66%" align="center"><strong>Tablet · foldable · ChromeOS · XR Home Space</strong><br><sub>Expanded layout and denser shelves</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/PhoneHomeGolden_phone_compact_8dbe636a_0.png" alt="Smart Movie Android native Home on a compact phone" width="330"></td>
-    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TabletHomeGolden_tablet_expanded_97f2797e_0.png" alt="Smart Movie Android native Home on an expanded tablet" width="760"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/PhoneHomeGolden_phone_compact_8dbe636a_0.png" alt="Smart Movie Android native Home on a compact phone" width="330"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TabletHomeGolden_tablet_expanded_97f2797e_0.png" alt="Smart Movie Android native Home on an expanded tablet" width="760"></td>
   </tr>
 </table>
 
@@ -67,8 +67,8 @@ Missing thumbnails? See the shared [image loading diagnosis and production check
     <td width="28%" align="center"><strong>Wear OS</strong><br><sub>Safe title/episode remote and phone handoff</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TvHomeGolden_tv_1080p_b8c175df_0.png" alt="Smart Movie Android Home on Android TV" width="760"></td>
-    <td align="center"><img src="wear/src/screenshotTestDebug/reference/com/lamndt/smartmovie/wear/WearRemoteGoldenPreviewKt/WearRemoteGolden_wear_round_remote_a6040ff4_0.png" alt="Smart Movie Android companion remote on Wear OS" width="280"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TvHomeGolden_tv_1080p_b8c175df_0.png" alt="Smart Movie Android Home on Android TV" width="760"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/wear/src/screenshotTestDebug/reference/com/lamndt/smartmovie/wear/WearRemoteGoldenPreviewKt/WearRemoteGolden_wear_round_remote_a6040ff4_0.png" alt="Smart Movie Android companion remote on Wear OS" width="280"></td>
   </tr>
 </table>
 
@@ -83,9 +83,9 @@ The isolated KMP app shares its Kotlin data and Compose UI across macOS, Windows
     <td width="25%" align="center"><strong>Profile</strong><br><sub>TMDb auth, region and adult-content PIN</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/images/screenshots/multiplatform-home-desktop.png" alt="Smart Movie Compose Multiplatform Home on desktop" width="720"></td>
-    <td align="center"><img src="docs/images/screenshots/multiplatform-detail-phone.png" alt="Smart Movie Compose Multiplatform title detail" width="300"></td>
-    <td align="center"><img src="docs/images/screenshots/multiplatform-profile-phone.png" alt="Smart Movie Compose Multiplatform Profile" width="300"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-home-desktop.png" alt="Smart Movie Compose Multiplatform Home on desktop" width="720"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-detail-phone.png" alt="Smart Movie Compose Multiplatform title detail" width="300"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-profile-phone.png" alt="Smart Movie Compose Multiplatform Profile" width="300"></td>
   </tr>
 </table>
 

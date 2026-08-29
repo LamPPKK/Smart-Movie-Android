@@ -72,7 +72,7 @@
     <string name="alternative_titles">대체 제목</string>
     <string name="translations">번역</string>
     <string name="external_identifiers">외부 식별자</string>
-    <string name="catalog_metadata_description">TMDb 이미지, 동영상, 리뷰, 추천, 공개 정보, 현지화 및 외부 식별자를 확인하세요. 기기 내 성인 콘텐츠 PIN은 검색과 인물, 컬렉션, 제작사, 네트워크, 키워드 및 크레딧 상세의 모든 관련 화면에 적용됩니다.</string>
+    <string name="catalog_metadata_description">TMDb 이미지, 동영상, 리뷰, 추천, 공개 정보, 현지화 및 외부 식별자를 확인하세요. 이미지는 정규화된 TMDb CDN URL을 사용하며 사용할 수 없을 때 자리 표시자를 보여 줍니다. 기기 내 성인 콘텐츠 PIN은 검색과 인물, 컬렉션, 제작사, 네트워크, 키워드 및 크레딧 상세의 모든 관련 화면에 적용됩니다.</string>
     <string name="account_sync_description">TMDb를 통해 로그인하여 즐겨찾기, 시청 목록, 평점, 추천, 영화/TV 혼합 목록을 동기화하세요. 오프라인 변경은 안전하게 저장되고 재시도됩니다.</string>
     <string name="companion_episode_description">Wear OS는 Android에서 연 안전한 작품이나 정확한 에피소드를 표시하고 별도 로그인 없이 상세 화면으로 돌아갑니다.</string>
     <string name="details">세부 정보</string>

@@ -5,7 +5,10 @@ import com.lamndt.smartmovie.model.ImageKind
 
 class ImageUrlFactory(private val configuration: () -> ImageConfiguration) {
     fun url(path: String?, kind: ImageKind): String? {
-        if (path.isNullOrBlank()) return null
+        val normalizedPath = path?.trim()?.takeIf(String::isNotEmpty) ?: return null
+        if (normalizedPath.startsWith("https://") || normalizedPath.startsWith("http://")) {
+            return normalizedPath
+        }
         val config = configuration()
         val available = when (kind) {
             ImageKind.POSTER -> config.posterSizes
@@ -17,6 +20,6 @@ class ImageUrlFactory(private val configuration: () -> ImageConfiguration) {
             ImageKind.BACKDROP -> listOf("w1280", "w780")
             ImageKind.PROFILE -> listOf("w185", "h632")
         }.firstOrNull(available::contains) ?: available.firstOrNull() ?: "original"
-        return config.secureBaseUrl.trimEnd('/') + "/" + preferred + "/" + path.trimStart('/')
+        return config.secureBaseUrl.trimEnd('/') + "/" + preferred + "/" + normalizedPath.trimStart('/')
     }
 }

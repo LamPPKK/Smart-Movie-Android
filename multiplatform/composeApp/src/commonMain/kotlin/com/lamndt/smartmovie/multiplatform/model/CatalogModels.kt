@@ -167,16 +167,23 @@ fun preferredTrailer(videos: List<Video>, language: String): Video? {
 }
 
 class ImageUrlFactory(private val configuration: ImageConfiguration) {
-    fun poster(path: String?, expanded: Boolean = false): String? = path?.let {
-        configuration.secureBaseUrl + preferred(configuration.posterSizes, if (expanded) "w500" else "w342") + it
-    }
+    fun poster(path: String?, expanded: Boolean = false): String? = url(
+        path = path,
+        sizes = configuration.posterSizes,
+        target = if (expanded) "w500" else "w342",
+    )
 
-    fun backdrop(path: String?): String? = path?.let {
-        configuration.secureBaseUrl + preferred(configuration.backdropSizes, "w1280") + it
-    }
+    fun backdrop(path: String?): String? = url(path, configuration.backdropSizes, "w1280")
 
-    fun profile(path: String?): String? = path?.let {
-        configuration.secureBaseUrl + preferred(configuration.profileSizes, "w185") + it
+    fun profile(path: String?): String? = url(path, configuration.profileSizes, "w185")
+
+    private fun url(path: String?, sizes: List<String>, target: String): String? {
+        val normalizedPath = path?.trim()?.takeIf(String::isNotEmpty) ?: return null
+        if (normalizedPath.startsWith("https://") || normalizedPath.startsWith("http://")) {
+            return normalizedPath
+        }
+        return configuration.secureBaseUrl.trimEnd('/') + "/" +
+            preferred(sizes, target) + "/" + normalizedPath.trimStart('/')
     }
 
     private fun preferred(sizes: List<String>, target: String): String = when {

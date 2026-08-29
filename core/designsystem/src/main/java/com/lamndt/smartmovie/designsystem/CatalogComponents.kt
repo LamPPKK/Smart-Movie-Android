@@ -87,14 +87,16 @@ fun RemoteArtwork(
     contentScale: ContentScale = ContentScale.Crop,
 ) {
     Box(modifier = modifier.background(CinemaColors.Elevated), contentAlignment = Alignment.Center) {
-        if (url == null) {
-            Icon(
-                Icons.Default.BrokenImage,
-                contentDescription = contentDescription,
-                tint = CinemaColors.Muted.copy(alpha = 0.16f),
-                modifier = Modifier.size(38.dp),
-            )
-        } else {
+        // Keep the fallback behind the request. Coil renders no drawable when a
+        // remote request fails, so the card still communicates missing artwork
+        // instead of becoming an unexplained empty rectangle.
+        Icon(
+            Icons.Default.BrokenImage,
+            contentDescription = if (url == null) contentDescription else null,
+            tint = CinemaColors.Muted.copy(alpha = 0.16f),
+            modifier = Modifier.size(38.dp),
+        )
+        if (url != null) {
             AsyncImage(
                 model = url,
                 contentDescription = contentDescription,

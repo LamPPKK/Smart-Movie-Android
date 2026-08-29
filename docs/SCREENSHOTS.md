@@ -13,9 +13,9 @@ The same Kotlin UI/data layer powers native desktop packages for macOS, Windows 
     <td width="33%" align="center"><strong>Search</strong><br><sub>Catalog/external ID and entity scopes</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="images/screenshots/multiplatform-home-phone.png" alt="Smart Movie Compose Multiplatform Home on a compact screen" width="390"></td>
-    <td align="center"><img src="images/screenshots/multiplatform-explore-phone.png" alt="Smart Movie Compose Multiplatform Explore on a compact screen" width="390"></td>
-    <td align="center"><img src="images/screenshots/multiplatform-search-phone.png" alt="Smart Movie Compose Multiplatform Search on a compact screen" width="390"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-home-phone.png" alt="Smart Movie Compose Multiplatform Home on a compact screen" width="390"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-explore-phone.png" alt="Smart Movie Compose Multiplatform Explore on a compact screen" width="390"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-search-phone.png" alt="Smart Movie Compose Multiplatform Search on a compact screen" width="390"></td>
   </tr>
   <tr>
     <td width="33%" align="center"><strong>Detail</strong><br><sub>Typed metadata, trailer and library actions</sub></td>
@@ -23,9 +23,9 @@ The same Kotlin UI/data layer powers native desktop packages for macOS, Windows 
     <td width="33%" align="center"><strong>Profile</strong><br><sub>TMDb auth, region and adult-content PIN</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="images/screenshots/multiplatform-detail-phone.png" alt="Smart Movie Compose Multiplatform title detail" width="390"></td>
-    <td align="center"><img src="images/screenshots/multiplatform-library-phone.png" alt="Smart Movie Compose Multiplatform Library" width="390"></td>
-    <td align="center"><img src="images/screenshots/multiplatform-profile-phone.png" alt="Smart Movie Compose Multiplatform Profile" width="390"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-detail-phone.png" alt="Smart Movie Compose Multiplatform title detail" width="390"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-library-phone.png" alt="Smart Movie Compose Multiplatform Library" width="390"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-profile-phone.png" alt="Smart Movie Compose Multiplatform Profile" width="390"></td>
   </tr>
 </table>
 
@@ -34,7 +34,7 @@ The same Kotlin UI/data layer powers native desktop packages for macOS, Windows 
 At larger widths, navigation moves to a rail and content density increases. This same responsive composition is shipped by desktop JVM, JS and Wasm targets.
 
 <p align="center">
-  <img src="images/screenshots/multiplatform-home-desktop.png" alt="Smart Movie Compose Multiplatform expanded Home" width="960">
+  <img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/docs/images/screenshots/multiplatform-home-desktop.png" alt="Smart Movie Compose Multiplatform expanded Home" width="960">
 </p>
 
 ## Native Android form factors
@@ -46,7 +46,7 @@ These committed Roborazzi baselines exercise the cinematic palette, typography, 
 The compact golden covers the native Home hero and horizontal catalog shelves used by Android phones.
 
 <p align="center">
-  <img src="../app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/PhoneHomeGolden_phone_compact_8dbe636a_0.png" alt="Smart Movie Android native phone Home golden" width="390">
+  <img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/PhoneHomeGolden_phone_compact_8dbe636a_0.png" alt="Smart Movie Android native phone Home golden" width="390">
 </p>
 
 ### Tablet, foldable, ChromeOS and Android XR Home Space
@@ -54,7 +54,7 @@ The compact golden covers the native Home hero and horizontal catalog shelves us
 Expanded windows increase shelf density and use adaptive navigation. The same 2D composition covers tablets, unfolded devices, resizable ChromeOS windows and XR Home Space panels.
 
 <p align="center">
-  <img src="../app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TabletHomeGolden_tablet_expanded_97f2797e_0.png" alt="Smart Movie Android expanded tablet Home golden" width="960">
+  <img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TabletHomeGolden_tablet_expanded_97f2797e_0.png" alt="Smart Movie Android expanded tablet Home golden" width="960">
 </p>
 
 ### Android TV
@@ -62,7 +62,7 @@ Expanded windows increase shelf density and use adaptive navigation. The same 2D
 The dedicated 10-foot composition provides high-visibility focus treatment, D-pad traversal and retained focus when returning from details.
 
 <p align="center">
-  <img src="../app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TvHomeGolden_tv_1080p_b8c175df_0.png" alt="Smart Movie Android TV Home golden" width="960">
+  <img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/app/src/screenshotTestDebug/reference/com/lamndt/smartmovie/CinematicGoldenPreviewsKt/TvHomeGolden_tv_1080p_b8c175df_0.png" alt="Smart Movie Android TV Home golden" width="960">
 </p>
 
 ### Wear OS companion
@@ -70,7 +70,7 @@ The dedicated 10-foot composition provides high-visibility focus treatment, D-pa
 Wear OS mirrors only the safe title or exact episode open on the paired phone. A title can hand off to detail/trailer/library actions; an episode hands off to the exact series, season and episode and never exposes adult content.
 
 <p align="center">
-  <img src="../wear/src/screenshotTestDebug/reference/com/lamndt/smartmovie/wear/WearRemoteGoldenPreviewKt/WearRemoteGolden_wear_round_remote_a6040ff4_0.png" alt="Smart Movie Wear OS remote golden" width="320">
+  <img src="https://raw.githubusercontent.com/LamPPKK/Smart-Movie-Android/main/wear/src/screenshotTestDebug/reference/com/lamndt/smartmovie/wear/WearRemoteGoldenPreviewKt/WearRemoteGolden_wear_round_remote_a6040ff4_0.png" alt="Smart Movie Wear OS remote golden" width="320">
 </p>
 
 ## Capture provenance

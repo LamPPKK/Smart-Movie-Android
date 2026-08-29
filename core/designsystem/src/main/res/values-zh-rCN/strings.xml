@@ -72,7 +72,7 @@
     <string name="alternative_titles">其他片名</string>
     <string name="translations">翻译</string>
     <string name="external_identifiers">外部标识符</string>
-    <string name="catalog_metadata_description">查看 TMDb 图片、视频、影评、推荐、发行信息、本地化内容和外部标识符。本地成人内容 PIN 适用于搜索及人物、合集、公司、电视网、关键词和演职员详情的所有相关页面。</string>
+    <string name="catalog_metadata_description">查看 TMDb 图片、视频、影评、推荐、发行信息、本地化内容和外部标识符。图片使用规范化的 TMDb CDN URL；不可用时会显示占位图。本地成人内容 PIN 适用于搜索及人物、合集、公司、电视网、关键词和演职员详情的所有相关页面。</string>
     <string name="account_sync_description">通过 TMDb 登录，同步收藏、观看列表、评分、推荐及电影/电视混合片单；离线更改会持久保存并安全重试。</string>
     <string name="companion_episode_description">Wear OS 会显示 Android 上打开的安全影视条目或准确剧集，并可在无需单独登录的情况下返回详情。</string>
     <string name="details">详细信息</string>
